@@ -1,0 +1,44 @@
+# 상황별 조건을 지정하는 파일입니다. 상황은 조건들에 의해 트리거됩니다.
+# 각 상황은 콤마(,)로 구분되며, 조건들은 파이프(|)로 구분됩니다.
+# 예: wet clothes,water|light rain|misty|drizzling|rainy
+
+situation,conditions
+wet clothes,water|light rain|misty|drizzling|rainy
+sweating,sunny|humid
+shivering,snowy|snow flurries|blizzard|frosty
+# sunburn 상황은 해변이나 열대 조건에서 발생합니다.
+sunburn,beach|tropical
+dim lighting,evening|night|dusk
+blowing hair,windy
+surrounded by trees,forest
+high altitude,mountain|cliff
+vast landscape,prairie|savannah
+rocky terrain,canyon
+icy conditions,glacier
+low visibility,foggy|misty
+rows of grapevines,vineyard
+morning dew,morning|late morning
+blooming flowers,flower
+stepped fields,rice terraces
+colorful flowers,tulip fields
+dry air,dry
+calm water,lakeside
+dramatic cliffs,coastal cliffs
+rocky coast,rocky shore
+warm light,sunset|golden hour
+dense foliage,tropical rainforest
+cloudy sky,overcast
+falling leaves,autumn forest
+dry grassland,savannah
+setting sun,sunset beach
+heavy snow,blizzard
+on a boat, water|lake|river
+snow-covered trees, snow|frosty
+desert, desert|dry
+rainy street, rain|urban|city
+busy market, market|busy
+quiet library, library|quiet
+windy beach, windy|beach
+green grassland, grassland|green
+foggy mountain, fog|mountain
+starry night sky, night|stars

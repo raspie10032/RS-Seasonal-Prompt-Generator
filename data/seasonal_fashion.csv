@@ -1,0 +1,166 @@
+season,category,item
+spring,top,light jacket
+spring,top,floral blouse
+spring,top,cardigan
+spring,top,pastel blouse
+spring,top,lightweight sweater
+spring,top,spring scarf
+spring,bottom,denim skirt
+spring,bottom,ankle boots
+spring,bottom,flats
+spring,bottom,capris
+spring,bottom,culottes
+spring,bottom,tulle skirt
+spring,one_piece,floral dress
+spring,one_piece,pastel jumpsuit
+spring,one_piece,sundress
+spring,accessory,light scarf
+spring,accessory,sunglasses
+spring,accessory,bracelet
+spring,accessory,anklet
+spring,hat,sunhat
+spring,hat,beret
+spring,hat,wide-brim hat
+summer,top,tank top
+summer,top,t-shirt
+summer,top,cropped top
+summer,top,halter top
+summer,top,bikini top
+summer,bottom,shorts
+summer,bottom,swim trunks
+summer,bottom,mini skirt
+summer,bottom,board shorts
+summer,bottom,linen pants
+summer,bottom,sarong
+summer,one_piece,sundress
+summer,one_piece,romper
+summer,one_piece,swimsuit
+summer,accessory,sunglasses
+summer,accessory,beach bag
+summer,accessory,shell necklace
+summer,accessory,bracelets
+summer,hat,sunhat
+summer,hat,visor
+summer,hat,baseball cap
+autumn,top,sweater
+autumn,top,cardigan
+autumn,top,flannel shirt
+autumn,top,knitted top
+autumn,top,blazer
+autumn,bottom,jeans
+autumn,bottom,ankle boots
+autumn,bottom,corduroy pants
+autumn,bottom,tweed skirt
+autumn,bottom,leggings
+autumn,bottom,culottes
+autumn,one_piece,sweater dress
+autumn,one_piece,plaid dress
+autumn,one_piece,long sleeve dress
+autumn,accessory,scarf
+autumn,accessory,beanie
+autumn,accessory,fingerless gloves
+autumn,accessory,necklace
+autumn,hat,beret
+autumn,hat,felt hat
+autumn,hat,knit cap
+winter,top,wool sweater
+winter,top,thermal top
+winter,top,turtleneck
+winter,top,fleece jacket
+winter,top,puffer coat
+winter,bottom,thermal leggings
+winter,bottom,snow pants
+winter,bottom,wool skirt
+winter,bottom,corduroy pants
+winter,bottom,jeans
+winter,bottom,lined trousers
+winter,one_piece,puffer coat dress
+winter,one_piece,knit dress
+winter,one_piece,wool dress
+winter,accessory,gloves
+winter,accessory,scarf
+winter,accessory,earmuffs
+winter,accessory,wool socks
+winter,hat,beanie
+winter,hat,fur hat
+winter,hat,knit cap
+spring,top,t-shirt
+spring,top,tank top
+spring,top,long sleeve shirt
+spring,bottom,shorts
+spring,bottom,jeans
+spring,bottom,skirt
+spring,one_piece,dress
+spring,accessory,sunglasses
+spring,accessory,scarf
+spring,hat,baseball cap
+spring,hat,beanie
+spring,shoes,sneakers
+spring,shoes,sandals
+spring,shoes,boots
+spring,shoes,flip-flops
+spring,top,hoodie
+spring,bottom,leggings
+spring,one_piece,romper
+spring,accessory,watch
+spring,hat,sun hat
+summer,top,sleeveless shirt
+summer,top,crop top
+summer,top,polo shirt
+summer,bottom,cargo shorts
+summer,bottom,swim trunks
+summer,bottom,capri pants
+summer,one_piece,maxi dress
+summer,accessory,beach bag
+summer,accessory,straw hat
+summer,hat,visor
+summer,hat,bucket hat
+summer,shoes,water shoes
+summer,shoes,espadrilles
+summer,shoes,flip-flops
+summer,shoes,loafers
+summer,top,tankini
+summer,bottom,board shorts
+summer,one_piece,swimsuit
+summer,accessory,anklet
+summer,hat,bandana
+autumn,top,flannel shirt
+autumn,top,turtleneck
+autumn,top,sweater
+autumn,bottom,corduroy pants
+autumn,bottom,khakis
+autumn,bottom,wool skirt
+autumn,one_piece,coat dress
+autumn,accessory,gloves
+autumn,accessory,knitted scarf
+autumn,hat,fedora
+autumn,hat,newsboy cap
+autumn,shoes,ankle boots
+autumn,shoes,leather boots
+autumn,shoes,oxford shoes
+autumn,shoes,moccasins
+autumn,top,cardigan sweater
+autumn,bottom,tweed pants
+autumn,one_piece,poncho
+autumn,accessory,wristwatch
+autumn,hat,beret
+winter,top,thermal shirt
+winter,top,heavy sweater
+winter,top,down jacket
+winter,bottom,thermal pants
+winter,bottom,fleece leggings
+winter,bottom,snow pants
+winter,one_piece,wool coat
+winter,accessory,earmuffs
+winter,accessory,wool gloves
+winter,hat,knit beanie
+winter,hat,trapper hat
+winter,shoes,snow boots
+winter,shoes,insulated boots
+winter,shoes,winter clogs
+winter,shoes,fur-lined boots
+winter,top,hoodie
+winter,bottom,joggers
+winter,one_piece,parka
+winter,accessory,neck gaiter
+winter,hat,wool hat
