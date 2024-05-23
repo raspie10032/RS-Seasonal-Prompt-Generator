@@ -1,121 +1,121 @@
 season,classification,background
-spring,outdoor, garden
-spring,outdoor, park
-spring,outdoor, forest path
-spring,outdoor, flower meadow
-spring,outdoor, tulip fields
-spring,outdoor, cherry blossom street
-spring,outdoor, riverside
-spring,outdoor, lake view
-spring,outdoor, mountain trail
-spring,outdoor, countryside
-spring,outdoor, vineyard
-spring,outdoor, open field
-spring,outdoor, urban park
-spring,outdoor, botanical garden
-spring,outdoor, rose garden
-spring,outdoor, nature reserve
-spring,outdoor, scenic overlook
-spring,outdoor, walking trail
-spring,outdoor, lakeside
-spring,outdoor, city garden
-spring,indoor, garden
-spring,indoor, cozy cafe
-spring,indoor, library
-spring,indoor, conservatory
-spring,indoor, tea house
-spring,indoor, greenhouse
-spring,indoor, art studio
-spring,indoor, shopping mall
-spring,indoor, museum
-spring,indoor, park
-summer,outdoor, beach
-summer,outdoor, poolside
-summer,outdoor, summer festival
-summer,outdoor, mountain hike
-summer,outdoor, forest trail
-summer,outdoor, seaside cliffs
-summer,outdoor, tropical garden
-summer,outdoor, lake shore
-summer,outdoor, riverbank
-summer,outdoor, campsite
-summer,outdoor, amusement park
-summer,outdoor, city rooftop
-summer,outdoor, fishing pier
-summer,outdoor, botanical garden
-summer,outdoor, hiking trail
-summer,outdoor, outdoor, concert
-summer,outdoor, vineyard
-summer,outdoor, canyon
-summer,outdoor, national park
-summer,outdoor, summer camp
-summer,indoor, pool
-summer,indoor, summer festival hall
-summer,indoor, aquarium
-summer,indoor, market
-summer,indoor, arcade
-summer,indoor, amusement park
-summer,indoor, art gallery
-summer,indoor, museum
-summer,indoor, shopping mall
-summer,indoor, stadium
-autumn,outdoor, forest
-autumn,outdoor, harvest field
-autumn,outdoor, autumn market
-autumn,outdoor, pumpkin patch
-autumn,outdoor, vineyard
-autumn,outdoor, corn maze
-autumn,outdoor, apple orchard
-autumn,outdoor, hiking trail
-autumn,outdoor, city park
-autumn,outdoor, mountain path
-autumn,outdoor, lakeside
-autumn,outdoor, riverside
-autumn,outdoor, countryside
-autumn,outdoor, botanical garden
-autumn,outdoor, scenic overlook
-autumn,outdoor, woodland trail
-autumn,outdoor, national park
-autumn,outdoor, farm
-autumn,outdoor, sunflower field
-autumn,outdoor, autumn fair
-autumn,indoor, cozy library
-autumn,indoor, autumn market hall
-autumn,indoor, conservatory
-autumn,indoor, coffee shop
-autumn,indoor, reading nook
-autumn,indoor, cabin interior
-autumn,indoor, art studio
-autumn,indoor, garden
-autumn,indoor, greenhouse
-autumn,indoor, shopping mall
-winter,outdoor, snowy field
-winter,outdoor, cozy cabin
-winter,outdoor, winter market
-winter,outdoor, ice rink
-winter,outdoor, snow-covered forest
-winter,outdoor, frozen lake
-winter,outdoor, ski resort
-winter,outdoor, snowy village
-winter,outdoor, mountain cabin
-winter,outdoor, winter park
-winter,outdoor, snowy hillside
-winter,outdoor, city square
-winter,outdoor, frozen waterfall
-winter,outdoor, countryside
-winter,outdoor, scenic overlook
-winter,outdoor, winter wonderland
-winter,outdoor, snowy trail
-winter,outdoor, frozen river
-winter,outdoor, ski slope
-winter,outdoor, snowy fair
-winter,indoor, fireplace
-winter,indoor, winter market hall
-winter,indoor, cozy living room
-winter,indoor, cabin interior
-winter,indoor, skating rink
-winter,indoor, lodge
-winter,indoor, cafe
-winter,indoor, art gallery
-winter,indoor, museum
-winter,indoor, shopping mall
+spring,outdoor,garden
+spring,outdoor,park
+spring,outdoor,forest path
+spring,outdoor,flower meadow
+spring,outdoor,tulip fields
+spring,outdoor,cherry blossom street
+spring,outdoor,riverside
+spring,outdoor,lake view
+spring,outdoor,mountain trail
+spring,outdoor,countryside
+spring,outdoor,vineyard
+spring,outdoor,open field
+spring,outdoor,urban park
+spring,outdoor,botanical garden
+spring,outdoor,rose garden
+spring,outdoor,nature reserve
+spring,outdoor,scenic overlook
+spring,outdoor,walking trail
+spring,outdoor,lakeside
+spring,outdoor,city garden
+spring,indoor,garden
+spring,indoor,cozy cafe
+spring,indoor,library
+spring,indoor,conservatory
+spring,indoor,tea house
+spring,indoor,greenhouse
+spring,indoor,art studio
+spring,indoor,shopping mall
+spring,indoor,museum
+spring,indoor,park
+summer,outdoor,beach
+summer,outdoor,poolside
+summer,outdoor,summer festival
+summer,outdoor,mountain hike
+summer,outdoor,forest trail
+summer,outdoor,seaside cliffs
+summer,outdoor,tropical garden
+summer,outdoor,lake shore
+summer,outdoor,riverbank
+summer,outdoor,campsite
+summer,outdoor,amusement park
+summer,outdoor,city rooftop
+summer,outdoor,fishing pier
+summer,outdoor,botanical garden
+summer,outdoor,hiking trail
+summer,outdoor,outdoor,concert
+summer,outdoor,vineyard
+summer,outdoor,canyon
+summer,outdoor,national park
+summer,outdoor,summer camp
+summer,indoor,pool
+summer,indoor,summer festival hall
+summer,indoor,aquarium
+summer,indoor,market
+summer,indoor,arcade
+summer,indoor,amusement park
+summer,indoor,art gallery
+summer,indoor,museum
+summer,indoor,shopping mall
+summer,indoor,stadium
+autumn,outdoor,forest
+autumn,outdoor,harvest field
+autumn,outdoor,autumn market
+autumn,outdoor,pumpkin patch
+autumn,outdoor,vineyard
+autumn,outdoor,corn maze
+autumn,outdoor,apple orchard
+autumn,outdoor,hiking trail
+autumn,outdoor,city park
+autumn,outdoor,mountain path
+autumn,outdoor,lakeside
+autumn,outdoor,riverside
+autumn,outdoor,countryside
+autumn,outdoor,botanical garden
+autumn,outdoor,scenic overlook
+autumn,outdoor,woodland trail
+autumn,outdoor,national park
+autumn,outdoor,farm
+autumn,outdoor,sunflower field
+autumn,outdoor,autumn fair
+autumn,indoor,cozy library
+autumn,indoor,autumn market hall
+autumn,indoor,conservatory
+autumn,indoor,coffee shop
+autumn,indoor,reading nook
+autumn,indoor,cabin interior
+autumn,indoor,art studio
+autumn,indoor,garden
+autumn,indoor,greenhouse
+autumn,indoor,shopping mall
+winter,outdoor,snowy field
+winter,outdoor,cozy cabin
+winter,outdoor,winter market
+winter,outdoor,ice rink
+winter,outdoor,snow-covered forest
+winter,outdoor,frozen lake
+winter,outdoor,ski resort
+winter,outdoor,snowy village
+winter,outdoor,mountain cabin
+winter,outdoor,winter park
+winter,outdoor,snowy hillside
+winter,outdoor,city square
+winter,outdoor,frozen waterfall
+winter,outdoor,countryside
+winter,outdoor,scenic overlook
+winter,outdoor,winter wonderland
+winter,outdoor,snowy trail
+winter,outdoor,frozen river
+winter,outdoor,ski slope
+winter,outdoor,snowy fair
+winter,indoor,fireplace
+winter,indoor,winter market hall
+winter,indoor,cozy living room
+winter,indoor,cabin interior
+winter,indoor,skating rink
+winter,indoor,lodge
+winter,indoor,cafe
+winter,indoor,art gallery
+winter,indoor,museum
+winter,indoor,shopping mall

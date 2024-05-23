@@ -73,6 +73,7 @@ class SeasonalFashionPromptNode:
         accessories = [item[1] for item in fashion_category if item[0] == "accessory"]
         hats = [item[1] for item in fashion_category if item[0] == "hat"]
         shoes = [item[1] for item in fashion_category if item[0] == "shoes"]
+        socks = [item[1] for item in fashion_category if item[0] == "socks"]  # 양말 항목 추가
 
         top = get_random_element(tops) if tops else ""
         bottom = get_random_element(bottoms) if bottoms else ""
@@ -80,12 +81,13 @@ class SeasonalFashionPromptNode:
         accessory = get_random_element(accessories) if accessories else ""
         hat = get_random_element(hats) if hats else ""
         shoe = get_random_element(shoes) if shoes else ""
+        sock = get_random_element(socks) if socks else ""  # 양말 선택
 
         # 상의/하의 또는 원피스 선택
         if random.choice([True, False]) and (top or bottom):
-            fashion = ", ".join(filter(None, [top, bottom, accessory, hat, shoe]))
+            fashion = ", ".join(filter(None, [top, bottom, sock, accessory, hat, shoe]))
         else:
-            fashion = ", ".join(filter(None, [one_piece, accessory, hat, shoe]))
+            fashion = ", ".join(filter(None, [one_piece, sock, accessory, hat, shoe]))
 
         background_info = get_random_element(seasonal_backgrounds[season])
         background_classification = background_info[0]
