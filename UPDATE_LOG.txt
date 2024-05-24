@@ -1,0 +1,62 @@
+# 한국어
+2024년 5월 24일
+
+1. CSV 데이터 로드 함수 구현:
+load_data_from_csv: CSV 파일에서 데이터를 로드하는 함수 추가.
+load_list_from_csv: CSV 파일에서 리스트 데이터를 로드하는 함수 추가.
+load_additional_situations: 추가 상황 데이터를 로드하는 함수 추가.
+
+2. 시드 생성 수정:
+INPUT_TYPES 메서드에서 시드를 생성할 때 최대 16자리의 시드 값을 보장하기 위해 random.randint(0, 9999999999999999)를 사용.
+기본 시드 값을 최대 16자리로 설정.
+
+3. 시드 제한 로직 추가:
+generate_prompt 함수 내에서 시드 값을 int로 변환할 때, 최대 16자리까지만 사용하도록 str(seed)[:16]을 사용하여 제한.
+시드가 16자리를 초과하는 경우 앞의 16자리까지만 사용하여 안전하게 처리.
+
+4. 계절 선택 기능 개선:
+계절 선택에 'random' 옵션을 추가하여 사용자가 계절을 직접 선택하거나 랜덤으로 선택할 수 있도록 개선.
+season 파라미터가 "random"인 경우, 랜덤으로 계절을 선택하는 로직 추가.
+
+5. CSV 파일 절대 경로 설정:
+모든 CSV 파일 경로를 data 디렉토리를 기준으로 절대 경로로 설정.
+data_dir 변수를 사용하여 경로 설정.
+seasonal_fashion_path, seasonal_backgrounds_path, seasonal_weather_path, seasonal_times_path, additional_situations_path, general_composition_path, gaze_direction_path, poses_path, body_directions_path 경로 설정 및 사용.
+
+6. 프롬프트 생성 함수 구현:
+계절에 맞는 패션 아이템 로드.
+상의/하의 또는 원피스 선택.
+배경, 날씨, 시간 등의 정보 로드.
+추가 상황 선택.
+프롬프트 생성.
+
+# English
+May 24th, 2024
+
+1. Implementing CSV Data Loading Functions:
+load_data_from_csv: Added a function to load data from a CSV file.
+load_list_from_csv: Added a function to load list data from a CSV file.
+load_additional_situations: Added a function to load additional situation data.
+
+2. Modifying Seed Generation:
+Used random.randint(0, 9999999999999999) in the INPUT_TYPES method to ensure a maximum 16-digit seed value.
+Set the default seed value to a maximum of 16 digits.
+
+3. Adding Seed Limitation Logic:
+Added logic within the generate_prompt function to limit the seed value to 16 digits when converting it to an integer, using str(seed)[:16].
+Safely handles cases where the seed exceeds 16 digits by using only the first 16 digits.
+
+4. Improving Season Selection Feature:
+Added a 'random' option to season selection, allowing users to either choose a season directly or select one randomly.
+Added logic to randomly select a season when the season parameter is set to "random".
+
+5. Setting Absolute Paths for CSV Files:
+Set all CSV file paths relative to the data directory as absolute paths.
+Set paths for seasonal_fashion_path, seasonal_backgrounds_path, seasonal_weather_path, seasonal_times_path, additional_situations_path, general_composition_path, gaze_direction_path, poses_path, and body_directions_path using the data_dir variable.
+
+6. Implementing Prompt Generation Function:
+Load fashion items corresponding to the season.
+Select tops/bottoms or dresses.
+Load information such as background, weather, time, etc.
+Select additional situations.
+Generate the prompt.

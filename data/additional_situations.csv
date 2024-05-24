@@ -1,44 +1,60 @@
-# 상황별 조건을 지정하는 파일입니다. 상황은 조건들에 의해 트리거됩니다.
-# 각 상황은 콤마(,)로 구분되며, 조건들은 파이프(|)로 구분됩니다.
-# 예: wet clothes,water|light rain|misty|drizzling|rainy
-
-situation,conditions
-wet clothes,water|light rain|misty|drizzling|rainy
-sweating,sunny|humid
-shivering,snowy|snow flurries|blizzard|frosty
-# sunburn 상황은 해변이나 열대 조건에서 발생합니다.
-sunburn,beach|tropical
-dim lighting,evening|night|dusk
-blowing hair,windy
-surrounded by trees,forest
-high altitude,mountain|cliff
-vast landscape,prairie|savannah
-rocky terrain,canyon
-icy conditions,glacier
-low visibility,foggy|misty
-rows of grapevines,vineyard
-morning dew,morning|late morning
-blooming flowers,flower
-stepped fields,rice terraces
-colorful flowers,tulip fields
-dry air,dry
-calm water,lakeside
-dramatic cliffs,coastal cliffs
-rocky coast,rocky shore
-warm light,sunset|golden hour
-dense foliage,tropical rainforest
-cloudy sky,overcast
-falling leaves,autumn forest
-dry grassland,savannah
-setting sun,sunset beach
-heavy snow,blizzard
-on a boat, water|lake|river
-snow-covered trees, snow|frosty
-desert, desert|dry
-rainy street, rain|urban|city
-busy market, market|busy
-quiet library, library|quiet
-windy beach, windy|beach
-green grassland, grassland|green
-foggy mountain, fog|mountain
-starry night sky, night|stars
+situation,conditions,description
+wet_clothes,water|light rain|misty|drizzling|rainy,wet clothes due to light rain or mist
+sweating,sunny|humid,sweating due to sunny or humid weather
+shivering,snowy|snow flurries|blizzard|frosty,shivering due to snowy or frosty conditions
+sunburn,beach|tropical,sunburn from tropical or beach weather
+dim_lighting,evening|night|dusk,dim lighting in the evening or night
+blowing_hair,windy,hair blowing in the wind
+surrounded_by_trees,forest,surrounded by trees in a forest
+high_altitude,mountain|cliff,feeling the high altitude in the mountains or on a cliff
+vast_landscape,prairie|savannah,seeing a vast landscape of prairie or savannah
+rocky_terrain,canyon,walking through rocky terrain in a canyon
+icy_conditions,glacier,experiencing icy conditions on a glacier
+low_visibility,foggy|misty,low visibility due to fog or mist
+rows_of_grapevines,vineyard,walking through rows of grapevines in a vineyard
+morning_dew,morning|late morning,morning dew present
+blooming_flowers,flower,seeing blooming flowers
+stepped_fields,rice terraces,viewing stepped fields in rice terraces
+colorful_flowers,tulip fields,seeing colorful flowers in tulip fields
+dry_air,dry,experiencing dry air
+calm_water,lakeside,seeing calm water by the lakeside
+dramatic_cliffs,coastal cliffs,seeing dramatic cliffs on the coast
+rocky_coast,rocky shore,walking on a rocky coast
+warm_light,sunset|golden hour,experiencing warm light at sunset or golden hour
+dense_foliage,tropical rainforest,being surrounded by dense foliage in a tropical rainforest
+cloudy_sky,overcast,seeing a cloudy sky
+falling_leaves,autumn forest,seeing falling leaves in an autumn forest
+dry_grassland,savannah,walking through dry grassland in a savannah
+setting_sun,sunset beach,seeing the setting sun on a beach
+heavy_snow,blizzard,experiencing heavy snow in a blizzard
+on_a_boat,water|lake|river,being on a boat on a lake or river
+snow_covered_trees,snow|frosty,seeing snow-covered trees
+desert,desert|dry,walking through a desert
+rainy_street,rain|urban|city,walking on a rainy street in the city
+busy_market,market|busy,being in a busy market
+quiet_library,library|quiet,being in a quiet library
+windy_beach,windy|beach,being on a windy beach
+green_grassland,grassland|green,walking through green grassland
+foggy_mountain,fog|mountain,seeing a foggy mountain
+starry_night_sky,night|stars,seeing a starry night sky
+hiking,trail|mountain,going hiking on a trail in the mountains
+camping,forest|mountain,going camping in the forest or mountains
+picnic,park|meadow,having a picnic in a park or meadow
+cityscape,urban|city,seeing a cityscape
+fireworks,night|celebration,seeing fireworks at night during a celebration
+starry_sky,night|clear,seeing a clear starry sky at night
+sunrise,morning|clear,seeing the sunrise on a clear morning
+sunset,evening|clear,seeing the sunset on a clear evening
+foggy_morning,foggy|morning,seeing a foggy morning
+harvest_time,autumn|fields,seeing harvest time in the autumn fields
+sunny_park,sunny|park,being in a sunny park
+rainy_day,rain|day,experiencing a rainy day
+snowy_path,snowy|path,walking on a snowy path
+winter_festival,festival|winter,experiencing a winter festival
+autumn_leaves,autumn|leaves,seeing autumn leaves
+spring_blossoms,spring|blossoms,seeing spring blossoms
+summer_heat,summer|heat,experiencing summer heat
+thunderstorm,storm|thunder,being in a thunderstorm
+rainbow,clear|rain,seeing a rainbow after rain
+lightning,storm|lightning,seeing lightning during a storm
+misty_forest,misty|forest,walking through a misty forest
