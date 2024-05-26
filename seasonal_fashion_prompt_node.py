@@ -76,6 +76,8 @@ class SeasonalFashionPromptNode:
         return {
             "required": {
                 "season": (["random", "spring", "summer", "autumn", "winter"],),  # 계절 선택 / Season selection, including random option
+                "background": (["random", "on", "off"],),  # 배경 선택 ON/OFF/RANDOM / Background selection ON/OFF/RANDOM
+                "wanna_shot": (["No", "Yes"],),  # 이스터에그 항목 추가 / Easter egg option added
                 "seed": ("INT", {"default": random.randint(0, 9999999999999999)}),  # 최대 16자리 시드 / Up to 16-digit seed
             }
         }
@@ -85,7 +87,10 @@ class SeasonalFashionPromptNode:
 
     # 프롬프트를 생성하는 함수
     # Function to generate a prompt
-    def generate_prompt(self, season, seed):
+    def generate_prompt(self, season, background, wanna_shot, seed):
+        if wanna_shot == "Yes":
+            return ("Cafe, coffee, holding a tumbler, straw inside the tumbler",)
+
         seed = int(str(seed)[:16])  # 시드를 최대 16자리로 제한 / Limit seed to maximum 16 digits
         random.seed(seed)  # 다른 결과를 보장하기 위해 시드 설정 / Set seed for different outcomes
 
@@ -93,6 +98,11 @@ class SeasonalFashionPromptNode:
         # Select a random season if 'random' is selected
         if season == "random":
             season = get_random_element(["spring", "summer", "autumn", "winter"])
+
+        # 랜덤 배경 선택
+        # Select a random background if 'random' is selected
+        if background == "random":
+            background = get_random_element(["on", "off"])
 
         # 계절에 맞는 패션 아이템 로드
         # Load fashion items for the season
@@ -120,36 +130,51 @@ class SeasonalFashionPromptNode:
         else:
             fashion = ", ".join(filter(None, [one_piece, sock, accessory, hat, shoe]))
 
-        # 배경, 날씨, 시간 등의 정보 로드
-        # Load background, weather, time, etc.
-        background_info = get_random_element(seasonal_backgrounds[season])
-        background_classification = background_info[0]
-        background = background_info[1]
-        weather = get_random_element([item[0] for item in seasonal_weather[season]])
-        time = get_random_element([item[0] for item in seasonal_times[season]])
         composition = get_random_element(general_composition)
         gaze = get_random_element(gaze_direction)
         pose = get_random_element(poses)
         body_direction = get_random_element(body_directions)
 
-        # 추가 상황 선택
-        # Select additional situations
-        situation_details = []
-        for situation, details in additional_situations.items():
-            conditions = details["conditions"]
-            if all(condition in [background_classification, weather, time] for condition in conditions):
-                situation_details.append(details["description"])
+        # 배경 설정
+        # Set background
+        if background == "on":
+            # 배경, 날씨, 시간 등의 정보 로드
+            # Load background, weather, time, etc.
+            background_info = get_random_element(seasonal_backgrounds[season])
+            background_classification = background_info[0]
+            background = background_info[1]
+            weather = get_random_element([item[0] for item in seasonal_weather[season]])
+            time = get_random_element([item[0] for item in seasonal_times[season]])
+            background_prompt = f"{background_classification}, {background}, {weather}, {time}"
 
-        additional_situation = ", ".join(situation_details)
+            # 추가 상황 선택
+            # Select additional situations
+            situation_details = []
+            for situation, details in additional_situations.items():
+                conditions = details["conditions"]
+                if all(condition in [background_classification, weather, time] for condition in conditions):
+                    situation_details.append(details["description"])
 
-        # 프롬프트 생성
-        # Generate the prompt
-        prompt = f"{season}, {fashion}, {composition}, {gaze}, {pose}, {body_direction}, {background_classification}, {background}, {weather}, {time}, {additional_situation}"
+            additional_situation = ", ".join(situation_details)
+            
+            # 프롬프트 생성
+            # Generate the prompt
+            prompt = f"{season}, {fashion}, {composition}, {gaze}, {pose}, {body_direction}, {background_prompt}, {additional_situation}"
+        else:
+            # 배경 OFF 시 단순 배경 색 설정 및 추가 상황 제거
+            # Set simple background color and remove additional situations when background is OFF
+            background_color = get_random_element(["white background", "grey background", "black background"])
+            background_prompt = f"simple background, {background_color}, standing cut"
+            additional_situation = ""
+            
+            # 프롬프트 생성
+            # Generate the prompt
+            prompt = f"{fashion}, {composition}, {gaze}, {pose}, {body_direction}, {background_prompt}"
 
         return (prompt,)
 
 # 예시 사용법
 # Example usage
 node = SeasonalFashionPromptNode()
-prompt = node.generate_prompt("random", random.randint(0, 9999999999999999))  # 최대 16자리 시드 예시 / Example of up to 16-digit seed value
+prompt = node.generate_prompt("random", "random", "No", random.randint(0, 9999999999999999))  # 최대 16자리 시드 예시 / Example of up to 16-digit seed value with background random
 print(prompt)

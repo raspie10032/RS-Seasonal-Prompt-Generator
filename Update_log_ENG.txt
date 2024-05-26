@@ -1,0 +1,40 @@
+May 26th, 2024
+1. Extended Background Selection Feature:
+Added random option to background selection.
+Added "random" option to the background parameter in the INPUT_TYPES method to allow random selection of background.
+Added logic in the generate_prompt function to randomly choose between "on" and "off" when background is set to "random".
+
+2. Easter Egg Feature Addition:
+Added a new choice wanna shot? with options Yes / No.
+Added wanna_shot parameter in the INPUT_TYPES method.
+Modified the generate_prompt function to generate a specific cafe-related prompt (e.g., "Cafe, coffee, holding a tumbler, straw inside the tumbler") if wanna_shot is set to "Yes", bypassing the regular prompt generation logic.
+
+May 24th, 2024
+
+1. Implementing CSV Data Loading Functions:
+load_data_from_csv: Added a function to load data from a CSV file.
+load_list_from_csv: Added a function to load list data from a CSV file.
+load_additional_situations: Added a function to load additional situation data.
+
+2. Modifying Seed Generation:
+Used random.randint(0, 9999999999999999) in the INPUT_TYPES method to ensure a maximum 16-digit seed value.
+Set the default seed value to a maximum of 16 digits.
+
+3. Adding Seed Limitation Logic:
+Added logic within the generate_prompt function to limit the seed value to 16 digits when converting it to an integer, using str(seed)[:16].
+Safely handles cases where the seed exceeds 16 digits by using only the first 16 digits.
+
+4. Improving Season Selection Feature:
+Added a 'random' option to season selection, allowing users to either choose a season directly or select one randomly.
+Added logic to randomly select a season when the season parameter is set to "random".
+
+5. Setting Absolute Paths for CSV Files:
+Set all CSV file paths relative to the data directory as absolute paths.
+Set paths for seasonal_fashion_path, seasonal_backgrounds_path, seasonal_weather_path, seasonal_times_path, additional_situations_path, general_composition_path, gaze_direction_path, poses_path, and body_directions_path using the data_dir variable.
+
+6. Implementing Prompt Generation Function:
+Load fashion items corresponding to the season.
+Select tops/bottoms or dresses.
+Load information such as background, weather, time, etc.
+Select additional situations.
+Generate the prompt.

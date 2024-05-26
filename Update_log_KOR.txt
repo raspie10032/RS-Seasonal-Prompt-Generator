@@ -1,4 +1,15 @@
-# 한국어
+2024년 5월 26일
+1. 배경 선택 기능 확장:
+배경 선택에 random 옵션 추가.
+INPUT_TYPES 메서드에서 background 파라미터에 "random" 옵션을 추가하여 배경을 랜덤으로 선택할 수 있도록 개선.
+generate_prompt 함수에서 background 값이 "random"인 경우, "on"과 "off" 중 랜덤으로 선택하는 로직 추가.
+
+2. 이스터에그 기능 추가:
+새로운 선택지 wanna shot? 추가, 선택지는 Yes / No.
+INPUT_TYPES 메서드에 wanna_shot 파라미터를 추가.
+generate_prompt 함수에서 wanna_shot 값이 "Yes"인 경우, 기존 프롬프트 생성 로직을 무시하고 특정 카페 관련 프롬프트(예: "Cafe, coffee, holding a tumbler, straw inside the tumbler")를 생성하도록 로직 추가.
+
+
 2024년 5월 24일
 
 1. CSV 데이터 로드 함수 구현:
@@ -29,34 +40,3 @@ seasonal_fashion_path, seasonal_backgrounds_path, seasonal_weather_path, seasona
 배경, 날씨, 시간 등의 정보 로드.
 추가 상황 선택.
 프롬프트 생성.
-
-# English
-May 24th, 2024
-
-1. Implementing CSV Data Loading Functions:
-load_data_from_csv: Added a function to load data from a CSV file.
-load_list_from_csv: Added a function to load list data from a CSV file.
-load_additional_situations: Added a function to load additional situation data.
-
-2. Modifying Seed Generation:
-Used random.randint(0, 9999999999999999) in the INPUT_TYPES method to ensure a maximum 16-digit seed value.
-Set the default seed value to a maximum of 16 digits.
-
-3. Adding Seed Limitation Logic:
-Added logic within the generate_prompt function to limit the seed value to 16 digits when converting it to an integer, using str(seed)[:16].
-Safely handles cases where the seed exceeds 16 digits by using only the first 16 digits.
-
-4. Improving Season Selection Feature:
-Added a 'random' option to season selection, allowing users to either choose a season directly or select one randomly.
-Added logic to randomly select a season when the season parameter is set to "random".
-
-5. Setting Absolute Paths for CSV Files:
-Set all CSV file paths relative to the data directory as absolute paths.
-Set paths for seasonal_fashion_path, seasonal_backgrounds_path, seasonal_weather_path, seasonal_times_path, additional_situations_path, general_composition_path, gaze_direction_path, poses_path, and body_directions_path using the data_dir variable.
-
-6. Implementing Prompt Generation Function:
-Load fashion items corresponding to the season.
-Select tops/bottoms or dresses.
-Load information such as background, weather, time, etc.
-Select additional situations.
-Generate the prompt.
