@@ -1,3 +1,15 @@
+May 28th, 2024
+1. Improved wanna_shot Logic:
+Modified to reflect season and fashion information instead of completely ignoring the existing logic.
+When wanna_shot is "Yes", the prompt now includes the season name, fashion information, and café-related details.
+
+2. Code Optimization:
+Simplified Path Settings and Data Loading: Simplified the path constants and the path setting parts.
+Unified Data Loading Function: Enhanced the load_data_from_csv function to also be used when loading lists.
+Removed Redundant Code: Handled the if wanna_shot == "Yes" condition first to avoid redundancy with other conditions.
+Used List Comprehensions: Used list comprehensions in loading additional situations to make the code more concise.
+Improved Exception Handling: Added exception handling in data loading functions to notify the user in case of errors.
+
 May 26th, 2024
 1. Extended Background Selection Feature:
 Added random option to background selection.
