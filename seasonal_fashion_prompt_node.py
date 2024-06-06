@@ -82,7 +82,9 @@ class SeasonalFashionPromptNode:
             "required": {
                 "season": (["random", "spring", "summer", "autumn", "winter"],),
                 "background": (["random", "on", "off"],),
-                "wanna_shot": (["No", "Yes"],),
+                "clothes": (["Yes", "No"], {"default": "Yes"}),
+                "accessory": (["Yes", "No"], {"default": "Yes"}),
+                "wanna_shot": (["Yes", "No"], {"default": "No", "label": "wanna shot?"}),
                 "seed": ("INT", {"default": random.randint(0, 9999999999999999)}),
             }
         }
@@ -90,73 +92,86 @@ class SeasonalFashionPromptNode:
     RETURN_TYPES = ("STRING",)
     FUNCTION = "generate_prompt"
 
-    def generate_prompt(self, season, background, wanna_shot, seed):
+    def generate_prompt(self, season, background, clothes, accessory, wanna_shot, seed):
+        # Ensure the seed is an integer and set the random seed
         seed = int(str(seed)[:16])
         random.seed(seed)
 
+        # Randomly select season and background if set to "random"
         if season == "random":
             season = get_random_element(["spring", "summer", "autumn", "winter"])
-
         if background == "random":
             background = get_random_element(["on", "off"])
 
-        fashion_category = seasonal_fashion.get(season, [])
-        tops = [item[1] for item in fashion_category if item[0] == "top"]
-        bottoms = [item[1] for item in fashion_category if item[0] == "bottom"]
-        one_pieces = [item[1] for item in fashion_category if item[0] == "one_piece"]
-        accessories = [item[1] for item in fashion_category if item[0] == "accessory"]
-        hats = [item[1] for item in fashion_category if item[0] == "hat"]
-        shoes = [item[1] for item in fashion_category if item[0] == "shoes"]
-        socks = [item[1] for item in fashion_category if item[0] == "socks"]
+        fashion = ""
+        if clothes == "Yes":
+            fashion = self.get_fashion(season, accessory)
 
-        top = get_random_element(tops) if tops else ""
-        bottom = get_random_element(bottoms) if bottoms else ""
-        one_piece = get_random_element(one_pieces) if one_pieces else ""
-        accessory = get_random_element(accessories) if accessories else ""
-        hat = get_random_element(hats) if hats else ""
-        shoe = get_random_element(shoes) if shoes else ""
-        sock = get_random_element(socks) if socks else ""
+        if wanna_shot == "Yes":
+            return (", ".join(filter(None, [season, fashion, "cafe, coffee, holding a tumbler, straw inside the tumbler"])),)
+
+        prompt_parts = [season, fashion, get_random_element(general_composition), 
+                        get_random_element(gaze_direction), get_random_element(poses), 
+                        get_random_element(body_directions)]
+
+        if background == "on":
+            background_prompt, additional_situation = self.get_background_and_situation(season)
+            prompt_parts.extend([background_prompt, additional_situation])
+        else:
+            background_prompt = f"simple background, {get_random_element(['white background', 'grey background', 'black background'])}, standing cut"
+            prompt_parts.append(background_prompt)
+
+        # Join all prompt parts, filtering out any empty strings
+        prompt = ", ".join(filter(None, prompt_parts))
+        return (prompt,)
+
+    def get_fashion(self, season, accessory):
+        """Get a random fashion description for the given season."""
+        fashion_category = seasonal_fashion.get(season, [])
+        items = {
+            "top": [item[1] for item in fashion_category if item[0] == "top"],
+            "bottom": [item[1] for item in fashion_category if item[0] == "bottom"],
+            "one_piece": [item[1] for item in fashion_category if item[0] == "one_piece"],
+            "accessory": [item[1] for item in fashion_category if item[0] == "accessory"] if accessory == "Yes" else [],
+            "hat": [item[1] for item in fashion_category if item[0] == "hat"],
+            "shoes": [item[1] for item in fashion_category if item[0] == "shoes"],
+            "socks": [item[1] for item in fashion_category if item[0] == "socks"],
+        }
+
+        top = get_random_element(items["top"]) if items["top"] else ""
+        bottom = get_random_element(items["bottom"]) if items["bottom"] else ""
+        one_piece = get_random_element(items["one_piece"]) if items["one_piece"] else ""
+        accessory = get_random_element(items["accessory"]) if items["accessory"] else ""
+        hat = get_random_element(items["hat"]) if items["hat"] else ""
+        shoe = get_random_element(items["shoes"]) if items["shoes"] else ""
+        sock = get_random_element(items["socks"]) if items["socks"] else ""
 
         if random.choice([True, False]) and (top or bottom):
             fashion = ", ".join(filter(None, [top, bottom, sock, accessory, hat, shoe]))
         else:
             fashion = ", ".join(filter(None, [one_piece, sock, accessory, hat, shoe]))
 
-        if wanna_shot == "Yes":
-            return (f"{season}, {fashion}, cafe, coffee, holding a tumbler, straw inside the tumbler",)
+        return fashion
 
-        composition = get_random_element(general_composition)
-        gaze = get_random_element(gaze_direction)
-        pose = get_random_element(poses)
-        body_direction = get_random_element(body_directions)
+    def get_background_and_situation(self, season):
+        """Get a background description and additional situation for the given season."""
+        background_info = get_random_element(seasonal_backgrounds.get(season, []))
+        background_classification = background_info[0]
+        background = background_info[1]
+        weather = get_random_element([item[0] for item in seasonal_weather.get(season, [])])
+        time = get_random_element([item[0] for item in seasonal_times.get(season, [])])
+        background_prompt = f"{background_classification}, {background}, {weather}, {time}"
 
-        if background == "on":
-            background_info = get_random_element(seasonal_backgrounds.get(season, []))
-            background_classification = background_info[0]
-            background = background_info[1]
-            weather = get_random_element([item[0] for item in seasonal_weather.get(season, [])])
-            time = get_random_element([item[0] for item in seasonal_times.get(season, [])])
-            background_prompt = f"{background_classification}, {background}, {weather}, {time}"
+        situation_details = [
+            details["description"]
+            for situation, details in additional_situations.items()
+            if all(condition in [background_classification, weather, time] for condition in details["conditions"])
+        ]
 
-            situation_details = [
-                details["description"]
-                for situation, details in additional_situations.items()
-                if all(condition in [background_classification, weather, time] for condition in details["conditions"])
-            ]
-
-            additional_situation = ", ".join(situation_details)
-            
-            prompt = f"{season}, {fashion}, {composition}, {gaze}, {pose}, {body_direction}, {background_prompt}, {additional_situation}"
-        else:
-            background_color = get_random_element(["white background", "grey background", "black background"])
-            background_prompt = f"simple background, {background_color}, standing cut"
-            additional_situation = ""
-            
-            prompt = f"{fashion}, {composition}, {gaze}, {pose}, {body_direction}, {background_prompt}"
-
-        return (prompt,)
+        additional_situation = ", ".join(situation_details)
+        return background_prompt, additional_situation
 
 # Example usage
 node = SeasonalFashionPromptNode()
-prompt = node.generate_prompt("random", "random", "No", random.randint(0, 9999999999999999))
+prompt = node.generate_prompt("random", "random", "Yes", "Yes", "No", random.randint(0, 9999999999999999))
 print(prompt)
