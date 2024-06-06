@@ -1,3 +1,18 @@
+June 6th, 2024
+
+1. Addition of Input Parameters:
+The revised version adds two input parameters: clothes and accessory. These parameters determine whether to include clothes and accessories respectively.
+The wanna_shot parameter is now set to "No" by default, and its label has been changed to "wanna shot?".
+
+2. Separation of Fashion Generation Logic:
+The revised version introduces a method called get_fashion which separates the logic for generating fashion based on the season.
+This method takes into account the clothes and accessory input values to select fashion items.
+
+3. Separation of Background and Situation Logic:
+The revised version adds a method called get_background_and_situation which separates the logic for generating background and additional situations.
+This method returns background information and additional situation descriptions suitable for the given season.
+
+
 May 28th, 2024
 1. Improved wanna_shot Logic:
 Modified to reflect season and fashion information instead of completely ignoring the existing logic.
