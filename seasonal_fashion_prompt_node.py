@@ -81,7 +81,8 @@ class SeasonalFashionPromptNode:
         return {
             "required": {
                 "season": (["random", "spring", "summer", "autumn", "winter"],),
-                "background": (["random", "on", "off"],),
+                "background": (["random", "on", "off", "simple"],),
+                "color_scheme": (["random", "off", "red", "blue", "green", "yellow", "purple", "pink", "black", "white", "grey", "brown", "orange"], {"default": "random"}),
                 "clothes": (["Yes", "No"], {"default": "Yes"}),
                 "accessory": (["Yes", "No"], {"default": "Yes"}),
                 "wanna_shot": (["Yes", "No"], {"default": "No", "label": "wanna shot?"}),
@@ -92,20 +93,22 @@ class SeasonalFashionPromptNode:
     RETURN_TYPES = ("STRING",)
     FUNCTION = "generate_prompt"
 
-    def generate_prompt(self, season, background, clothes, accessory, wanna_shot, seed):
+    def generate_prompt(self, season, background, color_scheme, clothes, accessory, wanna_shot, seed):
         # Ensure the seed is an integer and set the random seed
         seed = int(str(seed)[:16])
         random.seed(seed)
 
-        # Randomly select season and background if set to "random"
+        # Randomly select season, background, and color scheme if set to "random"
         if season == "random":
             season = get_random_element(["spring", "summer", "autumn", "winter"])
         if background == "random":
-            background = get_random_element(["on", "off"])
+            background = get_random_element(["on", "off", "simple"])
+        if color_scheme == "random":
+            color_scheme = get_random_element(["red", "blue", "green", "yellow", "purple", "pink", "black", "white", "grey", "brown", "orange"])
 
         fashion = ""
         if clothes == "Yes":
-            fashion = self.get_fashion(season, accessory)
+            fashion = self.get_fashion(season, accessory, color_scheme)
 
         if wanna_shot == "Yes":
             return (", ".join(filter(None, [season, fashion, "cafe, coffee, holding a tumbler, straw inside the tumbler"])),)
@@ -117,16 +120,17 @@ class SeasonalFashionPromptNode:
         if background == "on":
             background_prompt, additional_situation = self.get_background_and_situation(season)
             prompt_parts.extend([background_prompt, additional_situation])
-        else:
+        elif background == "simple":
             background_prompt = f"simple background, {get_random_element(['white background', 'grey background', 'black background'])}, standing cut"
             prompt_parts.append(background_prompt)
+        # 'off'일 경우 배경 관련 프롬프트를 추가하지 않음
 
         # Join all prompt parts, filtering out any empty strings
         prompt = ", ".join(filter(None, prompt_parts))
         return (prompt,)
 
-    def get_fashion(self, season, accessory):
-        """Get a random fashion description for the given season."""
+    def get_fashion(self, season, accessory, color_scheme):
+        """Get a random fashion description for the given season with a specified color scheme."""
         fashion_category = seasonal_fashion.get(season, [])
         items = {
             "top": [item[1] for item in fashion_category if item[0] == "top"],
@@ -146,10 +150,12 @@ class SeasonalFashionPromptNode:
         shoe = get_random_element(items["shoes"]) if items["shoes"] else ""
         sock = get_random_element(items["socks"]) if items["socks"] else ""
 
+        color_scheme_tag = f"{color_scheme}_clothes" if color_scheme != "random" and color_scheme != "off" else ""
+
         if random.choice([True, False]) and (top or bottom):
-            fashion = ", ".join(filter(None, [top, bottom, sock, accessory, hat, shoe]))
+            fashion = ", ".join(filter(None, [top, bottom, sock, accessory, hat, shoe, color_scheme_tag]))
         else:
-            fashion = ", ".join(filter(None, [one_piece, sock, accessory, hat, shoe]))
+            fashion = ", ".join(filter(None, [one_piece, sock, accessory, hat, shoe, color_scheme_tag]))
 
         return fashion
 
@@ -173,5 +179,5 @@ class SeasonalFashionPromptNode:
 
 # Example usage
 node = SeasonalFashionPromptNode()
-prompt = node.generate_prompt("random", "random", "Yes", "Yes", "No", random.randint(0, 9999999999999999))
+prompt = node.generate_prompt("random", "random", "random", "Yes", "Yes", "No", random.randint(0, 9999999999999999))
 print(prompt)

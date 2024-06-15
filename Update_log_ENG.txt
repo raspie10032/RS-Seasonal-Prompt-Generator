@@ -1,3 +1,14 @@
+June 15th, 2024
+1. Background Function Modification
+Description: The background selection options have been subdivided into on, off, and simple.
+on: Includes the background as before.
+off: Does not include any background prompt.
+simple: Uses a simple background (e.g., white background, grey background, black background).
+
+2. Color Selection Feature Added
+Description: A feature to set the overall color scheme of the clothing has been added. Users can choose a specific color, set it to random, or opt to have no color setting.
+Options: random, off, red, blue, green, yellow, purple, pink, black, white, grey, brown, orange
+
 June 6th, 2024
 
 1. Addition of Input Parameters:
