@@ -1,310 +1,458 @@
 season,category,item
-spring,accessory,ankle boots
-spring,accessory,anklet
-spring,accessory,bracelet
-spring,accessory,floral bracelet
-spring,accessory,light scarf
-spring,accessory,scarf
 spring,accessory,spring handbag
 spring,accessory,sunglasses
 spring,accessory,watch
+spring,top,cardigan
+spring,top,blouse
+spring,top,hoodie
+spring,top,denim
+spring,top,light
+spring,top,sweater
+spring,top,long sleeve shirt
+spring,top,sleeve
+spring,top,scarf
+spring,top,t-shirt
+spring,top,tank top
+spring,top,light topwear
+spring,top,floral shirt
+spring,top,floral print jacket
+spring,top,flight jacket
+spring,top,floral print shirt
+spring,top,light shirt
+spring,top,floral topwear
 spring,bottom,ankle boots
-spring,bottom,capri leggings
+spring,bottom,leggings
 spring,bottom,capris
-spring,bottom,cotton shorts
+spring,bottom,cotton
 spring,bottom,culottes
 spring,bottom,denim skirt
 spring,bottom,dolphinshorts
 spring,bottom,flats
 spring,bottom,jeans
-spring,bottom,leggings
 spring,bottom,light trousers
-spring,bottom,pastel culottes
-spring,bottom,pastel jeans
 spring,bottom,pleated skirt
 spring,bottom,shorts
 spring,bottom,skirt
-spring,bottom,spring jeans
-spring,bottom,tulle skirt
+spring,bottom,spring
+spring,bottom,floral print skirt
+spring,bottom,floral print pants
+spring,bottom,light pants
+spring,one piece,dress
+spring,one piece,romper
+spring,one piece,jumpsuit
+spring,one piece,tunic
+spring,one piece,sundress
+spring,one piece,floral print kimono
+spring,one piece,floral print apron
+spring,one piece,floral print dress
+spring,one piece,light dress shirt
+spring,one piece,strobe lights
 spring,hat,baseball cap
 spring,hat,beanie
 spring,hat,beret
 spring,hat,floral cap
-spring,hat,pastel beret
-spring,hat,pastel headband
+spring,hat,headband
 spring,hat,sun hat
-spring,hat,wide-brim hat
-spring,one_piece,chiffon dress
-spring,one_piece,dress
-spring,one_piece,floral dress
-spring,one_piece,linen romper
-spring,one_piece,pastel jumpsuit
-spring,one_piece,romper
-spring,one_piece,spring tunic
-spring,one_piece,sundress
+spring,hat,light headwear
+spring,hat,flight attendant hat
 spring,shoes,boots
 spring,shoes,flip-flops
 spring,shoes,sandals
 spring,shoes,sneakers
+spring,shoes,light footwear
+spring,shoes,light shoes
 spring,socks,ankle socks
-spring,socks,athletic socks
+spring,socks,socks
 spring,socks,black pantyhose
-spring,socks,boot socks
-spring,socks,brown pantyhose
-spring,socks,compression socks
-spring,socks,cotton socks
-spring,socks,crew socks
-spring,socks,fishnet stockings
-spring,socks,knee-high socks
-spring,socks,lace socks
-spring,socks,lace stockings
-spring,socks,no-show socks
-spring,socks,opaque stockings
-spring,socks,patterned socks
-spring,socks,patterned stockings
-spring,socks,sheer stockings
-spring,socks,silk socks
-spring,socks,solid socks
-spring,socks,thigh-high socks
-spring,socks,toe socks
+spring,socks,pantyhose
+spring,socks,fishnet legwear
+spring,socks,knee socks
+spring,socks,lace-trimmed legwear
+spring,socks,stockings
+spring,socks,patterned legwear
+spring,socks,thighhighs
 spring,socks,white pantyhose
-spring,socks,wool socks
-spring,top,cardigan
-spring,top,floral blouse
-spring,top,hoodie
-spring,top,light denim jacket
-spring,top,light hoodie
-spring,top,light jacket
-spring,top,lightweight sweater
-spring,top,long sleeve shirt
-spring,top,pastel blouse
-spring,top,polka dot blouse
-spring,top,short sleeve shirt
-spring,top,spring scarf
-spring,top,t-shirt
-spring,top,tank top
-summer,accessory,anklet
-summer,accessory,beach bag
-summer,accessory,beach hat
-summer,accessory,bracelets
-summer,accessory,shell necklace
-summer,accessory,straw hat
-summer,accessory,summer sunglasses
-summer,accessory,sun visor
-summer,accessory,sunglasses
-summer,bottom,beach pants
-summer,bottom,beach sarong
-summer,bottom,board shorts
-summer,bottom,capri pants
+spring,socks,floral print thighhighs
+spring,socks,light socks
+spring,socks,light legwear
+spring,accessory,ankle boots
+spring,accessory,anklet
+spring,accessory,bracelet
+spring,accessory,floral
+spring,accessory,scarf
+spring,accessory,handbag
+spring,accessory,sunglasses
+spring,accessory,watch
+spring,accessory,floral print panties
+spring,accessory,light panties
+spring,accessory,floral pattern panties
+spring,accessory,floral print gloves
+spring,accessory,light gloves
+spring,accessory,light jewelry
+spring,accessory,lightning bolt necklace
+summer,top,bikini
+summer,top,crop top
+summer,top,t-shirt
+summer,top,halter top
+summer,top,polo shirt
+summer,top,sleeveless
+summer,top,tank top
+summer,top,tankini
+summer,top,green bikini top
+summer,top,checkered bikini top
+summer,top,front-tie bikini top
+summer,top,blue bikini top
+summer,top,jacket over swimsuit
+summer,top,orange bikini top
+summer,top,pink bikini top
+summer,top,bikini top pull
+summer,top,red bikini top
+summer,top,camouflage bikini top
+summer,top,striped bikini top
+summer,top,unworn bikini top
+summer,top,upside-down bikini top
+summer,top,sling bikini top
+summer,top,swim vest
+summer,top,multi-strapped bikini top
+summer,top,turtleneck bikini top
+summer,top,removing bikini top
+summer,top,untied bikini top
+summer,top,frilled bikini top
+summer,top,black bikini top
+summer,top,yellow bikini top
+summer,top,tropical shirt
+summer,top,bikini top only
+summer,top,bikini top aside
+summer,top,bikini top removed
+summer,top,holding bikini top
+summer,top,o-ring bikini top
+summer,top,white bikini top
+summer,top,bikini top lift
+summer,top,sunglasses on shirt
+summer,top,purple bikini top
+summer,bottom,pants
+summer,bottom,sarong
+summer,bottom,shorts
 summer,bottom,cargo shorts
 summer,bottom,denim shorts
 summer,bottom,dolphinshorts
-summer,bottom,high-waisted shorts
-summer,bottom,linen pants
-summer,bottom,mini skirt
-summer,bottom,sarong
-summer,bottom,shorts
-summer,bottom,swim shorts
+summer,bottom,miniskirt
+summer,bottom,swimwear
 summer,bottom,swim trunks
+summer,bottom,bikini jeans
+summer,bottom,double frill skirt swimsuit
+summer,bottom,pantsuneko
+summer,bottom,bikini under skirt
+summer,bottom,bikini under shorts
+summer,bottom,swimsuit skirt
+summer,bottom,bikini skirt
+summer,bottom,bikini shorts
+summer,one piece,jumpsuit
+summer,one piece,dress
+summer,one piece,romper
+summer,one piece,sundress
+summer,one piece,swimsuit
+summer,one piece,dress swimsuit
+summer,one piece,garderobe swimsuit
 summer,hat,bandana
 summer,hat,baseball cap
-summer,hat,beach cap
+summer,hat,hat
 summer,hat,bucket hat
 summer,hat,straw hat
-summer,hat,summer headband
+summer,hat,headband
 summer,hat,sunhat
 summer,hat,visor
-summer,one_piece,light jumpsuit
-summer,one_piece,maxi dress
-summer,one_piece,romper
-summer,one_piece,summer dress
-summer,one_piece,summer romper
-summer,one_piece,sundress
-summer,one_piece,swimsuit
-summer,shoes,espadrilles
+summer,hat,unworn swim cap
+summer,hat,swimming cap
+summer,hat,summer hat
+summer,hat,tatsunoko vs capcom
+summer,hat,swim cap
+summer,hat,hatsuno xxx
+summer,hat,sun hat only
+summer,hat,sun hat ornament
+summer,hat,hatsunatsu
+summer,shoes,shoes
 summer,shoes,flip-flops
 summer,shoes,loafers
-summer,shoes,water shoes
 summer,socks,ankle socks
-summer,socks,athletic socks
+summer,socks,socks
 summer,socks,black pantyhose
-summer,socks,boot socks
-summer,socks,brown pantyhose
-summer,socks,compression socks
-summer,socks,cotton socks
-summer,socks,crew socks
-summer,socks,fishnet stockings
-summer,socks,knee-high socks
-summer,socks,lace socks
-summer,socks,lace stockings
-summer,socks,no-show socks
-summer,socks,opaque stockings
-summer,socks,patterned socks
-summer,socks,patterned stockings
-summer,socks,sheer stockings
-summer,socks,silk socks
-summer,socks,solid socks
-summer,socks,thigh-high socks
-summer,socks,toe socks
+summer,socks,pantyhose
+summer,socks,fishnet legwear
+summer,socks,knee socks
+summer,socks,lace-trimmed legwear
+summer,socks,stockings
+summer,socks,patterned legwear
+summer,socks,thighhighs
 summer,socks,white pantyhose
-summer,socks,wool socks
-summer,top,bikini top
-summer,top,crop tank
-summer,top,crop top
-summer,top,cropped top
-summer,top,graphic t-shirt
-summer,top,halter top
-summer,top,polo shirt
-summer,top,sleeveless blouse
-summer,top,sleeveless shirt
-summer,top,t-shirt
-summer,top,tank top
-summer,top,tankini
-autumn,accessory,autumn handbag
+summer,socks,pantyhose over swimsuit
+summer,socks,pantyhose under swimsuit
+summer,accessory,anklet
+summer,accessory,bag
+summer,accessory,hat
+summer,accessory,bracelets
+summer,accessory,necklace
+summer,accessory,straw hat
+summer,accessory,sunglasses
+summer,accessory,visor
+summer,accessory,star sunglasses
+summer,accessory,heart sunglasses
+summer,accessory,purple sunglasses
+summer,accessory,black sunglasses
+summer,accessory,side-tie bikini bottom
+summer,accessory,frontiersun
+summer,accessory,glistening sunglasses
+summer,accessory,green sunglasses
+summer,accessory,untied bikini
+summer,accessory,untied swimsuit
+summer,accessory,blue sunglasses
+summer,accessory,neck-tie swimwear
+summer,accessory,yellow sunglasses
+summer,accessory,tail-tie bikini
+summer,accessory,side-tie bikini
+summer,accessory,pointy sunglasses
+summer,accessory,back-tie swimwear
+summer,accessory,side-tie one-piece swimsuit
+summer,accessory,holding sunglasses
+summer,accessory,side-tie swimwear
+summer,accessory,sunglasses only
+summer,accessory,aviator sunglasses
+summer,accessory,sunglasses on face
+summer,accessory,white sunglasses
+summer,accessory,neck-tie bikini
+summer,accessory,side-tie swimsuit
+summer,accessory,sunglasses on head
+summer,accessory,untied bikini bottom
+summer,accessory,red sunglasses
+summer,accessory,multicolored sunglasses
+summer,accessory,pink sunglasses
+summer,accessory,back-tie bikini
+summer,accessory,tied bikini
+summer,accessory,partially opaque sunglasses
+summer,accessory,front-tie bikini
+summer,accessory,front-tie swimwear
+summer,accessory,pixel sunglasses
+summer,accessory,panties under swimsuit
+summer,accessory,sports sunglasses
+autumn,top,blazer
+autumn,top,cardigan
+autumn,top,shirt
+autumn,top,sweater
+autumn,top,turtleneck
+autumn,top,plaid jacket
+autumn,top,plaid hoodie
+autumn,top,plaid topwear
+autumn,top,plaid coat
+autumn,top,plaid sweater vest
+autumn,top,plaid cardigan
+autumn,top,leather vest
+autumn,top,leather topwear
+autumn,top,black leather jacket
+autumn,top,leather coat
+autumn,top,plaid vest
+autumn,top,leather shirt
+autumn,top,plaid sweater
+autumn,top,plaid shirt
+autumn,top,leather jacket
+autumn,bottom,ankle boots
+autumn,bottom,autumn trousers
+autumn,bottom,pants
+autumn,bottom,skirt
+autumn,bottom,culottes
+autumn,bottom,jeans
+autumn,bottom,dolphinshorts
+autumn,bottom,khakis
+autumn,bottom,leggings
+autumn,bottom,plaid pants
+autumn,bottom,leather skirt
+autumn,bottom,plaid skirt
+autumn,bottom,plaid shorts
+autumn,bottom,leather shorts
+autumn,bottom,leather pants
+autumn,one piece,tunic
+autumn,one piece,coat
+autumn,one piece,dress
+autumn,one piece,poncho
+autumn,one piece,plaid apron
+autumn,one piece,leather dress
+autumn,one piece,plaid kimono
+autumn,one piece,leather apron
+autumn,hat,beret
+autumn,hat,fedora
+autumn,hat,hat
+autumn,hat,beanie
+autumn,hat,knit hat
+autumn,hat,newsboy cap
+autumn,hat,plaid headwear
+autumn,hat,leather headwear
+autumn,hat,plaid cape
+autumn,hat,plaid capelet
+autumn,hat,leather hat
+autumn,hat,fallen captain
+autumn,hat,plaid hat
+autumn,shoes,ankle boots
+autumn,shoes,boots
+autumn,shoes,moccasins
+autumn,shoes,shoes
+autumn,shoes,long fall boots
+autumn,shoes,plaid footwear
+autumn,shoes,leather footwear
+autumn,socks,ankle socks
+autumn,socks,socks
+autumn,socks,black pantyhose
+autumn,socks,pantyhose
+autumn,socks,fishnet legwear
+autumn,socks,knee socks
+autumn,socks,lace-trimmed legwear
+autumn,socks,stockings
+autumn,socks,patterned legwear
+autumn,socks,thighhighs
+autumn,socks,white pantyhose
+autumn,socks,plaid pantyhose
+autumn,socks,plaid thighhighs
+autumn,socks,plaid socks
+autumn,socks,leather legwear
+autumn,socks,leather stockings
+autumn,accessory,handbag
 autumn,accessory,beanie
 autumn,accessory,fingerless gloves
 autumn,accessory,gloves
-autumn,accessory,knit scarf
-autumn,accessory,knitted scarf
+autumn,accessory,scarf
 autumn,accessory,leather gloves
 autumn,accessory,necklace
-autumn,accessory,scarf
 autumn,accessory,wristwatch
-autumn,bottom,ankle boots
-autumn,bottom,autumn trousers
-autumn,bottom,corduroy pants
-autumn,bottom,corduroy skirt
-autumn,bottom,culottes
-autumn,bottom,denim jeans
-autumn,bottom,dolphinshorts
-autumn,bottom,jeans
-autumn,bottom,khakis
-autumn,bottom,leggings
-autumn,bottom,tweed pants
-autumn,bottom,tweed skirt
-autumn,bottom,warm leggings
-autumn,bottom,wool skirt
-autumn,hat,autumn beret
-autumn,hat,beret
-autumn,hat,fedora
-autumn,hat,felt hat
-autumn,hat,knit beanie
-autumn,hat,knit cap
-autumn,hat,newsboy cap
-autumn,one_piece,autumn tunic
-autumn,one_piece,coat dress
-autumn,one_piece,long sleeve dress
-autumn,one_piece,plaid dress
-autumn,one_piece,poncho
-autumn,one_piece,sweater dress
-autumn,shoes,ankle boots
-autumn,shoes,leather boots
-autumn,shoes,moccasins
-autumn,shoes,oxford shoes
-autumn,socks,ankle socks
-autumn,socks,athletic socks
-autumn,socks,black pantyhose
-autumn,socks,boot socks
-autumn,socks,brown pantyhose
-autumn,socks,compression socks
-autumn,socks,cotton socks
-autumn,socks,crew socks
-autumn,socks,fishnet stockings
-autumn,socks,knee-high socks
-autumn,socks,lace socks
-autumn,socks,lace stockings
-autumn,socks,no-show socks
-autumn,socks,opaque stockings
-autumn,socks,patterned socks
-autumn,socks,patterned stockings
-autumn,socks,sheer stockings
-autumn,socks,silk socks
-autumn,socks,solid socks
-autumn,socks,thigh-high socks
-autumn,socks,toe socks
-autumn,socks,white pantyhose
-autumn,socks,wool socks
-autumn,top,blazer
-autumn,top,cardigan
-autumn,top,cardigan sweater
-autumn,top,flannel shirt
-autumn,top,knit sweater
-autumn,top,knitted top
-autumn,top,light cardigan
-autumn,top,long sleeve tee
-autumn,top,sweater
-autumn,top,turtleneck
-winter,accessory,earmuffs
-winter,accessory,fur mittens
-winter,accessory,gloves
-winter,accessory,neck gaiter
-winter,accessory,scarf
-winter,accessory,winter gloves
-winter,accessory,wool gloves
-winter,accessory,wool scarf
-winter,accessory,wool socks
-winter,bottom,corduroy pants
+autumn,accessory,leather panties
+autumn,accessory,leather bag
+autumn,accessory,plaid panties
+autumn,accessory,plaid bowtie
+autumn,accessory,plaid scarf
+autumn,accessory,plaid gloves
+autumn,accessory,plaid bag
+autumn,accessory,leather belt
+autumn,accessory,plaid belt
+autumn,accessory,plaid necktie
+winter,top,jacket
+winter,top,pullover
+winter,top,sweater
+winter,top,hoodie
+winter,top,coat
+winter,top,vest
+winter,top,shirt
+winter,top,turtleneck
+winter,top,fur-trimmed shirt
+winter,top,christmas sweater
+winter,top,fur-trimmed tube top
+winter,top,fur-trimmed cardigan
+winter,top,fur-trimmed sweater
+winter,top,tracen winter coat
+winter,top,fur sweater
+winter,top,fur-trimmed coat
+winter,top,christmas topwear
+winter,top,christmas tree topper
+winter,top,top heavy
+winter,top,fur jacket
+winter,top,top heavy belly
+winter,top,fur-trimmed jacket
+winter,top,fur coat
+winter,top,furgonomic topwear
+winter,top,fur lined jacket
+winter,top,fur vest
+winter,top,fur-trimmed vest
+winter,top,fur-trimmed hoodie
+winter,top,winter jacket
+winter,top,fur shirt
+winter,top,winter coat
+winter,bottom,pants
 winter,bottom,dolphinshorts
-winter,bottom,fleece leggings
-winter,bottom,fleece pants
-winter,bottom,insulated pants
+winter,bottom,leggings
 winter,bottom,jeans
 winter,bottom,joggers
 winter,bottom,lined trousers
-winter,bottom,snow pants
-winter,bottom,thermal leggings
-winter,bottom,thermal pants
-winter,bottom,wool leggings
-winter,bottom,wool skirt
+winter,bottom,skirt
+winter,bottom,fur-trimmed shorts
+winter,bottom,fur-trimmed skirt
+winter,bottom,furgonomic pants
+winter,bottom,fur skirt
+winter,bottom,fur-trimmed pants
+winter,one piece,dress
+winter,one piece,parka
+winter,one piece,coat
+winter,one piece,tunic
+winter,one piece,fur-trimmed jumpsuit
+winter,one piece,fur-trimmed robe
+winter,one piece,fur dress
+winter,one piece,fur-trimmed kimono
+winter,one piece,christmas dress
+winter,one piece,fur-trimmed dress
 winter,hat,beanie
-winter,hat,fur hat
-winter,hat,knit beanie
-winter,hat,knit cap
-winter,hat,trapper hat
-winter,hat,wool beanie
-winter,hat,wool hat
-winter,one_piece,knit dress
-winter,one_piece,parka
-winter,one_piece,puffer coat dress
-winter,one_piece,winter tunic
-winter,one_piece,wool coat
-winter,one_piece,wool dress
-winter,shoes,fur-lined boots
-winter,shoes,insulated boots
-winter,shoes,snow boots
-winter,shoes,winter clogs
+winter,hat,hat
+winter,hat,knit hat
+winter,hat,christmas headwear
+winter,hat,furgonomic headwear
+winter,hat,snow on headwear
+winter,hat,fur-trimmed waist cape
+winter,hat,captain america: the winter soldier
+winter,hat,snowflake hat ornament
+winter,hat,fur capelet
+winter,hat,fur-trimmed capelet
+winter,hat,furgonomic hat
+winter,hat,winter hat
+winter,hat,wool headwear
+winter,hat,snowscape
+winter,hat,furgonomic baseball cap
+winter,hat,fur-trimmed cape
+winter,hat,fur cape
+winter,hat,fur-trimmed headwear
+winter,hat,woollen cap
+winter,hat,furahata gen
+winter,hat,fatal fury cap
+winter,shoes,boots
+winter,shoes,clogs
+winter,shoes,snowshoe cat
+winter,shoes,fur footwear
+winter,shoes,furgonomic footwear
+winter,shoes,fur-trimmed sandals
+winter,shoes,fur boots
+winter,shoes,snowshoe hare
+winter,shoes,furred boots
+winter,shoes,fur-trimmed boots
+winter,shoes,fur-trimmed shoes
+winter,shoes,snowshoe
+winter,shoes,bluesnowshoe
 winter,socks,ankle socks
-winter,socks,athletic socks
+winter,socks,socks
 winter,socks,black pantyhose
-winter,socks,boot socks
-winter,socks,brown pantyhose
-winter,socks,compression socks
-winter,socks,cotton socks
-winter,socks,crew socks
-winter,socks,fishnet stockings
-winter,socks,knee-high socks
-winter,socks,lace socks
-winter,socks,lace stockings
-winter,socks,no-show socks
-winter,socks,opaque stockings
-winter,socks,patterned socks
-winter,socks,patterned stockings
-winter,socks,sheer stockings
-winter,socks,silk socks
-winter,socks,solid socks
-winter,socks,thigh-high socks
-winter,socks,toe socks
+winter,socks,pantyhose
+winter,socks,fishnet legwear
+winter,socks,knee socks
+winter,socks,lace-trimmed legwear
+winter,socks,stockings
+winter,socks,patterned legwear
+winter,socks,thighhighs
 winter,socks,white pantyhose
-winter,socks,wool socks
-winter,top,down jacket
-winter,top,fleece jacket
-winter,top,fleece pullover
-winter,top,heavy sweater
-winter,top,hoodie
-winter,top,puffer coat
-winter,top,puffer vest
-winter,top,thermal shirt
-winter,top,thermal sweater
-winter,top,thermal top
-winter,top,turtleneck
-winter,top,wool sweater
+winter,socks,fur-trimmed thighhighs
+winter,socks,christmas legwear
+winter,socks,fur socks
+winter,socks,christmas sock
+winter,socks,christmas stocking
+winter,socks,fur-trimmed socks
+winter,socks,fur-trimmed legwear
+winter,socks,thick socks
+winter,socks,fur thighhighs
+winter,accessory,earmuffs
+winter,accessory,mittens
+winter,accessory,gloves
+winter,accessory,scarf
+winter,accessory,socks
+winter,accessory,furry specific accessory
+winter,accessory,fur-lined gloves
+winter,accessory,fur panties
+winter,accessory,fur gloves
+winter,accessory,fur-trimmed panties
+winter,accessory,fur-trimmed belt
+winter,accessory,fur hair tie
+winter,accessory,fur-trimmed gloves
+winter,accessory,fur-trimmed scarf
+winter,accessory,furry-specific jewelry
+winter,accessory,fur scarf
+winter,accessory,snowflake necklace
