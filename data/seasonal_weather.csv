@@ -3,9 +3,7 @@ spring,sunny
 spring,partly cloudy
 spring,light rain
 spring,misty
-spring,drizzling
 spring,hail
-spring,thunderstorm
 spring,windy
 summer,sunny
 summer,partly cloudy
@@ -13,21 +11,15 @@ summer,clear night
 summer,humid
 summer,dry
 summer,heatwave
-summer,thunderstorm
-summer,tropical storm
 autumn,overcast
 autumn,partly cloudy
 autumn,windy
 autumn,rainy
 autumn,foggy
 autumn,hail
-autumn,thunderstorm
-autumn,windstorm
 winter,snowy
 winter,snow flurries
-winter,blizzard
 winter,frosty
 winter,clear night
-winter,ice storm
 winter,freezing rain
 winter,polar vortex

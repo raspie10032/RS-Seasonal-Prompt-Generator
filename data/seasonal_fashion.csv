@@ -34,16 +34,16 @@ spring,bottom,spring
 spring,bottom,floral print skirt
 spring,bottom,floral print pants
 spring,bottom,light pants
-spring,one piece,dress
-spring,one piece,romper
-spring,one piece,jumpsuit
-spring,one piece,tunic
-spring,one piece,sundress
-spring,one piece,floral print kimono
-spring,one piece,floral print apron
-spring,one piece,floral print dress
-spring,one piece,light dress shirt
-spring,one piece,strobe lights
+spring,one_piece,dress
+spring,one_piece,romper
+spring,one_piece,jumpsuit
+spring,one_piece,tunic
+spring,one_piece,sundress
+spring,one_piece,floral print kimono
+spring,one_piece,floral print apron
+spring,one_piece,floral print dress
+spring,one_piece,light dress shirt
+spring,one_piece,strobe lights
 spring,hat,baseball cap
 spring,hat,beanie
 spring,hat,beret
@@ -144,13 +144,13 @@ summer,bottom,bikini under shorts
 summer,bottom,swimsuit skirt
 summer,bottom,bikini skirt
 summer,bottom,bikini shorts
-summer,one piece,jumpsuit
-summer,one piece,dress
-summer,one piece,romper
-summer,one piece,sundress
-summer,one piece,swimsuit
-summer,one piece,dress swimsuit
-summer,one piece,garderobe swimsuit
+summer,one_piece,jumpsuit
+summer,one_piece,dress
+summer,one_piece,romper
+summer,one_piece,sundress
+summer,one_piece,swimsuit
+summer,one_piece,dress swimsuit
+summer,one_piece,garderobe swimsuit
 summer,hat,bandana
 summer,hat,baseball cap
 summer,hat,hat
@@ -266,14 +266,14 @@ autumn,bottom,plaid skirt
 autumn,bottom,plaid shorts
 autumn,bottom,leather shorts
 autumn,bottom,leather pants
-autumn,one piece,tunic
-autumn,one piece,coat
-autumn,one piece,dress
-autumn,one piece,poncho
-autumn,one piece,plaid apron
-autumn,one piece,leather dress
-autumn,one piece,plaid kimono
-autumn,one piece,leather apron
+autumn,one_piece,tunic
+autumn,one_piece,coat
+autumn,one_piece,dress
+autumn,one_piece,poncho
+autumn,one_piece,plaid apron
+autumn,one_piece,leather dress
+autumn,one_piece,plaid kimono
+autumn,one_piece,leather apron
 autumn,hat,beret
 autumn,hat,fedora
 autumn,hat,hat
@@ -371,16 +371,16 @@ winter,bottom,fur-trimmed skirt
 winter,bottom,furgonomic pants
 winter,bottom,fur skirt
 winter,bottom,fur-trimmed pants
-winter,one piece,dress
-winter,one piece,parka
-winter,one piece,coat
-winter,one piece,tunic
-winter,one piece,fur-trimmed jumpsuit
-winter,one piece,fur-trimmed robe
-winter,one piece,fur dress
-winter,one piece,fur-trimmed kimono
-winter,one piece,christmas dress
-winter,one piece,fur-trimmed dress
+winter,one_piece,dress
+winter,one_piece,parka
+winter,one_piece,coat
+winter,one_piece,tunic
+winter,one_piece,fur-trimmed jumpsuit
+winter,one_piece,fur-trimmed robe
+winter,one_piece,fur dress
+winter,one_piece,fur-trimmed kimono
+winter,one_piece,christmas dress
+winter,one_piece,fur-trimmed dress
 winter,hat,beanie
 winter,hat,hat
 winter,hat,knit hat
