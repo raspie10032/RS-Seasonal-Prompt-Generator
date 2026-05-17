@@ -133,7 +133,22 @@ _cache_lock = threading.Lock()
 
 
 def _clean_special_tokens(raw):
-    return re.sub(r"<[^|][^>]*>", "", raw)
+    # TIPO category tokens (<|general|> etc.) -> comma so adjacent tags don't
+    # glue together; any other angle-bracket token -> dropped.
+    raw = re.sub(r"<\|[^|>]*\|>", ", ", raw)
+    raw = re.sub(r"<[^>]*>?", "", raw)  # also strips unterminated "<..." tails
+    return raw
+
+
+def _is_korean(text):
+    return bool(re.search(r"[가-힣]", text))
+
+
+def _looks_like_nl(text):
+    """Heuristic: Korean text, or a comma-segment that reads like a phrase."""
+    if _is_korean(text):
+        return True
+    return any(len(seg.split()) > 4 for seg in text.split(","))
 
 
 def _dedup(tags):
@@ -222,9 +237,14 @@ def expand_prompt(prompt, gguf_path, tag_length, ban_tags, temperature, seed,
             return prompt
 
         target = _TARGET_TAGS.get(tag_length, 45)
+        # This is a TIPO tag model: the "Partial tags:" framing yields far
+        # richer/on-topic output than a "Description:" framing, even for
+        # Korean natural-language input. is_nl is used ONLY to decide whether
+        # to keep the raw input in the result (below), not the framing.
+        is_nl = _looks_like_nl(prompt)
         user_msg = (
             f"Partial tags: {prompt.strip()}\n"
-            f"Output around {target} comma-separated Danbooru tags."
+            f"Output around {target} comma-separated English Danbooru tags."
         )
 
         resp = llm.create_chat_completion(
@@ -248,8 +268,9 @@ def expand_prompt(prompt, gguf_path, tag_length, ban_tags, temperature, seed,
         ]
         tags = ", ".join(parsed) if parsed else tags_raw
 
-        # Keep the original prompt's tags up front, then post-process via kgen.
-        combined = _dedup(prompt.strip() + ", " + tags)
+        # For tag input keep the original tags up front; for natural-language
+        # input drop the raw text so it doesn't pollute the tag output.
+        combined = _dedup(tags if is_nl else prompt.strip() + ", " + tags)
         expanded = _postprocess_with_kgen(combined, ban_tags, sort_preset)
         return expanded if expanded else prompt
 
