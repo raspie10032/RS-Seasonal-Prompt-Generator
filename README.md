@@ -1,6 +1,43 @@
 # RS-Seasonal-Prompt-Generator
  Generates season-specific fashion prompts by randomly combining fashion items, background settings, weather, time, and additional situational details from CSV data.
 
+> **v2.0.0** adds optional TIPO prompt expansion (local GGUF, opt-in). See the changelog (`Update_log_ENG.txt` / `Update_log_KOR.txt`).
+
+## Usage
+
+1. **Install the node**: clone or copy this folder into
+   `ComfyUI/custom_nodes/` and restart ComfyUI.
+2. In ComfyUI, add the node **`Seasonal Fashion Prompt Generator`**
+   (category: `prompt`). It outputs a single `STRING` you can wire into any
+   text/CLIP encode node.
+3. **Base use (no extra dependencies):** pick a `season` and toggle the
+   fashion / background / weather / pose options as desired, then queue.
+   The node returns a comma-separated prompt. This is the original behavior
+   and needs nothing installed.
+4. **TIPO expansion (optional):** set `tipo_toggle` to `on` to expand the
+   generated prompt into a richer Danbooru tag set. On the first run it
+   auto-installs its dependencies and (if `tipo_gguf_path` is empty)
+   downloads the default model — see *Install* below.
+
+### TIPO examples
+
+The TIPO path also accepts free natural-language text (Korean or English),
+not just tags — useful if you feed it from a text box instead of the
+seasonal generator:
+
+| Input | Output (example) |
+| --- | --- |
+| `spring, white blouse, pleated skirt, park` | `spring, white blouse, pleated skirt, park, outdoors, school uniform, long sleeves, sitting, solo, …` |
+| `빨간 원피스, 밀짚모자, 해변` (Korean) | `straw hat, red one-piece swimsuit, sun hat, beach, ocean, swimsuit, outdoors, …` |
+
+Notes:
+- Longer / more detailed descriptions yield more and more accurate tags.
+- The raw input text (incl. Korean) is **not** mixed into the tag output.
+- Use `tipo_ban_tags` to strip unwanted tags, and `tipo_sort` to control
+  category ordering.
+- Output quality depends on the GGUF model; on any failure the node falls
+  back to the un-expanded prompt (it never hard-errors).
+
 ## TIPO prompt expansion (optional)
 
 The node can optionally expand its generated prompt into a richer Danbooru-style

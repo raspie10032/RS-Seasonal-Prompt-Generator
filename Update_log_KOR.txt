@@ -1,3 +1,30 @@
+2026년 5월 17일  (v2.0.0)
+1. TIPO 프롬프트 확장 (선택 기능, tipo_toggle로 켜기)
+설명: 생성된 프롬프트를 로컬 GGUF 모델로 더 풍부한 Danbooru 태그 세트로
+확장합니다. 추론은 llama-cpp-python in-process, 프롬프트 정렬은
+kgen.formatter가 담당합니다.
+
+2. 모델 직접 지정 / 자동 다운로드
+tipo_gguf_path: 비워두면 최초 사용 시 기본 모델
+(raspie/gemma4-tipo-ko-gguf)을 HuggingFace에서 자동 다운로드, 또는 로컬
+.gguf 파일/폴더 경로를 지정하면 본인 모델 사용.
+
+3. 최초 사용 시 자동 설치
+tipo_toggle을 켠 상태로 처음 실행하면 누락된 의존성
+(llama-cpp-python 프리빌트 CPU 휠, tipo-kgen, huggingface_hub)을 자동
+설치합니다. tipo_toggle이 off면 아무것도 설치하지 않고 기존과 완전히
+동일하게 동작합니다(추가 의존성 0).
+
+4. 신규 선택 입력
+tipo_toggle, tipo_gguf_path, tipo_tag_length(very_short~very_long),
+tipo_sort(danbooru / quality_first / artist_first / general_only),
+tipo_temperature, tipo_ban_tags.
+
+5. 자연어 입력 지원
+의상이나 상황을 한국어(또는 영어) 자연어로 설명하면 영어 Danbooru
+태그로 변환됩니다. 원본 설명문은 결과에 섞이지 않으며, 실패 시 확장 없이
+원본 프롬프트로 안전하게 폴백합니다.
+
 2024년 6월 15일
 1. 배경 기능 변경
 설명: 배경 선택 옵션이 on, off, simple로 세분화되었습니다.
