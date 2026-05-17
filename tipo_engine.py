@@ -71,11 +71,45 @@ HF_REPO = "raspie/gemma4-tipo-ko-gguf"
 HF_FILE = "gemma4-tipo-ko-Q4_K_M.gguf"
 
 
+def _gguf_dir():
+    """Resolve <ComfyUI>/models/gguf so the model lives inside ComfyUI.
+
+    Uses ComfyUI's folder_paths when running inside ComfyUI; otherwise walks
+    up from this file to a `custom_nodes` parent; final fallback is a
+    repo-local models/gguf (keeps standalone use self-contained)."""
+    try:
+        import folder_paths
+
+        base = os.path.join(folder_paths.models_dir, "gguf")
+    except Exception:
+        here = os.path.dirname(os.path.abspath(__file__))
+        base = None
+        p = here
+        while True:
+            parent = os.path.dirname(p)
+            if parent == p:
+                break
+            if os.path.basename(p) == "custom_nodes":
+                base = os.path.join(os.path.dirname(p), "models", "gguf")
+                break
+            p = parent
+        if base is None:
+            base = os.path.join(here, "models", "gguf")
+    os.makedirs(base, exist_ok=True)
+    return base
+
+
 def _resolve_model_path(gguf_path):
     """Return a local GGUF path: use the given path, else auto-download the
-    default model from HuggingFace (cached by huggingface_hub)."""
+    default model into <ComfyUI>/models/gguf (reused if already present)."""
     if gguf_path and gguf_path.strip():
         return gguf_path
+
+    target_dir = _gguf_dir()
+    target = os.path.join(target_dir, HF_FILE)
+    if os.path.exists(target):
+        return target
+
     if not _have("huggingface_hub"):
         try:
             _pip_install(["huggingface_hub"])
@@ -85,8 +119,8 @@ def _resolve_model_path(gguf_path):
             return ""
     from huggingface_hub import hf_hub_download
 
-    print(f"[TIPO] downloading default model {HF_REPO}/{HF_FILE} (first use)")
-    return hf_hub_download(repo_id=HF_REPO, filename=HF_FILE)
+    print(f"[TIPO] downloading default model {HF_REPO}/{HF_FILE} -> {target_dir} (first use)")
+    return hf_hub_download(repo_id=HF_REPO, filename=HF_FILE, local_dir=target_dir)
 
 
 SYSTEM_TIPO = (
