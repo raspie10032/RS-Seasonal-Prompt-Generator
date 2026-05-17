@@ -1,3 +1,30 @@
+May 17th, 2026  (v2.0.0)
+1. TIPO Prompt Expansion (optional, opt-in via tipo_toggle)
+Description: The node can now expand its generated prompt into a richer
+Danbooru-style tag set using a local GGUF model run in-process by
+llama-cpp-python, with prompt sorting done by kgen.formatter.
+
+2. Bring-your-own / auto-download model
+tipo_gguf_path: leave empty to auto-download the default model
+(raspie/gemma4-tipo-ko-gguf) from HuggingFace on first use, or set a local
+.gguf file/folder path to use your own.
+
+3. First-use auto-install
+On the first run with tipo_toggle on, missing dependencies
+(llama-cpp-python via the prebuilt CPU wheel, tipo-kgen, huggingface_hub)
+are installed automatically. With tipo_toggle off, nothing is installed and
+the node behaves exactly as before (zero extra dependencies).
+
+4. New optional inputs
+tipo_toggle, tipo_gguf_path, tipo_tag_length (very_short..very_long),
+tipo_sort (danbooru / quality_first / artist_first / general_only),
+tipo_temperature, tipo_ban_tags.
+
+5. Natural-language input
+Korean (or English) natural-language descriptions of outfits or situations
+are converted to English Danbooru tags; the raw description is not mixed
+into the output. Any failure falls back to the un-expanded prompt.
+
 June 15th, 2024
 1. Background Function Modification
 Description: The background selection options have been subdivided into on, off, and simple.

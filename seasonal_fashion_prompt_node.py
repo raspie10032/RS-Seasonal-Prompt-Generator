@@ -185,6 +185,19 @@ class SeasonalFashionPromptNode:
                 # 특수 케이스
                 "wanna_shot": (["Yes", "No"], {"default": "No", "label": "wanna shot?"}),
                 "seed": ("INT", {"default": random.randint(1000000000000000, 9999999999999999)}),
+            },
+            "optional": {
+                # TIPO prompt expansion: in-process GGUF (llama-cpp) + kgen sort
+                "tipo_toggle": (["off", "on"], {"default": "off"}),
+                "tipo_gguf_path": ("STRING", {"default": "",
+                                              "placeholder": "leave empty to auto-download from HF, or a local .gguf file/folder path"}),
+                "tipo_tag_length": (["very_short", "short", "long", "very_long"],
+                                    {"default": "long"}),
+                "tipo_sort": (["danbooru", "quality_first", "artist_first",
+                               "general_only"], {"default": "danbooru"}),
+                "tipo_temperature": ("FLOAT", {"default": 0.5, "min": 0.1,
+                                               "max": 1.5, "step": 0.05}),
+                "tipo_ban_tags": ("STRING", {"default": "", "multiline": True}),
             }
         }
     
@@ -192,10 +205,13 @@ class SeasonalFashionPromptNode:
     FUNCTION = "generate_prompt"
     CATEGORY = "prompt"
     
-    def generate_prompt(self, season, background_toggle, weather_toggle, time_toggle, 
-                         top_toggle, bottom_toggle, one_piece_toggle, accessory_toggle, hat_toggle, 
-                         shoes_toggle, socks_toggle, composition_toggle, gaze_toggle, pose_toggle, 
-                         body_direction_toggle, additional_situation_toggle, wanna_shot, seed):
+    def generate_prompt(self, season, background_toggle, weather_toggle, time_toggle,
+                         top_toggle, bottom_toggle, one_piece_toggle, accessory_toggle, hat_toggle,
+                         shoes_toggle, socks_toggle, composition_toggle, gaze_toggle, pose_toggle,
+                         body_direction_toggle, additional_situation_toggle, wanna_shot, seed,
+                         tipo_toggle="off", tipo_gguf_path="",
+                         tipo_tag_length="long", tipo_sort="danbooru",
+                         tipo_temperature=0.5, tipo_ban_tags=""):
         # Convert seed to integer
         seed = int(seed)
         
@@ -238,9 +254,12 @@ class SeasonalFashionPromptNode:
 
         # Handle special "wanna shot" case
         if wanna_shot == "Yes":
-            fashion = self.get_fashion(season, top_toggle, bottom_toggle, one_piece_toggle, 
+            fashion = self.get_fashion(season, top_toggle, bottom_toggle, one_piece_toggle,
                                        accessory_toggle, hat_toggle, shoes_toggle, socks_toggle)
-            return (", ".join(filter(None, [season, fashion, "cafe, coffee, holding a tumbler, straw inside the tumbler"])),)
+            shot_prompt = ", ".join(filter(None, [season, fashion, "cafe, coffee, holding a tumbler, straw inside the tumbler"]))
+            return (self._maybe_tipo(shot_prompt, tipo_toggle, tipo_gguf_path,
+                                     tipo_tag_length, tipo_sort, tipo_ban_tags,
+                                     tipo_temperature, seed),)
 
         # Build prompt parts based on toggle settings
         prompt_parts = [season]
@@ -290,7 +309,22 @@ class SeasonalFashionPromptNode:
 
         # Join all prompt parts, filtering out any empty strings
         prompt = ", ".join(filter(None, prompt_parts))
-        return (prompt,)
+        return (self._maybe_tipo(prompt, tipo_toggle, tipo_gguf_path,
+                                 tipo_tag_length, tipo_sort, tipo_ban_tags,
+                                 tipo_temperature, seed),)
+
+    def _maybe_tipo(self, prompt, tipo_toggle, tipo_gguf_path, tipo_tag_length,
+                    tipo_sort, tipo_ban_tags, tipo_temperature, seed):
+        """Optionally expand the prompt via TIPO; passthrough when off."""
+        if tipo_toggle != "on":
+            return prompt
+        try:
+            from . import tipo_engine
+        except ImportError:
+            import tipo_engine
+        return tipo_engine.expand_prompt(prompt, tipo_gguf_path, tipo_tag_length,
+                                         tipo_ban_tags, tipo_temperature, seed,
+                                         tipo_sort)
 
     def get_fashion(self, season, top_toggle, bottom_toggle, one_piece_toggle, 
                    accessory_toggle, hat_toggle, shoes_toggle, socks_toggle):
@@ -391,10 +425,11 @@ class SeasonalFashionPromptNode:
 # Example usage
 if __name__ == "__main__":
     node = SeasonalFashionPromptNode()
+    # TIPO is opt-in: pass tipo_toggle="on", tipo_gguf_path="path/to/model.gguf" to expand.
     prompt = node.generate_prompt(
-        "random", "on", "random", "random", 
-        "random", "random", "random", "random", "random", 
-        "random", "random", "random", "random", "random", 
+        "random", "on", "random", "random",
+        "random", "random", "random", "random", "random",
+        "random", "random", "random", "random", "random",
         "random", "on", "No", random.randint(1000000000000000, 9999999999999999)
     )
     print(prompt)

@@ -1,0 +1,16 @@
+# Only needed when the node's tipo_toggle is set to "on".
+# When tipo_toggle is "off" (default) the node has NO extra dependencies.
+#
+# llama-cpp-python : in-process GGUF inference (runs your custom Gemma-4-E2B
+#                    GGUF as-is). This is a native package; if the default
+#                    install fails, use the prebuilt CPU wheel index:
+#                    pip install llama-cpp-python \
+#                      --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+# tipo-kgen        : used ONLY for its lightweight, pure-Python tag formatter
+#                    (kgen.formatter); kgen.executor / kgen.models are never
+#                    imported, so no torch/transformers is pulled in at runtime.
+# huggingface_hub  : pure-Python; auto-downloads the default GGUF when no
+#                    local tipo_gguf_path is given.
+llama-cpp-python
+tipo-kgen
+huggingface_hub

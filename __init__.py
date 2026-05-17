@@ -3,6 +3,8 @@
 
 # __init__.py
 
+__version__ = "2.0.0"
+
 from .seasonal_fashion_prompt_node import SeasonalFashionPromptNode
 
 NODE_CLASS_MAPPINGS = {
