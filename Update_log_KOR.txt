@@ -1,3 +1,10 @@
+2026년 5월 18일  (v2.3.0)
+1. 노드에 다운로드 진행률 표시
+기본 모델 다운로드 시 Gemma TIPO 노드에 진행률 바(ComfyUI ProgressBar)와
+콘솔 퍼센트가 표시됩니다. 최초 다운로드가 멈춘 것처럼 보이지 않습니다.
+표준 라이브러리로 ComfyUI/models/gguf 에 바로 스트리밍 저장하며,
+huggingface_hub 의존성은 더 이상 필요 없습니다.
+
 2026년 5월 18일  (v2.2.0)
 1. 모델 선택을 드롭다운으로 변경
 Gemma TIPO 노드의 자유 입력 경로 대신, ComfyUI/models/gguf 안의 *.gguf

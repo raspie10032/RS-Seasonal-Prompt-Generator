@@ -10,8 +10,9 @@
 # tipo-kgen        : used ONLY for its lightweight, pure-Python tag formatter
 #                    (kgen.formatter); kgen.executor / kgen.models are never
 #                    imported, so no torch/transformers is pulled in at runtime.
-# huggingface_hub  : pure-Python; auto-downloads the default GGUF into
-#                    ComfyUI/models/gguf when "(auto: download default)" is selected.
+#
+# The default model is downloaded with the standard library (urllib) straight
+# into ComfyUI/models/gguf with a node progress bar, so huggingface_hub is no
+# longer required.
 llama-cpp-python>=0.3.23
 tipo-kgen
-huggingface_hub

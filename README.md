@@ -38,9 +38,10 @@ Inputs:
   **`ComfyUI/models/gguf/`**. Pick `(auto: download default)` to fetch the
   default model
   ([`raspie/gemma4-tipo-ko-gguf`](https://huggingface.co/raspie/gemma4-tipo-ko-gguf))
-  into that folder on first use (reused afterward, never re-downloaded); or
-  drop your own `.gguf` into `ComfyUI/models/gguf/` and select it (reload the
-  node list to see new files).
+  into that folder on first use — a **progress bar shows on the node** while
+  it downloads (reused afterward, never re-downloaded); or drop your own
+  `.gguf` into `ComfyUI/models/gguf/` and select it (reload the node list to
+  see new files).
 - `tag_length`: target verbosity (`very_short` … `very_long`).
 - `sort`: prompt-ordering preset applied by `kgen.formatter` (tags are
   categorized special/characters/copyrights/artist/general/quality/meta/rating):
@@ -63,7 +64,7 @@ Notes:
 
 **No manual install is required.** The first time you actually run Node 2,
 its dependencies are auto-installed into the active environment once:
-`tipo-kgen` + `huggingface_hub` (pure-Python) and `llama-cpp-python` **>= 0.3.23**
+`tipo-kgen` (pure-Python) and `llama-cpp-python` **>= 0.3.23**
 (from the prebuilt CPU wheel index, so no native build). Older builds cannot
 load the gemma4 architecture, so an existing too-old `llama-cpp-python` is
 upgraded automatically — if that happens mid-session ComfyUI will ask you to
