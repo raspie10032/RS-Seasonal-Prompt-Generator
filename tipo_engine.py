@@ -292,6 +292,25 @@ def _dedup(tags):
     return ", ".join(out)
 
 
+def _drop_redundant(csv):
+    """Drop a general tag when a more specific tag with the same head noun
+    is present, to save tokens: e.g. with "white skirt" present, "skirt" is
+    redundant and removed. Uses a suffix rule (the longer tag must end with
+    " " + the shorter tag) so distinct tags like "dress" vs "dress shirt"
+    are NOT collapsed."""
+    tags = [t.strip() for t in csv.split(",") if t.strip()]
+    low = [t.lower() for t in tags]
+    drop = set()
+    for i, s in enumerate(low):
+        for j, l in enumerate(low):
+            if i == j:
+                continue
+            if l.endswith(" " + s):  # l = "<modifier> <s>"
+                drop.add(i)
+                break
+    return ", ".join(t for k, t in enumerate(tags) if k not in drop)
+
+
 def load_tipo(model_path):
     """Load and cache a GGUF model (CPU, n_gpu_layers=0 for max compatibility)."""
     if not model_path:
@@ -342,6 +361,7 @@ def _postprocess_with_kgen(tags_csv, ban_tags, sort_preset):
             if t.strip() and t.strip().lower() not in banned
         )
 
+    formatted = _drop_redundant(formatted)
     return formatted.strip().strip(",").strip()
 
 
