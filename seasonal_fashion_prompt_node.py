@@ -190,7 +190,7 @@ class SeasonalFashionPromptNode:
                 # TIPO prompt expansion: in-process GGUF (llama-cpp) + kgen sort
                 "tipo_toggle": (["off", "on"], {"default": "off"}),
                 "tipo_gguf_path": ("STRING", {"default": "",
-                                              "placeholder": "path to your .gguf file or a folder containing one"}),
+                                              "placeholder": "leave empty to auto-download from HF, or a local .gguf file/folder path"}),
                 "tipo_tag_length": (["very_short", "short", "long", "very_long"],
                                     {"default": "long"}),
                 "tipo_sort": (["danbooru", "quality_first", "artist_first",

@@ -7,14 +7,87 @@ Gemma-4-E2B GGUF can be used as-is.
 Post-processing: kgen.formatter (pure-Python, lightweight) — only the
 light formatter is imported, never kgen.executor / kgen.models.
 
-All heavy imports are lazy and every failure path falls back to the
-original prompt so the node never hard-fails.
+Dependencies (llama-cpp-python, tipo-kgen) are auto-installed on first
+TIPO use only. All heavy imports are lazy and every failure path falls
+back to the original prompt so the node never hard-fails.
 """
 
 import os
 import re
+import sys
 import random
 import threading
+import importlib
+import subprocess
+
+# Dependencies are installed on first actual TIPO use only (not at node import),
+# so the base node stays zero-dependency and ComfyUI startup is never blocked.
+_DEPS_ATTEMPTED = False
+_deps_lock = threading.Lock()
+
+
+def _have(mod):
+    try:
+        importlib.import_module(mod)
+        return True
+    except Exception:
+        return False
+
+
+def _pip_install(args):
+    print(f"[TIPO] auto-installing: {' '.join(args)}")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", *args])
+
+
+def _ensure_deps():
+    """Lazily install llama-cpp-python / tipo-kgen once, on first TIPO use."""
+    global _DEPS_ATTEMPTED
+    if _have("llama_cpp") and _have("kgen.formatter"):
+        return True
+    with _deps_lock:
+        if _have("llama_cpp") and _have("kgen.formatter"):
+            return True
+        if _DEPS_ATTEMPTED:
+            return False
+        _DEPS_ATTEMPTED = True
+        try:
+            if not _have("kgen.formatter"):
+                _pip_install(["tipo-kgen"])
+            if not _have("llama_cpp"):
+                # prebuilt CPU wheel index -> no native build required
+                _pip_install([
+                    "llama-cpp-python",
+                    "--extra-index-url",
+                    "https://abetlen.github.io/llama-cpp-python/whl/cpu",
+                    "--prefer-binary",
+                ])
+        except Exception as e:
+            print(f"[TIPO] auto-install failed ({type(e).__name__}: {e})")
+        importlib.invalidate_caches()
+        return _have("llama_cpp") and _have("kgen.formatter")
+
+# Default model auto-downloaded from HuggingFace when no local path is given.
+HF_REPO = "raspie/gemma4-tipo-ko-gguf"
+HF_FILE = "gemma4-tipo-ko-Q4_K_M.gguf"
+
+
+def _resolve_model_path(gguf_path):
+    """Return a local GGUF path: use the given path, else auto-download the
+    default model from HuggingFace (cached by huggingface_hub)."""
+    if gguf_path and gguf_path.strip():
+        return gguf_path
+    if not _have("huggingface_hub"):
+        try:
+            _pip_install(["huggingface_hub"])
+            importlib.invalidate_caches()
+        except Exception as e:
+            print(f"[TIPO] huggingface_hub install failed ({type(e).__name__}: {e})")
+            return ""
+    from huggingface_hub import hf_hub_download
+
+    print(f"[TIPO] downloading default model {HF_REPO}/{HF_FILE} (first use)")
+    return hf_hub_download(repo_id=HF_REPO, filename=HF_FILE)
+
 
 SYSTEM_TIPO = (
     "You are a Danbooru tag expert. "
@@ -137,10 +210,15 @@ def expand_prompt(prompt, gguf_path, tag_length, ban_tags, temperature, seed,
     if not prompt or not prompt.strip():
         return prompt
 
+    if not _ensure_deps():
+        print("[TIPO] dependencies unavailable; using original prompt")
+        return prompt
+
     try:
-        llm = load_tipo(gguf_path)
+        resolved = _resolve_model_path(gguf_path)
+        llm = load_tipo(resolved)
         if llm is None:
-            print(f"[TIPO] model not loaded (path: {gguf_path!r}); using original prompt")
+            print(f"[TIPO] model not loaded (path: {resolved!r}); using original prompt")
             return prompt
 
         target = _TARGET_TAGS.get(tag_length, 45)

@@ -11,8 +11,11 @@ pure-Python tag formatter from [`tipo-kgen`](https://github.com/KohakuBlueleaf/K
 (`kgen.formatter` only — no torch/transformers is loaded).
 
 - Set `tipo_toggle` to `on` to enable expansion.
-- `tipo_gguf_path`: path to your `.gguf` file, or a folder containing one
-  (a `*q4*` file is preferred when several are present).
+- `tipo_gguf_path`: leave **empty** to auto-download the default model
+  ([`raspie/gemma4-tipo-ko-gguf`](https://huggingface.co/raspie/gemma4-tipo-ko-gguf))
+  from HuggingFace on first use (cached by `huggingface_hub`). Or set a local
+  `.gguf` file / folder path to use your own (a `*q4*` file is preferred when
+  several are present).
 - `tipo_tag_length`: target verbosity (`very_short` … `very_long`).
 - `tipo_sort`: prompt-ordering preset applied by `kgen.formatter` — tags are
   categorized (special/characters/copyrights/artist/general/quality/meta/rating)
@@ -30,21 +33,30 @@ needs no extra dependencies.
 
 ### Install
 
+**No manual install is required.** The first time you actually run the node
+with `tipo_toggle` set to `on`, the missing dependencies are auto-installed
+into the active environment: `tipo-kgen` (pure-Python) and `llama-cpp-python`
+(from the prebuilt CPU wheel index, so no native build). This happens once and
+only when TIPO is first used — with `tipo_toggle` off the node never installs
+anything.
+
+To pre-install manually instead (optional):
+
 ```
 pip install -r requirements.txt
 ```
 
-`tipo-kgen` is pure-Python. `llama-cpp-python` is native — if the standard
-install fails to build, use the prebuilt CPU wheel index:
+If the prebuilt `llama-cpp-python` wheel install fails to find a wheel for your
+platform/Python, install it yourself once:
 
 ```
 pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 ```
 
-The GGUF model is loaded from the local `tipo_gguf_path` you provide (nothing
-is downloaded automatically). If `llama-cpp-python` is missing, the path is
-empty/invalid, or inference fails, the node falls back to the un-expanded
-prompt instead of erroring.
+If `tipo_gguf_path` is empty the default model is downloaded from HuggingFace
+on first use (cached); otherwise your local path is used. If
+`llama-cpp-python` is missing, the model can't be obtained, or inference
+fails, the node falls back to the un-expanded prompt instead of erroring.
 
 ## References & Credits
 
@@ -54,7 +66,6 @@ prompt instead of erroring.
 | [llama.cpp](https://github.com/ggml-org/llama.cpp) | GGUF inference engine | MIT |
 | [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) | Python bindings for in-process GGUF inference | MIT |
 | [Gemma](https://ai.google.dev/gemma) by Google | Base model family for the GGUF used in TIPO expansion | Gemma Terms of Use |
-| [NAI-FaceDetailer](https://github.com/raspie10032/NAI-FaceDetailer) | Origin of the ported TIPO chat-completion expansion approach | — |
 
 The TIPO expansion concept ("upsample"/expand short prompts into detailed
 Danbooru tag sets) originates from KohakuBlueleaf's KGen/TIPO and the
