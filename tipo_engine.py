@@ -311,6 +311,59 @@ def _drop_redundant(csv):
     return ", ".join(t for k, t in enumerate(tags) if k not in drop)
 
 
+_COUNT_RE = {
+    "girls": re.compile(r"^(?:\d+\+?\s?girls?|multiple girls)$"),
+    "boys": re.compile(r"^(?:\d+\+?\s?boys?|multiple boys)$"),
+    "others": re.compile(r"^(?:\d+\+?\s?others?|multiple others)$"),
+}
+
+
+def _count_group(tag):
+    t = tag.strip().lower()
+    for g, rx in _COUNT_RE.items():
+        if rx.match(t):
+            return g
+    return None
+
+
+def _resolve_count_conflicts(csv, input_prompt):
+    """Each person-count group (girls / boys / others) must have at most one
+    tag: e.g. with `1girl` present, `4girls` / `multiple girls` are dropped.
+    Groups are independent (`1girl` + `1boy` is fine). The kept tag is the
+    one present in the user's input (first by input order), else the first
+    in the output."""
+    input_low = [t.strip().lower() for t in input_prompt.split(",")]
+    tags = [t.strip() for t in csv.split(",") if t.strip()]
+
+    by_group = {}
+    for t in tags:
+        g = _count_group(t)
+        if g:
+            by_group.setdefault(g, []).append(t)
+
+    keep = {}
+    for g, members in by_group.items():
+        if len(members) <= 1:
+            continue
+        chosen = None
+        for it in input_low:
+            for m in members:
+                if m.lower() == it:
+                    chosen = m
+                    break
+            if chosen:
+                break
+        keep[g] = chosen or members[0]
+
+    out = []
+    for t in tags:
+        g = _count_group(t)
+        if g in keep and t != keep[g]:
+            continue
+        out.append(t)
+    return ", ".join(out)
+
+
 def load_tipo(model_path):
     """Load and cache a GGUF model (CPU, n_gpu_layers=0 for max compatibility)."""
     if not model_path:
@@ -422,6 +475,7 @@ def expand_prompt(prompt, gguf_path, tag_length, ban_tags, temperature, seed,
         # input drop the raw text so it doesn't pollute the tag output.
         combined = _dedup(tags if is_nl else prompt.strip() + ", " + tags)
         expanded = _postprocess_with_kgen(combined, ban_tags, sort_preset)
+        expanded = _resolve_count_conflicts(expanded, prompt)
         return expanded if expanded else prompt
 
     except Exception as e:

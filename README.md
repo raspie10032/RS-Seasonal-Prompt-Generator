@@ -73,6 +73,9 @@ Notes:
 - Redundant general tags are dropped to save tokens: if a more specific tag
   with the same head noun exists (e.g. `white skirt`), the bare `skirt` is
   removed. Distinct tags like `dress`/`dress shirt` are kept.
+- Conflicting person-count tags are collapsed per group: with `1girl`
+  present, `4girls` / `multiple girls` are removed (`1girl` + `1boy` is
+  kept — groups are independent).
 - On any failure (missing deps, model unavailable, inference error) it falls
   back to the input text unchanged — it never hard-errors.
 

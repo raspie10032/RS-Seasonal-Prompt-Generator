@@ -1,3 +1,11 @@
+May 18th, 2026  (v2.5.0)
+1. Resolve person-count conflicts
+Each person-count group (girls / boys / others) is reduced to a single
+tag: with "1girl" present, "4girls" / "multiple girls" etc. are dropped.
+Groups are independent ("1girl" + "1boy" is kept). The kept tag is the
+one in the user's input (first by input order), else the first in the
+output. Tags like "cowgirl position" are not affected.
+
 May 18th, 2026  (v2.4.2)
 1. README showcase + requirements
 Added a Showcase section with a node screenshot and a real
