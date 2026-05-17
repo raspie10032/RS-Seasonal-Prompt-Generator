@@ -1,3 +1,18 @@
+2026년 5월 18일  (v2.1.0)
+1. 노드 2개로 분리
+설명: TIPO 확장이 더 이상 시즈널 노드에 내장되지 않습니다. 이제 별도
+노드 2개로 나뉩니다(둘 다 category: prompt):
+- "Seasonal Fashion Prompt Generator": 기존 CSV 랜덤 조합기. 순수 형태로
+  복원되어 의존성 0 (v2.0.0에서 추가됐던 tipo_* 입력은 이 노드에서 제거).
+- "Gemma TIPO Prompt -> Tags" (신규): 한국어/영어 자연어나 태그 텍스트를
+  카테고리 정렬된 Danbooru 태그로 변환하는 독립 노드. 입력: prompt,
+  tipo_gguf_path, tag_length, sort, temperature, ban_tags, seed.
+
+2. 조합 사용
+노드1 출력을 노드2의 prompt 입력에 연결해 생성된 시즈널 프롬프트를
+확장하거나, 노드2만 단독으로 본인 텍스트와 사용 가능. 노드2는 최초 사용
+시 자동설치와 선택적 HF 자동 다운로드를 유지하고, 노드1은 의존성 0 유지.
+
 2026년 5월 17일  (v2.0.0)
 1. TIPO 프롬프트 확장 (선택 기능, tipo_toggle로 켜기)
 설명: 생성된 프롬프트를 로컬 GGUF 모델로 더 풍부한 Danbooru 태그 세트로
