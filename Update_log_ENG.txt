@@ -1,3 +1,21 @@
+May 18th, 2026  (v2.1.0)
+1. Split into two independent nodes
+Description: The TIPO expansion is no longer embedded in the seasonal node.
+Now there are two separate nodes (both category: prompt):
+- "Seasonal Fashion Prompt Generator": the original CSV random combiner,
+  reverted to its pure form with zero dependencies (the tipo_* inputs added
+  in v2.0.0 were removed from this node).
+- "Gemma TIPO Prompt -> Tags" (new): a standalone node that converts any
+  Korean/English natural-language or tag text into a category-sorted
+  Danbooru tag set. Inputs: prompt, tipo_gguf_path, tag_length, sort,
+  temperature, ban_tags, seed.
+
+2. Composable
+Wire Node 1's output into Node 2's prompt input to expand a generated
+seasonal prompt, or use Node 2 alone with your own text. Node 2 keeps the
+first-use auto-install and optional HF auto-download; Node 1 stays
+dependency-free.
+
 May 17th, 2026  (v2.0.0)
 1. TIPO Prompt Expansion (optional, opt-in via tipo_toggle)
 Description: The node can now expand its generated prompt into a richer
