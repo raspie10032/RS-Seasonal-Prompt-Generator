@@ -22,6 +22,8 @@ import subprocess
 
 # Dependencies are installed on first actual TIPO use only (not at node import),
 # so the base node stays zero-dependency and ComfyUI startup is never blocked.
+# llama-cpp-python below this version cannot load the gemma4 architecture.
+_MIN_LLAMA = (0, 3, 23)
 _DEPS_ATTEMPTED = False
 _deps_lock = threading.Lock()
 
@@ -34,29 +36,77 @@ def _have(mod):
         return False
 
 
+def _ver_tuple(s):
+    nums = re.findall(r"\d+", s or "")
+    return tuple(int(x) for x in nums[:3]) if nums else None
+
+
+def _imported_llama_version():
+    try:
+        import llama_cpp
+        return _ver_tuple(getattr(llama_cpp, "__version__", ""))
+    except Exception:
+        return None
+
+
+def _installed_llama_version():
+    """Version on disk (via pip), independent of what's imported in-process."""
+    try:
+        out = subprocess.check_output(
+            [sys.executable, "-m", "pip", "show", "llama-cpp-python"],
+            text=True, stderr=subprocess.DEVNULL)
+        for line in out.splitlines():
+            if line.lower().startswith("version:"):
+                return _ver_tuple(line.split(":", 1)[1])
+    except Exception:
+        pass
+    return None
+
+
 def _pip_install(args):
     print(f"[TIPO] auto-installing: {' '.join(args)}")
     subprocess.check_call([sys.executable, "-m", "pip", "install", *args])
 
 
+def _restart_needed():
+    """True if a gemma4-capable llama-cpp-python is on disk but an older one
+    is already imported in this process (C-extension can't be hot-reloaded)."""
+    ins = _installed_llama_version()
+    iv = _imported_llama_version()
+    return bool(ins and ins >= _MIN_LLAMA and (iv is None or iv < _MIN_LLAMA)
+                and "llama_cpp" in sys.modules)
+
+
 def _ensure_deps():
-    """Lazily install llama-cpp-python / tipo-kgen once, on first TIPO use."""
+    """On first TIPO use: install tipo-kgen and a gemma4-capable
+    llama-cpp-python (>= %s). Existing too-old llama-cpp-python is upgraded.
+    """ % ".".join(map(str, _MIN_LLAMA))
     global _DEPS_ATTEMPTED
-    if _have("llama_cpp") and _have("kgen.formatter"):
+
+    def _ok():
+        iv = _imported_llama_version()
+        return _have("kgen.formatter") and iv is not None and iv >= _MIN_LLAMA
+
+    if _ok():
         return True
     with _deps_lock:
-        if _have("llama_cpp") and _have("kgen.formatter"):
+        if _ok():
             return True
         if _DEPS_ATTEMPTED:
+            if _restart_needed():
+                print("[TIPO] llama-cpp-python was upgraded; RESTART ComfyUI "
+                      "to load the gemma4-capable build, then run again.")
             return False
         _DEPS_ATTEMPTED = True
         try:
             if not _have("kgen.formatter"):
                 _pip_install(["tipo-kgen"])
-            if not _have("llama_cpp"):
+            ins = _installed_llama_version()
+            if ins is None or ins < _MIN_LLAMA:
                 # prebuilt CPU wheel index -> no native build required
                 _pip_install([
-                    "llama-cpp-python",
+                    "llama-cpp-python>=%s" % ".".join(map(str, _MIN_LLAMA)),
+                    "--upgrade",
                     "--extra-index-url",
                     "https://abetlen.github.io/llama-cpp-python/whl/cpu",
                     "--prefer-binary",
@@ -64,7 +114,11 @@ def _ensure_deps():
         except Exception as e:
             print(f"[TIPO] auto-install failed ({type(e).__name__}: {e})")
         importlib.invalidate_caches()
-        return _have("llama_cpp") and _have("kgen.formatter")
+        if _restart_needed():
+            print("[TIPO] llama-cpp-python upgraded to a gemma4-capable "
+                  "version; RESTART ComfyUI, then run again.")
+            return False
+        return _ok()
 
 # Default model auto-downloaded from HuggingFace when no local path is given.
 HF_REPO = "raspie/gemma4-tipo-ko-gguf"

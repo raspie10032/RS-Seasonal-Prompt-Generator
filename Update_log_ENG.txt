@@ -1,3 +1,19 @@
+May 18th, 2026  (v2.2.0)
+1. Model selection is now a dropdown
+The Gemma TIPO node's free-text path input is replaced by a dropdown of
+the *.gguf files found in ComfyUI/models/gguf, plus an
+"(auto: download default)" entry that fetches the default model there on
+first use.
+
+2. Fix: enforce a gemma4-capable llama-cpp-python
+An already-installed but too-old llama-cpp-python could not load the
+gemma4 architecture ("Failed to load model from file"). The node now
+requires llama-cpp-python >= 0.3.23 and upgrades an older install
+automatically. Because a C-extension cannot be hot-reloaded, if an upgrade
+was performed in a running session the node asks you to restart ComfyUI
+once; it then works (and always falls back to the original prompt instead
+of erroring).
+
 May 18th, 2026  (v2.1.1)
 1. Default model location moved into ComfyUI
 The auto-downloaded default GGUF is now stored in and loaded from

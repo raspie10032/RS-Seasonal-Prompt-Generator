@@ -1,18 +1,36 @@
+import os
 import random
+
+AUTO_MODEL = "(auto: download default)"
+
+
+def _tipo_engine():
+    try:
+        from . import tipo_engine
+    except ImportError:
+        import tipo_engine
+    return tipo_engine
 
 
 class GemmaTipoNode:
     """Convert a Korean/English natural-language (or tag) prompt into a
     Danbooru-style tag prompt using a local GGUF model (TIPO).
 
-    Standalone node: feed it any text (typed, or wired from another node
-    such as the Seasonal Fashion Prompt Generator) and it returns expanded,
-    category-sorted tags. Dependencies auto-install on first use; any
-    failure falls back to the input text unchanged.
+    The model is chosen from a dropdown of *.gguf files found in
+    ComfyUI/models/gguf. The first entry auto-downloads the default model
+    there on first use. Dependencies auto-install on first run; any failure
+    falls back to the input text unchanged.
     """
 
     @classmethod
     def INPUT_TYPES(cls):
+        gdir = _tipo_engine()._gguf_dir()
+        try:
+            files = sorted(f for f in os.listdir(gdir)
+                           if f.lower().endswith(".gguf"))
+        except Exception:
+            files = []
+        model_choices = [AUTO_MODEL] + files
         return {
             "required": {
                 "prompt": ("STRING", {
@@ -20,10 +38,7 @@ class GemmaTipoNode:
                     "multiline": True,
                     "placeholder": "Describe the outfit/scene in Korean or English, or pass tags",
                 }),
-                "tipo_gguf_path": ("STRING", {
-                    "default": "",
-                    "placeholder": "leave empty to auto-download from HF, or a local .gguf file/folder path",
-                }),
+                "model": (model_choices, {"default": AUTO_MODEL}),
                 "tag_length": (["very_short", "short", "long", "very_long"],
                                {"default": "long"}),
                 "sort": (["danbooru", "quality_first", "artist_first",
@@ -39,13 +54,14 @@ class GemmaTipoNode:
     FUNCTION = "expand"
     CATEGORY = "prompt"
 
-    def expand(self, prompt, tipo_gguf_path, tag_length, sort, temperature,
-               ban_tags, seed):
+    def expand(self, prompt, model, tag_length, sort, temperature, ban_tags,
+               seed):
         if not prompt or not prompt.strip():
             return (prompt,)
-        try:
-            from . import tipo_engine
-        except ImportError:
-            import tipo_engine
-        return (tipo_engine.expand_prompt(prompt, tipo_gguf_path, tag_length,
-                                          ban_tags, temperature, seed, sort),)
+        engine = _tipo_engine()
+        if model == AUTO_MODEL:
+            gguf_path = ""  # empty -> resolve/download default into models/gguf
+        else:
+            gguf_path = os.path.join(engine._gguf_dir(), model)
+        return (engine.expand_prompt(prompt, gguf_path, tag_length, ban_tags,
+                                     temperature, seed, sort),)

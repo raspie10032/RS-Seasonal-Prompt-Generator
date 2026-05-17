@@ -34,11 +34,13 @@ It accepts **Korean or English natural language**, not just tags:
 
 Inputs:
 - `prompt`: text to convert (Korean/English NL or tags).
-- `tipo_gguf_path`: leave **empty** to auto-download the default model
+- `model`: a dropdown of the `*.gguf` files found in
+  **`ComfyUI/models/gguf/`**. Pick `(auto: download default)` to fetch the
+  default model
   ([`raspie/gemma4-tipo-ko-gguf`](https://huggingface.co/raspie/gemma4-tipo-ko-gguf))
-  on first use into **`ComfyUI/models/gguf/`** (reused on later runs, never
-  re-downloaded). Or set a local `.gguf` file/folder path to use your own
-  (a `*q4*` file is preferred when several are present).
+  into that folder on first use (reused afterward, never re-downloaded); or
+  drop your own `.gguf` into `ComfyUI/models/gguf/` and select it (reload the
+  node list to see new files).
 - `tag_length`: target verbosity (`very_short` … `very_long`).
 - `sort`: prompt-ordering preset applied by `kgen.formatter` (tags are
   categorized special/characters/copyrights/artist/general/quality/meta/rating):
@@ -61,8 +63,12 @@ Notes:
 
 **No manual install is required.** The first time you actually run Node 2,
 its dependencies are auto-installed into the active environment once:
-`tipo-kgen` + `huggingface_hub` (pure-Python) and `llama-cpp-python` (from the
-prebuilt CPU wheel index, so no native build). Node 1 never installs anything.
+`tipo-kgen` + `huggingface_hub` (pure-Python) and `llama-cpp-python` **>= 0.3.23**
+(from the prebuilt CPU wheel index, so no native build). Older builds cannot
+load the gemma4 architecture, so an existing too-old `llama-cpp-python` is
+upgraded automatically — if that happens mid-session ComfyUI will ask you to
+**restart once** (a C-extension can't be hot-reloaded). Node 1 never installs
+anything.
 
 To pre-install manually instead (optional):
 
