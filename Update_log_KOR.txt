@@ -1,3 +1,16 @@
+2026년 5월 18일  (v2.2.0)
+1. 모델 선택을 드롭다운으로 변경
+Gemma TIPO 노드의 자유 입력 경로 대신, ComfyUI/models/gguf 안의 *.gguf
+파일 목록을 드롭다운으로 선택합니다. 첫 항목 "(auto: download default)"
+선택 시 최초 사용에 기본 모델을 그 폴더로 받습니다.
+
+2. 수정: gemma4 지원 llama-cpp-python 강제
+이미 설치된 구버전 llama-cpp-python이 gemma4 아키텍처를 못 읽어
+"Failed to load model from file" 발생. 이제 llama-cpp-python >= 0.3.23
+요구하며 구버전은 자동 업그레이드합니다. C 확장은 핫리로드가 불가하므로,
+실행 중 세션에서 업그레이드가 일어나면 ComfyUI 1회 재시작을 안내하고
+그 뒤 정상 동작합니다(항상 실패 시 원본 프롬프트로 폴백).
+
 2026년 5월 18일  (v2.1.1)
 1. 기본 모델 경로를 ComfyUI 내부로 변경
 자동 다운로드되는 기본 GGUF가 이제 전역 HuggingFace 캐시가 아니라
