@@ -36,8 +36,9 @@ Inputs:
 - `prompt`: text to convert (Korean/English NL or tags).
 - `tipo_gguf_path`: leave **empty** to auto-download the default model
   ([`raspie/gemma4-tipo-ko-gguf`](https://huggingface.co/raspie/gemma4-tipo-ko-gguf))
-  from HuggingFace on first use (cached). Or set a local `.gguf` file/folder
-  path to use your own (a `*q4*` file is preferred when several are present).
+  on first use into **`ComfyUI/models/gguf/`** (reused on later runs, never
+  re-downloaded). Or set a local `.gguf` file/folder path to use your own
+  (a `*q4*` file is preferred when several are present).
 - `tag_length`: target verbosity (`very_short` … `very_long`).
 - `sort`: prompt-ordering preset applied by `kgen.formatter` (tags are
   categorized special/characters/copyrights/artist/general/quality/meta/rating):
