@@ -1,3 +1,11 @@
+May 18th, 2026  (v2.4.0)
+1. Drop redundant general tags
+When a more specific tag with the same head noun is present, the general
+one is removed to save tokens (e.g. with "white skirt" present, "skirt"
+is dropped). Uses a safe suffix rule (the longer tag must end with
+" " + the shorter), so distinct tags like "dress" vs "dress shirt" or
+"skirt" vs "miniskirt" are NOT collapsed.
+
 May 18th, 2026  (v2.3.0)
 1. Download progress on the node
 The default-model download now shows a progress bar on the Gemma TIPO

@@ -57,6 +57,9 @@ Inputs:
 Notes:
 - Longer / more detailed descriptions yield more and more accurate tags.
 - The raw input text (incl. Korean) is **not** mixed into the tag output.
+- Redundant general tags are dropped to save tokens: if a more specific tag
+  with the same head noun exists (e.g. `white skirt`), the bare `skirt` is
+  removed. Distinct tags like `dress`/`dress shirt` are kept.
 - On any failure (missing deps, model unavailable, inference error) it falls
   back to the input text unchanged — it never hard-errors.
 
