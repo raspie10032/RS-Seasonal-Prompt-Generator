@@ -1,5 +1,4 @@
 import os
-import random
 
 AUTO_MODEL = "(auto: download default)"
 
@@ -46,7 +45,8 @@ class GemmaTipoNode:
                 "temperature": ("FLOAT", {"default": 0.5, "min": 0.1,
                                           "max": 1.5, "step": 0.05}),
                 "ban_tags": ("STRING", {"default": "", "multiline": True}),
-                "seed": ("INT", {"default": random.randint(0, 2 ** 31 - 1)}),
+                "seed": ("INT", {"default": 0, "min": 0,
+                                 "max": 0xffffffffffffffff}),
             }
         }
 

@@ -1,3 +1,9 @@
+May 18th, 2026  (v2.4.1)
+1. Fix: Gemma TIPO seed range
+The seed widget had no min/max, so ComfyUI's randomize produced tiny
+(few-digit) values. It now uses the standard seed range
+(min 0, max 0xffffffffffffffff), like KSampler.
+
 May 18th, 2026  (v2.4.0)
 1. Drop redundant general tags
 When a more specific tag with the same head noun is present, the general
