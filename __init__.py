@@ -3,7 +3,7 @@
 
 # __init__.py
 
-__version__ = "2.2.0"
+__version__ = "2.3.0"
 
 from .seasonal_fashion_prompt_node import SeasonalFashionPromptNode
 from .gemma_tipo_node import GemmaTipoNode

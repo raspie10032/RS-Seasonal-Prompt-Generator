@@ -1,3 +1,11 @@
+May 18th, 2026  (v2.3.0)
+1. Download progress on the node
+The default-model download now shows a progress bar on the Gemma TIPO
+node (ComfyUI ProgressBar) plus a console percentage, so a first-run
+download no longer looks frozen. The file is streamed straight into
+ComfyUI/models/gguf with the standard library; huggingface_hub is no
+longer a dependency.
+
 May 18th, 2026  (v2.2.0)
 1. Model selection is now a dropdown
 The Gemma TIPO node's free-text path input is replaced by a dropdown of

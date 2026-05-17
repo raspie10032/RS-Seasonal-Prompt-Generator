@@ -15,10 +15,12 @@ back to the original prompt so the node never hard-fails.
 import os
 import re
 import sys
+import time
 import random
 import threading
 import importlib
 import subprocess
+import urllib.request
 
 # Dependencies are installed on first actual TIPO use only (not at node import),
 # so the base node stays zero-dependency and ComfyUI startup is never blocked.
@@ -164,17 +166,57 @@ def _resolve_model_path(gguf_path):
     if os.path.exists(target):
         return target
 
-    if not _have("huggingface_hub"):
-        try:
-            _pip_install(["huggingface_hub"])
-            importlib.invalidate_caches()
-        except Exception as e:
-            print(f"[TIPO] huggingface_hub install failed ({type(e).__name__}: {e})")
-            return ""
-    from huggingface_hub import hf_hub_download
-
+    url = f"https://huggingface.co/{HF_REPO}/resolve/main/{HF_FILE}"
     print(f"[TIPO] downloading default model {HF_REPO}/{HF_FILE} -> {target_dir} (first use)")
-    return hf_hub_download(repo_id=HF_REPO, filename=HF_FILE, local_dir=target_dir)
+    _stream_download(url, target)
+    return target
+
+
+def _progress_bar(total):
+    """ComfyUI node progress bar if available, else None (stdlib-only)."""
+    try:
+        from comfy.utils import ProgressBar
+
+        return ProgressBar(total)
+    except Exception:
+        return None
+
+
+def _stream_download(url, dest):
+    """Download `url` to `dest` showing a ComfyUI node progress bar (and
+    console %). Writes to a .part file and atomically renames on success."""
+    part = dest + ".part"
+    req = urllib.request.Request(url, headers={"User-Agent": "rs-seasonal-tipo"})
+    with urllib.request.urlopen(req) as resp:
+        total = int(resp.headers.get("Content-Length") or 0)
+        pbar = _progress_bar(total) if total else None
+        done = 0
+        last = 0.0
+        try:
+            with open(part, "wb") as f:
+                while True:
+                    chunk = resp.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    done += len(chunk)
+                    if pbar is not None:
+                        try:
+                            pbar.update_absolute(done, total)
+                        except Exception:
+                            pbar = None
+                    now = time.time()
+                    if total and now - last > 2:
+                        last = now
+                        print(f"[TIPO] downloading model: "
+                              f"{done * 100 // total}% "
+                              f"({done >> 20}/{total >> 20} MB)")
+        except BaseException:
+            if os.path.exists(part):
+                os.remove(part)
+            raise
+    os.replace(part, dest)
+    print("[TIPO] model download complete")
 
 
 SYSTEM_TIPO = (
