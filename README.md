@@ -45,3 +45,17 @@ The GGUF model is loaded from the local `tipo_gguf_path` you provide (nothing
 is downloaded automatically). If `llama-cpp-python` is missing, the path is
 empty/invalid, or inference fails, the node falls back to the un-expanded
 prompt instead of erroring.
+
+## References & Credits
+
+| Project | Use | License |
+| --- | --- | --- |
+| [KGen / TIPO](https://github.com/KohakuBlueleaf/KGen) by KohakuBlueleaf | `kgen.formatter` for tag categorization & prompt sorting | Apache-2.0 |
+| [llama.cpp](https://github.com/ggml-org/llama.cpp) | GGUF inference engine | MIT |
+| [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) | Python bindings for in-process GGUF inference | MIT |
+| [Gemma](https://ai.google.dev/gemma) by Google | Base model family for the GGUF used in TIPO expansion | Gemma Terms of Use |
+| [NAI-FaceDetailer](https://github.com/raspie10032/NAI-FaceDetailer) | Origin of the ported TIPO chat-completion expansion approach | — |
+
+The TIPO expansion concept ("upsample"/expand short prompts into detailed
+Danbooru tag sets) originates from KohakuBlueleaf's KGen/TIPO and the
+[z-tipo-extension](https://github.com/KohakuBlueleaf/z-tipo-extension).
