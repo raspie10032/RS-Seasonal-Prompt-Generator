@@ -9,6 +9,19 @@ This pack provides **two separate nodes** (category: `prompt`). Install by
 cloning/copying this folder into `ComfyUI/custom_nodes/` and restarting
 ComfyUI. Each outputs a single `STRING`; you can chain node 1 → node 2.
 
+## Showcase
+
+![Gemma TIPO node in ComfyUI](assets/gemma-tipo-example.png)
+
+Korean natural language in → clean English Danbooru tags out:
+
+> **In:** `소녀가 하얀 세일러복과 스카프를 하고 있음.`
+>
+> **Out:** `white sailor collar, white skirt, black hairband, blue eyes,
+> blush stickers, long sleeves, looking at viewer, open mouth, red scarf,
+> school uniform, serafuku, sitting, solo focus, sparkle sticker, striped
+> clothes, sweatdrop, collared shirt, white background`
+
 ## Node 1 — Seasonal Fashion Prompt Generator
 
 The original generator. Pick a `season` and toggle the fashion / background /
@@ -62,6 +75,18 @@ Notes:
   removed. Distinct tags like `dress`/`dress shirt` are kept.
 - On any failure (missing deps, model unavailable, inference error) it falls
   back to the input text unchanged — it never hard-errors.
+
+### Supported environment & requirements
+
+| | |
+| --- | --- |
+| **OS** | Windows / Linux / macOS — anywhere ComfyUI runs and a `llama-cpp-python` wheel exists (x86-64, Apple Silicon/arm64) |
+| **Node 1 (Seasonal)** | Any ComfyUI install. Zero dependencies, no model. |
+| **Node 2 (Gemma TIPO)** | CPU-only works (no GPU required); GPU optional for speed |
+| **RAM** | min ~8 GB (≈5 GB used for the 4-bit model) · 16 GB+ recommended |
+| **Disk** | ~4 GB free (3.2 GB GGUF + deps) |
+| **Speed** | CPU inference works but is slow (a single prompt can take minutes); a GPU-accelerated `llama-cpp-python` build is recommended for speed |
+| **Python** | ComfyUI's embedded env; `llama-cpp-python >= 0.3.23` (auto-installed/upgraded, one restart prompt) |
 
 ### Install (Node 2 only)
 

@@ -1,3 +1,10 @@
+May 18th, 2026  (v2.4.2)
+1. README showcase + requirements
+Added a Showcase section with a node screenshot and a real
+Korean-in/English-tags-out example, and a Supported environment &
+requirements table (OS, RAM, disk, speed, min llama-cpp-python). No code
+change.
+
 May 18th, 2026  (v2.4.1)
 1. Fix: Gemma TIPO seed range
 The seed widget had no min/max, so ComfyUI's randomize produced tiny
