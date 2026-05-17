@@ -1,0 +1,19 @@
+[project]
+name = "rs-seasonal-prompt-generator"
+description = "Season-specific fashion/scene prompt generator for ComfyUI, with optional opt-in TIPO prompt expansion (local GGUF)."
+version = "2.0.0"
+license = { file = "LICENSE" }
+readme = "README.md"
+requires-python = ">=3.9"
+
+# Intentionally NO dependencies here: the base node is zero-dependency.
+# The optional TIPO feature lazily auto-installs llama-cpp-python / tipo-kgen /
+# huggingface_hub on first use only (see requirements.txt / README).
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/raspie10032/RS-Seasonal-Prompt-Generator"
+
+[tool.comfy]
+PublisherId = "raspie10032"
+DisplayName = "Seasonal Fashion Prompt Generator"
