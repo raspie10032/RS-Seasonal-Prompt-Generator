@@ -1,9 +1,15 @@
 # RS-Seasonal-Prompt-Generator
+
+*English | [한국어](README_KOR.md)*
+
  Generates season-specific fashion prompts by randomly combining fashion items, background settings, weather, time, and additional situational details from CSV data.
 
-> **v2.7.0** merges the text and vision TIPO nodes into ONE node (image
+> **v2.7.0** merged the text and vision TIPO nodes into ONE node (image
 > is an optional input — connect an image to use vision mode, otherwise
-> it runs text mode) and adds a `simple` sort preset. See the changelog.
+> it runs text mode) and added a `simple` sort preset. **v2.7.1** makes
+> vision mode fully automatic on all platforms (the llama.cpp mtmd
+> binary now auto-downloads on Windows / Linux / macOS, not just
+> Windows). See the changelog.
 
 This pack provides **two independent nodes** (category: `prompt`):
 1) Seasonal Fashion Prompt Generator (CSV, zero-dep), 2) Gemma TIPO
