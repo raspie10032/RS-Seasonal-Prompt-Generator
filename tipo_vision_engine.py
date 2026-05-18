@@ -190,8 +190,15 @@ def image_to_tags(image, gguf_path, mmproj_path, tag_length, ban_tags,
                  "tags for this image. No thinking, no explanation, no "
                  "sentences. Capture the image and plausibly expand it "
                  f"(TIPO style). About {target} tags.")
+        # Force the built-in plain `gemma` chat template instead of the
+        # model's embedded jinja: the embedded template enables a
+        # <|channel>thought reasoning block that eats the whole token
+        # budget so the final tag list is never emitted (caption returns
+        # empty). The plain template has no thinking channel -> the model
+        # outputs the comma-separated tags directly.
         cmd = [cli, "-m", model, "--mmproj", mmproj, "--image", png,
-               "--jinja", "--no-warmup", "-ngl", str(int(gpu_layers)),
+               "--chat-template", "gemma", "--no-warmup",
+               "-ngl", str(int(gpu_layers)),
                "-n", "768", "--temp", str(float(temperature)),
                "--seed", str(int(seed) % (2 ** 31)), "-p", instr]
         env = os.environ.copy()

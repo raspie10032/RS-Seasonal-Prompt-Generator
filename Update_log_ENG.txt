@@ -1,3 +1,13 @@
+May 18th, 2026  (v2.7.2)
+1. Fix: vision mode returned empty ("no tags parsed")
+Vision mode ran the mtmd CLI with --jinja, which loads the model's
+embedded chat template. That template enables a hidden reasoning
+("thought") channel, so gemma-4 spent the entire token budget thinking
+and never emitted the final tag list -> the node parsed nothing and
+returned empty. It now forces the built-in plain `gemma` chat template
+(no thinking channel), so the model outputs the comma-separated Danbooru
+tags directly. Verified end-to-end with the default Korean TIPO model.
+
 May 18th, 2026  (v2.7.1)
 1. Vision binary now auto-downloads on ALL platforms
 The llama.cpp mtmd binary auto-download was Windows-only (other OSes
