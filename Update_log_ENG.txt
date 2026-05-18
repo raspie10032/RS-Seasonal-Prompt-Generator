@@ -1,3 +1,11 @@
+May 18th, 2026  (v2.7.3)
+1. Default model upgraded to the v2 Korean TIPO fine-tune
+The auto-downloaded default model is now gemma4-tipo-ko-v2-Q4_K_M.gguf
+(retrained on a cleaned/refined Korean dataset; better color/attribute
+accuracy). The filename changed, so existing users get the v2 model on
+next use (the old v1 file is left on HF for anyone pinning it). Set a
+local model path / dropdown selection to keep using a specific file.
+
 May 18th, 2026  (v2.7.2)
 1. Fix: vision mode returned empty ("no tags parsed")
 Vision mode ran the mtmd CLI with --jinja, which loads the model's

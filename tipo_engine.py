@@ -124,7 +124,7 @@ def _ensure_deps():
 
 # Default model auto-downloaded from HuggingFace when no local path is given.
 HF_REPO = "raspie/gemma4-tipo-ko-gguf"
-HF_FILE = "gemma4-tipo-ko-Q4_K_M.gguf"
+HF_FILE = "gemma4-tipo-ko-v2-Q4_K_M.gguf"
 
 
 def _gguf_dir():
