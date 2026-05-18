@@ -147,10 +147,15 @@ pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-c
 | Project | Use | License |
 | --- | --- | --- |
 | [KGen / TIPO](https://github.com/KohakuBlueleaf/KGen) by KohakuBlueleaf | `kgen.formatter` for tag categorization & prompt sorting | Apache-2.0 |
-| [llama.cpp](https://github.com/ggml-org/llama.cpp) | GGUF inference engine | MIT |
+| [z-tipo-extension](https://github.com/KohakuBlueleaf/z-tipo-extension) by KohakuBlueleaf | Reference implementation of the TIPO node flow; training-data lineage | Apache-2.0 |
+| [llama.cpp](https://github.com/ggml-org/llama.cpp) | GGUF inference engine; prebuilt `llama-mtmd-cli` for vision mode | MIT |
 | [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) | Python bindings for in-process GGUF inference | MIT |
-| [Gemma](https://ai.google.dev/gemma) by Google | Base model family for the GGUF used in TIPO expansion | Gemma Terms of Use |
+| [Gemma](https://ai.google.dev/gemma) by Google ([`google/gemma-4-E2B-it`](https://huggingface.co/google/gemma-4-E2B-it)) | Base model family the TIPO GGUF derives from | Gemma Terms of Use |
+| [`p-e-w/gemma-4-E2B-it-heretic-ara`](https://huggingface.co/p-e-w/gemma-4-E2B-it-heretic-ara) | Decensored gemma-4-E2B the default Korean TIPO GGUF was fine-tuned from (used so over-censoring doesn't corrupt explicit Danbooru tag output) | Gemma Terms of Use |
+| [`unsloth/gemma-4-E2B-it-GGUF`](https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF) by Unsloth | Base gemma-4-E2B `mmproj-F16.gguf` auto-downloaded for vision mode | Gemma Terms of Use |
+| [`raspie/gemma4-tipo-ko-gguf`](https://huggingface.co/raspie/gemma4-tipo-ko-gguf) | Default Korean→tags TIPO model auto-downloaded by Node 2 | Gemma Terms of Use |
 
 The TIPO expansion concept ("upsample"/expand short prompts into detailed
 Danbooru tag sets) originates from KohakuBlueleaf's KGen/TIPO and the
-[z-tipo-extension](https://github.com/KohakuBlueleaf/z-tipo-extension).
+[z-tipo-extension](https://github.com/KohakuBlueleaf/z-tipo-extension); the
+default model's fine-tune training data follows that same lineage.

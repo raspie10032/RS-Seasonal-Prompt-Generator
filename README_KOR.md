@@ -148,11 +148,16 @@ pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-c
 | 프로젝트 | 용도 | 라이선스 |
 | --- | --- | --- |
 | KohakuBlueleaf 의 [KGen / TIPO](https://github.com/KohakuBlueleaf/KGen) | 태그 분류 및 프롬프트 정렬을 위한 `kgen.formatter` | Apache-2.0 |
-| [llama.cpp](https://github.com/ggml-org/llama.cpp) | GGUF 추론 엔진 | MIT |
+| KohakuBlueleaf 의 [z-tipo-extension](https://github.com/KohakuBlueleaf/z-tipo-extension) | TIPO 노드 흐름의 레퍼런스 구현; 학습 데이터 계보 | Apache-2.0 |
+| [llama.cpp](https://github.com/ggml-org/llama.cpp) | GGUF 추론 엔진; 비전 모드용 프리빌트 `llama-mtmd-cli` | MIT |
 | [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) | in-process GGUF 추론을 위한 Python 바인딩 | MIT |
-| Google 의 [Gemma](https://ai.google.dev/gemma) | TIPO 확장에 쓰인 GGUF의 베이스 모델 패밀리 | Gemma Terms of Use |
+| Google 의 [Gemma](https://ai.google.dev/gemma) ([`google/gemma-4-E2B-it`](https://huggingface.co/google/gemma-4-E2B-it)) | TIPO GGUF가 파생된 베이스 모델 패밀리 | Gemma Terms of Use |
+| [`p-e-w/gemma-4-E2B-it-heretic-ara`](https://huggingface.co/p-e-w/gemma-4-E2B-it-heretic-ara) | 기본 한국어 TIPO GGUF를 파인튜닝한 디센서드 gemma-4-E2B(과도한 검열이 노골적 Danbooru 태그 출력을 망가뜨리지 않도록 사용) | Gemma Terms of Use |
+| Unsloth 의 [`unsloth/gemma-4-E2B-it-GGUF`](https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF) | 비전 모드용으로 자동 다운로드되는 base gemma-4-E2B `mmproj-F16.gguf` | Gemma Terms of Use |
+| [`raspie/gemma4-tipo-ko-gguf`](https://huggingface.co/raspie/gemma4-tipo-ko-gguf) | 노드 2가 자동 다운로드하는 기본 한국어→태그 TIPO 모델 | Gemma Terms of Use |
 
 TIPO 확장 개념(짧은 프롬프트를 상세한 Danbooru 태그 세트로
 "업샘플"/확장)은 KohakuBlueleaf 의 KGen/TIPO 와
 [z-tipo-extension](https://github.com/KohakuBlueleaf/z-tipo-extension)
-에서 비롯되었습니다.
+에서 비롯되었으며, 기본 모델의 파인튜닝 학습 데이터도 같은 계보를
+따릅니다.
