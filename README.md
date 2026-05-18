@@ -30,6 +30,11 @@ Korean natural language in → clean English Danbooru tags out:
 > school uniform, serafuku, sitting, solo focus, sparkle sticker, striped
 > clothes, sweatdrop, collared shirt, white background`
 
+And **vision mode** — connect an image, get a plausibly-expanded
+Danbooru tag set (TIPO-style; not exact labeling):
+
+![Gemma TIPO vision mode in ComfyUI](assets/gemma-tipo-vision-example.png)
+
 ## Node 1 — Seasonal Fashion Prompt Generator
 
 The original generator. Pick a `season` and toggle the fashion / background /
