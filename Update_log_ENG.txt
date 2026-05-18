@@ -1,3 +1,12 @@
+May 18th, 2026  (v2.7.1)
+1. Vision binary now auto-downloads on ALL platforms
+The llama.cpp mtmd binary auto-download was Windows-only (other OSes
+required setting LLAMA_MTMD_CLI by hand). It now picks and downloads the
+correct prebuilt CPU build for the running OS/arch -- Windows / Linux /
+macOS, x64 / arm64 -- with no build and no manual setup. The mmproj
+already auto-downloads when mmproj_path is left empty. Vision mode is now
+fully automatic everywhere.
+
 May 18th, 2026  (v2.7.0)
 1. Merged text + vision into ONE node
 The "Gemma TIPO" text node and the "Gemma TIPO Vision" node are now a

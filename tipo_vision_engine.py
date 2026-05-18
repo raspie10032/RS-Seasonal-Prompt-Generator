@@ -15,7 +15,10 @@ llama.cpp binary (downloaded prebuilt, no build) + mmproj (downloaded).
 import os
 import re
 import sys
+import shutil
 import zipfile
+import tarfile
+import platform
 import tempfile
 import subprocess
 import urllib.request
@@ -27,11 +30,9 @@ except ImportError:
 
 # Pinned prebuilt llama.cpp release that supports gemma-4 mtmd (verified).
 _LLAMA_BUILD = "b9209"
-_LLAMA_ZIP = {
-    "win": f"llama-{_LLAMA_BUILD}-bin-win-cpu-x64.zip",
-}
-_LLAMA_URL = ("https://github.com/ggml-org/llama.cpp/releases/download/"
-              f"{_LLAMA_BUILD}/" + _LLAMA_ZIP["win"])
+_LLAMA_REL = ("https://github.com/ggml-org/llama.cpp/releases/download/"
+              f"{_LLAMA_BUILD}/")
+_CLI_NAMES = ("llama-mtmd-cli.exe", "llama-mtmd-cli")
 _MMPROJ_URL = ("https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/"
                "resolve/main/mmproj-F16.gguf")
 _MMPROJ_NAME = "gemma-4-E2B-it.mmproj-F16.gguf"
@@ -43,35 +44,70 @@ def _bin_dir():
     return d
 
 
+def _llama_asset():
+    """(asset filename, archive kind) of the CPU prebuilt for this OS/arch."""
+    mach = platform.machine().lower()
+    if mach in ("x86_64", "amd64", "x64"):
+        arch = "x64"
+    elif mach in ("arm64", "aarch64"):
+        arch = "arm64"
+    else:
+        raise RuntimeError(
+            f"no llama.cpp prebuilt for CPU arch {mach!r}; set "
+            "LLAMA_MTMD_CLI to a llama-mtmd-cli built for your machine")
+    if sys.platform.startswith("win"):
+        return f"llama-{_LLAMA_BUILD}-bin-win-cpu-{arch}.zip", "zip"
+    if sys.platform.startswith("linux"):
+        return f"llama-{_LLAMA_BUILD}-bin-ubuntu-{arch}.tar.gz", "tar"
+    if sys.platform == "darwin":
+        return f"llama-{_LLAMA_BUILD}-bin-macos-{arch}.tar.gz", "tar"
+    raise RuntimeError(
+        f"no llama.cpp prebuilt for OS {sys.platform!r}; set "
+        "LLAMA_MTMD_CLI to a llama-mtmd-cli built for your machine")
+
+
+def _find_cli(bdir):
+    for root, _, files in os.walk(bdir):
+        for f in files:
+            if f.lower() in _CLI_NAMES:
+                return os.path.join(root, f)
+    return None
+
+
 def _resolve_mtmd_cli():
-    """Path to llama-mtmd-cli; env override, else download prebuilt once."""
+    """Path to llama-mtmd-cli; env override, else download the prebuilt
+    CPU build for this OS/arch once (Windows/Linux/macOS, no build)."""
     env = os.environ.get("LLAMA_MTMD_CLI")
     if env and os.path.exists(env):
         return env
-    if not sys.platform.startswith("win"):
-        raise RuntimeError(
-            "auto-download of llama-mtmd-cli is Windows-only; set "
-            "LLAMA_MTMD_CLI to a built llama-mtmd-cli for your OS")
     bdir = _bin_dir()
-    for root, _, files in os.walk(bdir):
-        for f in files:
-            if f.lower() == "llama-mtmd-cli.exe":
-                return os.path.join(root, f)
-    print(f"[TIPO-V] downloading llama.cpp {_LLAMA_BUILD} (first use)")
-    zpath = os.path.join(bdir, "llamacpp.zip")
-    req = urllib.request.Request(_LLAMA_URL,
+    found = _find_cli(bdir)
+    if found:
+        return found
+    asset, kind = _llama_asset()
+    print(f"[TIPO-V] downloading llama.cpp {_LLAMA_BUILD} ({asset}; first use)")
+    apath = os.path.join(bdir, asset)
+    req = urllib.request.Request(_LLAMA_REL + asset,
                                  headers={"User-Agent": "rs-tipo-vision"})
-    with urllib.request.urlopen(req, timeout=120) as r, \
-            open(zpath, "wb") as f:
-        f.write(r.read())
-    with zipfile.ZipFile(zpath) as z:
-        z.extractall(bdir)
-    os.remove(zpath)
-    for root, _, files in os.walk(bdir):
-        for f in files:
-            if f.lower() == "llama-mtmd-cli.exe":
-                return os.path.join(root, f)
-    raise RuntimeError("llama-mtmd-cli.exe not found after extract")
+    with urllib.request.urlopen(req, timeout=300) as r, \
+            open(apath, "wb") as f:
+        shutil.copyfileobj(r, f)
+    if kind == "zip":
+        with zipfile.ZipFile(apath) as z:
+            z.extractall(bdir)
+    else:
+        with tarfile.open(apath, "r:gz") as t:
+            t.extractall(bdir)
+    os.remove(apath)
+    found = _find_cli(bdir)
+    if not found:
+        raise RuntimeError("llama-mtmd-cli not found after extract")
+    if not sys.platform.startswith("win"):
+        try:
+            os.chmod(found, 0o755)
+        except OSError:
+            pass
+    return found
 
 
 def _resolve_mmproj(path):
@@ -158,9 +194,16 @@ def image_to_tags(image, gguf_path, mmproj_path, tag_length, ban_tags,
                "--jinja", "--no-warmup", "-ngl", str(int(gpu_layers)),
                "-n", "768", "--temp", str(float(temperature)),
                "--seed", str(int(seed) % (2 ** 31)), "-p", instr]
+        env = os.environ.copy()
+        if not sys.platform.startswith("win"):
+            # prebuilt cli links sibling .so/.dylib; ensure they resolve
+            key = ("DYLD_LIBRARY_PATH" if sys.platform == "darwin"
+                   else "LD_LIBRARY_PATH")
+            cdir = os.path.dirname(cli)
+            env[key] = cdir + os.pathsep + env.get(key, "")
         proc = subprocess.run(cmd, capture_output=True, text=True,
                                encoding="utf-8", errors="ignore",
-                               timeout=timeout)
+                               timeout=timeout, env=env)
         raw = proc.stdout or ""
         tags = _extract_tags(raw)
         if not tags:

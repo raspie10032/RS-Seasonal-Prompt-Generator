@@ -80,10 +80,13 @@ Inputs:
 - `ban_tags`: comma-separated tags to strip from the result.
 - `seed`: changes the expansion for variation.
 - *(optional)* `image`: connect a ComfyUI IMAGE to switch to **vision
-  mode** (image → tags). First vision use auto-downloads a prebuilt
-  llama.cpp mtmd binary + the base gemma-4-E2B mmproj (no build).
-- *(optional, vision only)* `mmproj_path` (empty = auto-download base
-  mmproj), `gpu_layers` (0 = CPU; raise to offload to GPU).
+  mode** (image → tags). **Fully automatic** — first vision use
+  auto-downloads the prebuilt llama.cpp mtmd binary for your OS/arch
+  (Windows / Linux / macOS · x64 / arm64, no build) **and** the base
+  gemma-4-E2B mmproj. Nothing to install or configure by hand.
+- *(optional, vision only)* `mmproj_path`: **leave empty** — the base
+  mmproj is auto-downloaded. Only set this to point at your own mmproj.
+  `gpu_layers`: `0` = CPU (default); raise to offload layers to GPU.
 
 Notes:
 - Longer / more detailed descriptions yield more and more accurate tags.
