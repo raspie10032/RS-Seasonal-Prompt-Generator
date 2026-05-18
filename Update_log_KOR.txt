@@ -1,3 +1,16 @@
+2026년 5월 18일  (v2.6.0)
+1. 신규 노드: "Gemma TIPO Vision (Image → Tags)"
+ComfyUI IMAGE를 넣으면 Gemma-4 비전(llama.cpp mtmd) + base
+gemma-4-E2B mmproj로 이미지를 풍부한 카테고리 정렬 Danbooru 태그로
+캡션합니다. TIPO식: 정확 라벨링이 아니라 포착 + 그럴듯한 확장.
+ComfyUI/models/gguf 의 gemma-4-E2B 텍스트/병합 TIPO 모델 아무거나와
+(자동 다운로드되는 base mmproj와 페어링) 동작. 최초 사용 시 프리빌트
+llama.cpp mtmd 바이너리 + mmproj 자동 다운로드(빌드 불필요), 기본 CPU
+실행(gpu_layers=0)이라 다른 GPU 작업과 안 싸움. 출력은 텍스트 TIPO
+노드와 동일 후처리(kgen 정렬/중복제거/중복일반태그/인원수 정리). 실패
+시 빈 문자열(하드페일 없음). 입력: image, model, tag_length, sort,
+temperature, ban_tags, seed, 선택 mmproj_path / gpu_layers.
+
 2026년 5월 18일  (v2.5.0)
 1. 인원수 태그 충돌 정리
 인원수 그룹(girls / boys / others)별로 태그를 하나만 남깁니다. "1girl"이

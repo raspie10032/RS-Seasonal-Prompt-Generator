@@ -1,13 +1,14 @@
 # RS-Seasonal-Prompt-Generator
  Generates season-specific fashion prompts by randomly combining fashion items, background settings, weather, time, and additional situational details from CSV data.
 
-> **v2.1.0** splits the project into **two independent nodes**: the original
-> CSV random generator, and a separate Gemma TIPO text→tags node. See the
-> changelog (`Update_log_ENG.txt` / `Update_log_KOR.txt`).
+> **v2.6.0** adds a third node: **Gemma TIPO Vision (Image → Tags)**. See
+> the changelog (`Update_log_ENG.txt` / `Update_log_KOR.txt`).
 
-This pack provides **two separate nodes** (category: `prompt`). Install by
-cloning/copying this folder into `ComfyUI/custom_nodes/` and restarting
-ComfyUI. Each outputs a single `STRING`; you can chain node 1 → node 2.
+This pack provides **three independent nodes** (category: `prompt`):
+1) Seasonal Fashion Prompt Generator (CSV, zero-dep), 2) Gemma TIPO
+Prompt → Tags (text → tags), 3) Gemma TIPO Vision (image → tags). Install
+by cloning/copying this folder into `ComfyUI/custom_nodes/` and
+restarting ComfyUI. Each outputs a `STRING`; they're chainable.
 
 ## Showcase
 
@@ -114,6 +115,34 @@ platform/Python, install it yourself once:
 ```
 pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 ```
+
+## Node 3 — Gemma TIPO Vision (Image → Tags)
+
+Feed a ComfyUI `IMAGE` and it captions it into a rich, category-sorted
+Danbooru tag set using **Gemma-4 vision** (llama.cpp `mtmd`) + the base
+**gemma-4-E2B `mmproj`**. TIPO-style — it captures the image *and*
+plausibly expands it (creative upsampling, not exact labeling), so it
+pairs well with text-to-image workflows.
+
+- `image`: the image to caption.
+- `model`: dropdown of `*.gguf` in `ComfyUI/models/gguf` (or
+  `(auto: download default)`). Any gemma-4-E2B text/merged TIPO model
+  works — it's paired with the auto-downloaded base mmproj.
+- `tag_length` / `sort` / `temperature` / `ban_tags` / `seed`: same as
+  Node 2; output runs through the same kgen post-processing.
+- optional `mmproj_path` (empty = auto-download base gemma-4-E2B mmproj),
+  `gpu_layers` (default 0 = CPU, won't fight other GPU work).
+
+On first use it auto-downloads a **prebuilt llama.cpp mtmd binary**
+(no build) and the **mmproj** into `ComfyUI/models/`. Needs no extra pip
+packages beyond Node 2's (`tipo-kgen`; PIL/numpy come with ComfyUI). Any
+failure (binary/mmproj/model unavailable, inference error) returns an
+empty string — it never hard-errors. CPU inference is slow; raise
+`gpu_layers` to offload if you have spare VRAM.
+
+> Note: Gemma-4 tends to emit an internal reasoning block; the node
+> strips it and salvages the tag tokens, so output is tag-only but may
+> vary run to run (that's the intended TIPO behavior).
 
 ## References & Credits
 

@@ -1,3 +1,18 @@
+May 18th, 2026  (v2.6.0)
+1. New node: "Gemma TIPO Vision (Image -> Tags)"
+Feed a ComfyUI IMAGE and it captions it into a rich, category-sorted
+Danbooru tag set via Gemma-4 vision (llama.cpp mtmd) + the base
+gemma-4-E2B mmproj. TIPO-style: capture + plausible expansion, not exact
+labeling. Works with any gemma-4-E2B text/merged TIPO model from
+ComfyUI/models/gguf (pairs with the auto-downloaded base mmproj).
+On first use it auto-downloads a prebuilt llama.cpp mtmd binary and the
+mmproj (no build); runs on CPU by default (gpu_layers=0) so it won't
+fight other GPU work. Output goes through the same post-processing as
+the text TIPO node (kgen sort / dedup / drop-redundant / count-conflict).
+Any failure -> empty string (never hard-fails). Inputs: image, model,
+tag_length, sort, temperature, ban_tags, seed, optional mmproj_path /
+gpu_layers.
+
 May 18th, 2026  (v2.5.0)
 1. Resolve person-count conflicts
 Each person-count group (girls / boys / others) is reduced to a single
