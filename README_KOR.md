@@ -31,6 +31,11 @@
 > school uniform, serafuku, sitting, solo focus, sparkle sticker, striped
 > clothes, sweatdrop, collared shirt, white background`
 
+그리고 **비전 모드** — 이미지를 연결하면 그럴듯하게 확장된 Danbooru
+태그 세트가 나옵니다(TIPO식, 정확한 라벨링이 아님):
+
+![ComfyUI의 Gemma TIPO 비전 모드](assets/gemma-tipo-vision-example.png)
+
 ## 노드 1 — Seasonal Fashion Prompt Generator
 
 원래의 생성기입니다. `season` 을 고르고 패션 / 배경 / 날씨 / 포즈 /
