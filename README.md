@@ -1,14 +1,15 @@
 # RS-Seasonal-Prompt-Generator
  Generates season-specific fashion prompts by randomly combining fashion items, background settings, weather, time, and additional situational details from CSV data.
 
-> **v2.6.0** adds a third node: **Gemma TIPO Vision (Image → Tags)**. See
-> the changelog (`Update_log_ENG.txt` / `Update_log_KOR.txt`).
+> **v2.7.0** merges the text and vision TIPO nodes into ONE node (image
+> is an optional input — connect an image to use vision mode, otherwise
+> it runs text mode) and adds a `simple` sort preset. See the changelog.
 
-This pack provides **three independent nodes** (category: `prompt`):
+This pack provides **two independent nodes** (category: `prompt`):
 1) Seasonal Fashion Prompt Generator (CSV, zero-dep), 2) Gemma TIPO
-Prompt → Tags (text → tags), 3) Gemma TIPO Vision (image → tags). Install
-by cloning/copying this folder into `ComfyUI/custom_nodes/` and
-restarting ComfyUI. Each outputs a `STRING`; they're chainable.
+(Prompt / Image → Tags). Install by cloning/copying this folder into
+`ComfyUI/custom_nodes/` and restarting ComfyUI. Each outputs a `STRING`;
+they're chainable.
 
 ## Showcase
 
@@ -30,16 +31,16 @@ weather / pose / situation options; it returns a comma-separated prompt
 randomly combined from the bundled CSV data. **Zero dependencies** — nothing
 is installed and nothing runs a model.
 
-## Node 2 — Gemma TIPO Prompt → Tags
+## Node 2 — Gemma TIPO (Prompt / Image → Tags)
 
-Standalone converter: feed it any text (typed in the `prompt` box, or wired
-from Node 1 or any text node) and it expands it into a richer, category-sorted
-Danbooru tag set using a local GGUF model run **in-process** via
-`llama-cpp-python`. Post-processing/sorting uses the lightweight pure-Python
-formatter from [`tipo-kgen`](https://github.com/KohakuBlueleaf/KGen)
-(`kgen.formatter` only — no torch/transformers loaded).
+One unified node. **Connect an `image` → vision mode** (the image is
+captioned via Gemma-4 vision = llama.cpp `mtmd` + auto-downloaded base
+gemma-4-E2B `mmproj`). **No image → text mode** (the `prompt`, Korean/
+English NL or tags, is expanded in-process via `llama-cpp-python`).
+Either way the output runs through the same `kgen.formatter`
+post-processing (sort / dedup / drop-redundant / count-conflict).
 
-It accepts **Korean or English natural language**, not just tags:
+Text mode accepts **Korean or English natural language**, not just tags:
 
 | Input | Output (example) |
 | --- | --- |
@@ -64,9 +65,15 @@ Inputs:
   - `quality_first`: quality tags lead.
   - `artist_first`: artist/character lead.
   - `general_only`: keep only special + characters + general tags.
+  - `simple`: only special, rating, general.
 - `temperature`: sampling temperature.
 - `ban_tags`: comma-separated tags to strip from the result.
 - `seed`: changes the expansion for variation.
+- *(optional)* `image`: connect a ComfyUI IMAGE to switch to **vision
+  mode** (image → tags). First vision use auto-downloads a prebuilt
+  llama.cpp mtmd binary + the base gemma-4-E2B mmproj (no build).
+- *(optional, vision only)* `mmproj_path` (empty = auto-download base
+  mmproj), `gpu_layers` (0 = CPU; raise to offload to GPU).
 
 Notes:
 - Longer / more detailed descriptions yield more and more accurate tags.
@@ -115,34 +122,6 @@ platform/Python, install it yourself once:
 ```
 pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 ```
-
-## Node 3 — Gemma TIPO Vision (Image → Tags)
-
-Feed a ComfyUI `IMAGE` and it captions it into a rich, category-sorted
-Danbooru tag set using **Gemma-4 vision** (llama.cpp `mtmd`) + the base
-**gemma-4-E2B `mmproj`**. TIPO-style — it captures the image *and*
-plausibly expands it (creative upsampling, not exact labeling), so it
-pairs well with text-to-image workflows.
-
-- `image`: the image to caption.
-- `model`: dropdown of `*.gguf` in `ComfyUI/models/gguf` (or
-  `(auto: download default)`). Any gemma-4-E2B text/merged TIPO model
-  works — it's paired with the auto-downloaded base mmproj.
-- `tag_length` / `sort` / `temperature` / `ban_tags` / `seed`: same as
-  Node 2; output runs through the same kgen post-processing.
-- optional `mmproj_path` (empty = auto-download base gemma-4-E2B mmproj),
-  `gpu_layers` (default 0 = CPU, won't fight other GPU work).
-
-On first use it auto-downloads a **prebuilt llama.cpp mtmd binary**
-(no build) and the **mmproj** into `ComfyUI/models/`. Needs no extra pip
-packages beyond Node 2's (`tipo-kgen`; PIL/numpy come with ComfyUI). Any
-failure (binary/mmproj/model unavailable, inference error) returns an
-empty string — it never hard-errors. CPU inference is slow; raise
-`gpu_layers` to offload if you have spare VRAM.
-
-> Note: Gemma-4 tends to emit an internal reasoning block; the node
-> strips it and salvages the tag tokens, so output is tag-only but may
-> vary run to run (that's the intended TIPO behavior).
 
 ## References & Credits
 

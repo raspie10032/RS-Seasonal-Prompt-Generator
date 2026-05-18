@@ -255,8 +255,11 @@ SORT_PRESETS = {
     "artist_first": "<|artist|>, <|characters|>, <|copyrights|>, <|special|>, "
                     "<|general|>, <|quality|>, <|meta|>, <|rating|>",
     "general_only": "<|special|>, <|characters|>, <|general|>",
+    "simple": "<|special|>, <|rating|>, <|general|>",
 }
 DEFAULT_SORT = "danbooru"
+SORT_CHOICES = ["danbooru", "quality_first", "artist_first",
+                "general_only", "simple"]
 
 _model_cache = {}
 _cache_lock = threading.Lock()

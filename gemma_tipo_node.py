@@ -3,65 +3,90 @@ import os
 AUTO_MODEL = "(auto: download default)"
 
 
-def _tipo_engine():
+def _engines():
     try:
-        from . import tipo_engine
+        from . import tipo_engine, tipo_vision_engine
     except ImportError:
         import tipo_engine
-    return tipo_engine
+        import tipo_vision_engine
+    return tipo_engine, tipo_vision_engine
+
+
+def _has_image(image):
+    if image is None:
+        return False
+    try:
+        # ComfyUI IMAGE is a tensor/ndarray; empty/None -> text mode
+        return getattr(image, "numel", lambda: len(image))() > 0
+    except Exception:
+        return image is not None
 
 
 class GemmaTipoNode:
-    """Convert a Korean/English natural-language (or tag) prompt into a
-    Danbooru-style tag prompt using a local GGUF model (TIPO).
+    """Gemma-4 TIPO: text/tags OR image -> rich category-sorted Danbooru
+    tag set (TIPO-style: capture + plausible expansion).
 
-    The model is chosen from a dropdown of *.gguf files found in
-    ComfyUI/models/gguf. The first entry auto-downloads the default model
-    there on first use. Dependencies auto-install on first run; any failure
-    falls back to the input text unchanged.
+    One unified node:
+      - no image connected  -> text mode: `prompt` (Korean/English NL or
+        tags) is expanded in-process via llama-cpp-python.
+      - image connected      -> vision mode: the image is captioned via
+        gemma-4 vision (llama.cpp mtmd) + the base gemma-4-E2B mmproj.
+
+    Model is picked from ComfyUI/models/gguf (or auto-download default).
+    Same kgen post-processing either way. Any failure falls back safely
+    (text -> original prompt; vision -> empty string).
     """
 
     @classmethod
     def INPUT_TYPES(cls):
-        gdir = _tipo_engine()._gguf_dir()
+        te, _ = _engines()
         try:
-            files = sorted(f for f in os.listdir(gdir)
+            files = sorted(f for f in os.listdir(te._gguf_dir())
                            if f.lower().endswith(".gguf"))
         except Exception:
             files = []
-        model_choices = [AUTO_MODEL] + files
         return {
             "required": {
                 "prompt": ("STRING", {
                     "default": "",
                     "multiline": True,
-                    "placeholder": "Describe the outfit/scene in Korean or English, or pass tags",
+                    "placeholder": "Korean/English description or tags (ignored if an image is connected)",
                 }),
-                "model": (model_choices, {"default": AUTO_MODEL}),
+                "model": ([AUTO_MODEL] + files, {"default": AUTO_MODEL}),
                 "tag_length": (["very_short", "short", "long", "very_long"],
                                {"default": "long"}),
-                "sort": (["danbooru", "quality_first", "artist_first",
-                          "general_only"], {"default": "danbooru"}),
+                "sort": (te.SORT_CHOICES, {"default": te.DEFAULT_SORT}),
                 "temperature": ("FLOAT", {"default": 0.5, "min": 0.1,
                                           "max": 1.5, "step": 0.05}),
                 "ban_tags": ("STRING", {"default": "", "multiline": True}),
                 "seed": ("INT", {"default": 0, "min": 0,
                                  "max": 0xffffffffffffffff}),
-            }
+            },
+            "optional": {
+                "image": ("IMAGE",),
+                "mmproj_path": ("STRING", {
+                    "default": "",
+                    "placeholder": "vision only; empty = auto-download base gemma-4-E2B mmproj"}),
+                "gpu_layers": ("INT", {"default": 0, "min": 0, "max": 100}),
+            },
         }
 
     RETURN_TYPES = ("STRING",)
-    FUNCTION = "expand"
+    FUNCTION = "run"
     CATEGORY = "prompt"
 
-    def expand(self, prompt, model, tag_length, sort, temperature, ban_tags,
-               seed):
+    def run(self, prompt, model, tag_length, sort, temperature, ban_tags,
+            seed, image=None, mmproj_path="", gpu_layers=0):
+        te, ve = _engines()
+        gguf = "" if model == AUTO_MODEL else os.path.join(
+            te._gguf_dir(), model)
+
+        if _has_image(image):  # vision mode
+            return (ve.image_to_tags(image, gguf, mmproj_path, tag_length,
+                                     ban_tags, temperature, seed, sort,
+                                     gpu_layers),)
+        # text mode
         if not prompt or not prompt.strip():
             return (prompt,)
-        engine = _tipo_engine()
-        if model == AUTO_MODEL:
-            gguf_path = ""  # empty -> resolve/download default into models/gguf
-        else:
-            gguf_path = os.path.join(engine._gguf_dir(), model)
-        return (engine.expand_prompt(prompt, gguf_path, tag_length, ban_tags,
-                                     temperature, seed, sort),)
+        return (te.expand_prompt(prompt, gguf, tag_length, ban_tags,
+                                 temperature, seed, sort),)

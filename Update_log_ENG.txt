@@ -1,3 +1,14 @@
+May 18th, 2026  (v2.7.0)
+1. Merged text + vision into ONE node
+The "Gemma TIPO" text node and the "Gemma TIPO Vision" node are now a
+single node: "Gemma TIPO (Prompt / Image -> Tags)". The image input is
+optional -- connect a ComfyUI IMAGE to run vision mode (image -> tags),
+leave it unconnected to run text mode (prompt -> tags). Both paths use
+the same kgen post-processing. The separate vision node is removed.
+2. New "simple" sort preset
+Added a "simple" choice to the sort dropdown that outputs only
+<|special|>, <|rating|>, <|general|> -- the leanest tag-only ordering.
+
 May 18th, 2026  (v2.6.0)
 1. New node: "Gemma TIPO Vision (Image -> Tags)"
 Feed a ComfyUI IMAGE and it captions it into a rich, category-sorted
