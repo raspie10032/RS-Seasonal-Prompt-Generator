@@ -9,7 +9,9 @@
 > it runs text mode) and added a `simple` sort preset. **v2.7.1** makes
 > vision mode fully automatic on all platforms (the llama.cpp mtmd
 > binary now auto-downloads on Windows / Linux / macOS, not just
-> Windows). See the changelog.
+> Windows). **v2.7.3** upgrades the auto-download default to the v2
+> Korean TIPO fine-tune (`gemma4-tipo-ko-v2-Q4_K_M.gguf`, better
+> color/attribute accuracy). See the changelog.
 
 This pack provides **two independent nodes** (category: `prompt`):
 1) Seasonal Fashion Prompt Generator (CSV, zero-dep), 2) Gemma TIPO
@@ -72,8 +74,8 @@ Inputs:
 - `prompt`: text to convert (Korean/English NL or tags).
 - `model`: a dropdown of the `*.gguf` files found in
   **`ComfyUI/models/gguf/`**. Pick `(auto: download default)` to fetch the
-  default model
-  ([`raspie/gemma4-tipo-ko-gguf`](https://huggingface.co/raspie/gemma4-tipo-ko-gguf))
+  default model (`gemma4-tipo-ko-v2-Q4_K_M.gguf` from
+  [`raspie/gemma4-tipo-ko-gguf`](https://huggingface.co/raspie/gemma4-tipo-ko-gguf))
   into that folder on first use — a **progress bar shows on the node** while
   it downloads (reused afterward, never re-downloaded); or drop your own
   `.gguf` into `ComfyUI/models/gguf/` and select it (reload the node list to

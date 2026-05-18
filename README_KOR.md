@@ -10,7 +10,9 @@
 > 텍스트 모드). `simple` 정렬 프리셋도 추가되었습니다. **v2.7.1** 에서
 > 비전 모드가 모든 플랫폼에서 완전 자동이 되었습니다(llama.cpp mtmd
 > 바이너리가 Windows 전용이 아니라 Windows / Linux / macOS 모두에서
-> 자동 다운로드). 자세한 내용은 변경 로그를 참고하세요.
+> 자동 다운로드). **v2.7.3** 에서 자동 다운로드 기본 모델이 v2 한국어
+> TIPO 파인튜닝(`gemma4-tipo-ko-v2-Q4_K_M.gguf`, 색상/속성 정확도
+> 개선)으로 업그레이드되었습니다. 자세한 내용은 변경 로그를 참고하세요.
 
 이 팩은 **독립적인 두 개의 노드**를 제공합니다(카테고리: `prompt`):
 1) Seasonal Fashion Prompt Generator (CSV, 의존성 없음), 2) Gemma TIPO
@@ -73,7 +75,8 @@ in-process 확장). 어느 쪽이든 출력은 동일한 `kgen.formatter`
 - `prompt`: 변환할 텍스트(한국어/영어 자연어 또는 태그).
 - `model`: **`ComfyUI/models/gguf/`** 에서 찾은 `*.gguf` 파일
   드롭다운. `(auto: download default)` 를 고르면 기본 모델
-  ([`raspie/gemma4-tipo-ko-gguf`](https://huggingface.co/raspie/gemma4-tipo-ko-gguf))
+  (`gemma4-tipo-ko-v2-Q4_K_M.gguf`,
+  [`raspie/gemma4-tipo-ko-gguf`](https://huggingface.co/raspie/gemma4-tipo-ko-gguf))
   을 최초 사용 시 해당 폴더로 다운로드합니다 — 다운로드 중
   **노드에 진행 바가 표시**되며 이후 재사용(다시 다운로드하지
   않음). 또는 직접 만든 `.gguf` 를 `ComfyUI/models/gguf/` 에 넣고
