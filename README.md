@@ -40,6 +40,16 @@ English NL or tags, is expanded in-process via `llama-cpp-python`).
 Either way the output runs through the same `kgen.formatter`
 post-processing (sort / dedup / drop-redundant / count-conflict).
 
+> ⚠️ **Vision mode is NOT an accurate image tagger.** It is *not* a
+> labeling/captioning model that faithfully describes what is in the
+> image. It deliberately exploits the LLM's **hallucination**: it takes
+> the image only as a loose seed and **randomly expands it into a
+> plausible, invented tag set** (TIPO-style creative upsampling). The
+> output will include tags that are *not actually present* in the image
+> and will vary run to run. Use it to generate varied prompt ideas for
+> text-to-image — **do not** use it when you need exact tags for the
+> given image.
+
 Text mode accepts **Korean or English natural language**, not just tags:
 
 | Input | Output (example) |
