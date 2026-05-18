@@ -3,3 +3,5 @@ __pycache__/
 .claude/
 models/
 *.gguf
+# offline training pipeline (heavy, may hold secrets) — never commit
+training/

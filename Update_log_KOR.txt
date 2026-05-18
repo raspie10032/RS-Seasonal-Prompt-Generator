@@ -1,3 +1,14 @@
+2026년 5월 18일  (v2.7.0)
+1. 텍스트 + 비전 노드를 하나로 통합
+"Gemma TIPO" 텍스트 노드와 "Gemma TIPO Vision" 노드를 하나의 노드로
+합쳤습니다: "Gemma TIPO (Prompt / Image → Tags)". 이미지 입력은
+선택입니다 -- ComfyUI IMAGE를 연결하면 비전 모드(이미지 → 태그),
+연결하지 않으면 텍스트 모드(프롬프트 → 태그)로 동작. 두 경로 모두
+동일한 kgen 후처리를 거칩니다. 별도의 비전 노드는 제거되었습니다.
+2. 신규 "simple" 정렬 프리셋
+sort 드롭다운에 <|special|>, <|rating|>, <|general|> 만 출력하는
+"simple" 항목을 추가했습니다 -- 가장 간결한 태그 전용 정렬.
+
 2026년 5월 18일  (v2.6.0)
 1. 신규 노드: "Gemma TIPO Vision (Image → Tags)"
 ComfyUI IMAGE를 넣으면 Gemma-4 비전(llama.cpp mtmd) + base
