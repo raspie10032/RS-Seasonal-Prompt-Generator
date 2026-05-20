@@ -1,11 +1,31 @@
 """Image -> TIPO Danbooru tags via Gemma-4 vision (llama.cpp mtmd).
 
-Verified path: a prebuilt llama.cpp `llama-mtmd-cli` binary + the base
-`unsloth/gemma-4-E2B-it` `mmproj-F16.gguf` paired with any gemma-4-E2B
-text/merged GGUF (the TIPO model). We shell out to the binary (the
-proven path; llama-cpp-python's high-level API doesn't drive gemma-4
-vision) on CPU by default, then run the SAME post-processing as the text
-TIPO node (kgen sort / dedup / drop-redundant / count-conflict).
+Verified path: a prebuilt llama.cpp `llama-mtmd-cli` binary + a paired
+text LM + mmproj GGUF. We shell out to the binary (the proven path;
+llama-cpp-python's high-level API doesn't drive gemma-4 vision) on CPU
+by default, then run the SAME post-processing as the text TIPO node
+(kgen sort / dedup / drop-redundant / count-conflict).
+
+**Default pair (v2.8.0+): the trained Gemma-tipo-vision-v1.** Both files
+live in the same HF repo as the text TIPO model and auto-download into
+ComfyUI/models/gguf on first vision use:
+
+  Gemma-tipo-vision-v1-E2B-heretic-ara-Q4_K_M.gguf     (text LM)
+  Gemma-tipo-vision-v1-E2B-heretic-ara.mmproj-f16.gguf (TRAINED mmproj)
+
+The trained mmproj carries the fine-tuned multi-modal projector, so
+pairing it with the vision-v1 text GGUF gives genuine image grounding
+(verified character ID + image-specific attributes). Earlier versions
+(<= 2.7.3) paired the *text* `gemma4-tipo-ko` model with the *base*
+unsloth mmproj — that was TIPO-style hallucination, not real image
+understanding.
+
+Backward compat: if the user explicitly selects a non-vision model in
+the node dropdown (e.g. the legacy `gemma4-tipo-ko-v2-Q4_K_M.gguf`),
+the auto-mmproj falls back to the base unsloth mmproj (the old path).
+Model name lookup is by substring ("vision" in basename) so user can
+also drop their own custom vision GGUF in and have it paired
+automatically.
 
 Everything auto-resolves on first use and every failure falls back to an
 empty string so the node never hard-fails. Heavy/native bits are the
@@ -33,9 +53,18 @@ _LLAMA_BUILD = "b9209"
 _LLAMA_REL = ("https://github.com/ggml-org/llama.cpp/releases/download/"
               f"{_LLAMA_BUILD}/")
 _CLI_NAMES = ("llama-mtmd-cli.exe", "llama-mtmd-cli")
-_MMPROJ_URL = ("https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/"
-               "resolve/main/mmproj-F16.gguf")
-_MMPROJ_NAME = "gemma-4-E2B-it.mmproj-F16.gguf"
+
+# Default vision pair (v2.8.0+) — the trained Gemma-tipo-vision-v1 model.
+# Both files live in the same HF repo as the text TIPO model.
+VISION_HF_REPO = "raspie/gemma4-tipo-ko-gguf"
+VISION_GGUF_FILE = "Gemma-tipo-vision-v1-E2B-heretic-ara-Q4_K_M.gguf"
+VISION_MMPROJ_FILE = "Gemma-tipo-vision-v1-E2B-heretic-ara.mmproj-f16.gguf"
+
+# Legacy fallback (still used for backward compat if the user explicitly
+# picks the old text TIPO model in the dropdown — see _resolve_mmproj).
+_BASE_MMPROJ_URL = ("https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/"
+                    "resolve/main/mmproj-F16.gguf")
+_BASE_MMPROJ_NAME = "gemma-4-E2B-it.mmproj-F16.gguf"
 
 
 def _bin_dir():
@@ -110,14 +139,50 @@ def _resolve_mtmd_cli():
     return found
 
 
-def _resolve_mmproj(path):
-    if path and path.strip():
-        return path
-    target = os.path.join(tipo_engine._gguf_dir(), _MMPROJ_NAME)
+def _resolve_vision_model(gguf_path):
+    """Default to the trained vision LM (Gemma-tipo-vision-v1), NOT the
+    text TIPO Korean model. Honors an explicit user pick (gguf_path)."""
+    if gguf_path and gguf_path.strip():
+        return gguf_path
+    target_dir = tipo_engine._gguf_dir()
+    target = os.path.join(target_dir, VISION_GGUF_FILE)
     if os.path.exists(target):
         return target
-    print("[TIPO-V] downloading gemma-4-E2B mmproj (first use)")
-    tipo_engine._stream_download(_MMPROJ_URL, target)
+    url = f"https://huggingface.co/{VISION_HF_REPO}/resolve/main/{VISION_GGUF_FILE}"
+    print(f"[TIPO-V] downloading trained vision LM "
+          f"{VISION_HF_REPO}/{VISION_GGUF_FILE} -> {target_dir} (first use)")
+    tipo_engine._stream_download(url, target)
+    return target
+
+
+def _resolve_mmproj(path, model_basename=""):
+    """Pair mmproj with the LM. Explicit `path` wins. Otherwise:
+      - vision-trained LM (basename contains 'vision') -> trained mmproj
+        from VISION_HF_REPO. This is the v2.8.0+ default.
+      - any other model (legacy text TIPO etc.) -> base unsloth mmproj
+        (the old <=2.7.3 behaviour, kept for backward compat).
+    """
+    if path and path.strip():
+        return path
+    target_dir = tipo_engine._gguf_dir()
+    is_vision_lm = "vision" in (model_basename or "").lower()
+    if is_vision_lm:
+        target = os.path.join(target_dir, VISION_MMPROJ_FILE)
+        if os.path.exists(target):
+            return target
+        url = (f"https://huggingface.co/{VISION_HF_REPO}/resolve/main/"
+               f"{VISION_MMPROJ_FILE}")
+        print(f"[TIPO-V] downloading TRAINED mmproj "
+              f"{VISION_HF_REPO}/{VISION_MMPROJ_FILE} (first use)")
+        tipo_engine._stream_download(url, target)
+        return target
+    # legacy path: pair non-vision LMs with the base unsloth mmproj
+    target = os.path.join(target_dir, _BASE_MMPROJ_NAME)
+    if os.path.exists(target):
+        return target
+    print("[TIPO-V] downloading base gemma-4-E2B mmproj (legacy pair, "
+          "first use)")
+    tipo_engine._stream_download(_BASE_MMPROJ_URL, target)
     return target
 
 
@@ -177,11 +242,15 @@ def image_to_tags(image, gguf_path, mmproj_path, tag_length, ban_tags,
     png = None
     try:
         cli = _resolve_mtmd_cli()
-        model = tipo_engine._resolve_model_path(gguf_path)
+        # Vision mode defaults to the trained vision-v1 LM (not the
+        # text TIPO Korean model), then pairs the right mmproj based
+        # on the chosen LM (trained mmproj for vision LM, base mmproj
+        # for legacy text LMs picked manually).
+        model = _resolve_vision_model(gguf_path)
         if not model or not os.path.exists(model):
             print(f"[TIPO-V] model not found ({model!r})")
             return ""
-        mmproj = _resolve_mmproj(mmproj_path)
+        mmproj = _resolve_mmproj(mmproj_path, os.path.basename(model))
         png = _save_image(image)
 
         target = {"very_short": 20, "short": 35,

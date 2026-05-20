@@ -4,14 +4,18 @@
 
  Generates season-specific fashion prompts by randomly combining fashion items, background settings, weather, time, and additional situational details from CSV data.
 
-> **v2.7.0** merged the text and vision TIPO nodes into ONE node (image
-> is an optional input — connect an image to use vision mode, otherwise
-> it runs text mode) and added a `simple` sort preset. **v2.7.1** makes
-> vision mode fully automatic on all platforms (the llama.cpp mtmd
-> binary now auto-downloads on Windows / Linux / macOS, not just
-> Windows). **v2.7.3** upgrades the auto-download default to the v2
-> Korean TIPO fine-tune (`gemma4-tipo-ko-v2-Q4_K_M.gguf`, better
-> color/attribute accuracy). See the changelog.
+> **v2.8.0** ships a properly **fine-tuned vision model**
+> (`Gemma-tipo-vision-v1`): the vision pipeline now uses a trained
+> multi-modal projector instead of pairing the text TIPO model with the
+> base unsloth mmproj. Vision output is now image-grounded — characters,
+> colors, outfits, poses tied to the actual image (verified ~60–80%
+> character ID on popular Danbooru tags) — not just plausible
+> hallucination. Auto-downloads on first vision use; legacy `gemma4-tipo-ko-v2`
+> remains the text-mode default.
+>
+> **v2.7.0** merged the text and vision TIPO nodes into ONE node.
+> **v2.7.1** made vision mode fully automatic on all platforms.
+> **v2.7.3** upgraded the text default to `gemma4-tipo-ko-v2-Q4_K_M.gguf`.
 
 This pack provides **two independent nodes** (category: `prompt`):
 1) Seasonal Fashion Prompt Generator (CSV, zero-dep), 2) Gemma TIPO
@@ -47,21 +51,37 @@ is installed and nothing runs a model.
 ## Node 2 — Gemma TIPO (Prompt / Image → Tags)
 
 One unified node. **Connect an `image` → vision mode** (the image is
-captioned via Gemma-4 vision = llama.cpp `mtmd` + auto-downloaded base
-gemma-4-E2B `mmproj`). **No image → text mode** (the `prompt`, Korean/
-English NL or tags, is expanded in-process via `llama-cpp-python`).
-Either way the output runs through the same `kgen.formatter`
-post-processing (sort / dedup / drop-redundant / count-conflict).
+captioned via Gemma-4 vision = llama.cpp `mtmd` + the auto-downloaded
+**trained `Gemma-tipo-vision-v1` pair**). **No image → text mode** (the
+`prompt`, Korean/English NL or tags, is expanded in-process via
+`llama-cpp-python`). Either way the output runs through the same
+`kgen.formatter` post-processing (sort / dedup / drop-redundant /
+count-conflict).
 
-> ⚠️ **Vision mode is NOT an accurate image tagger.** It is *not* a
-> labeling/captioning model that faithfully describes what is in the
-> image. It deliberately exploits the LLM's **hallucination**: it takes
-> the image only as a loose seed and **randomly expands it into a
-> plausible, invented tag set** (TIPO-style creative upsampling). The
-> output will include tags that are *not actually present* in the image
-> and will vary run to run. Use it to generate varied prompt ideas for
-> text-to-image — **do not** use it when you need exact tags for the
-> given image.
+> **Vision mode (v2.8.0+)**: the image is processed by an actual
+> fine-tuned vision model (Gemma-tipo-vision-v1 — trained multi-modal
+> projector + LM LoRA on Danbooru image+tag pairs). Output is
+> **image-grounded**: characters, colors, outfits, composition reflect
+> what's in the image, with ~60–80% character ID accuracy on popular
+> Danbooru tags and image-specific attribute capture. The output still
+> retains some "TIPO-style expansion" character (adjacent tags get
+> filled in plausibly), so it's good for both *describing* an image and
+> *generating richer prompts* from one.
+>
+> **Caveats:**
+> - Best on full-color polished anime/manga (Danbooru distribution).
+>   Monochrome sketches, lineart, amateur art, and real photographs are
+>   out of distribution — output will hallucinate colors/outfits.
+> - Character ID drops sharply on franchises with sparse Danbooru
+>   coverage (e.g. classic Digimon).
+> - Q4 quantization occasionally mis-names characters even when image
+>   grounding is correct (e.g. may call Arlecchino a different character).
+> - The model is heavily fine-tuned for the **tag format**. Asking it
+>   for natural-language prose directly will hallucinate; route the tag
+>   output through a text LM if you want natural prose.
+>
+> Earlier versions (≤2.7.3) used the text TIPO model paired with the
+> base unsloth mmproj — that was hallucination-only, not real grounding.
 
 Text mode accepts **Korean or English natural language**, not just tags:
 
@@ -95,10 +115,13 @@ Inputs:
 - *(optional)* `image`: connect a ComfyUI IMAGE to switch to **vision
   mode** (image → tags). **Fully automatic** — first vision use
   auto-downloads the prebuilt llama.cpp mtmd binary for your OS/arch
-  (Windows / Linux / macOS · x64 / arm64, no build) **and** the base
-  gemma-4-E2B mmproj. Nothing to install or configure by hand.
-- *(optional, vision only)* `mmproj_path`: **leave empty** — the base
-  mmproj is auto-downloaded. Only set this to point at your own mmproj.
+  (Windows / Linux / macOS · x64 / arm64, no build) **and** the trained
+  vision pair (`Gemma-tipo-vision-v1-E2B-heretic-ara-Q4_K_M.gguf` +
+  `Gemma-tipo-vision-v1-E2B-heretic-ara.mmproj-f16.gguf`, ~4.4 GB total
+  one-time). Nothing to install or configure by hand.
+- *(optional, vision only)* `mmproj_path`: **leave empty** — auto picks
+  the trained mmproj when the vision-v1 LM is in use, or the base
+  unsloth mmproj for legacy text models. Only set this to override.
   `gpu_layers`: `0` = CPU (default); raise to offload layers to GPU.
 
 Notes:
@@ -121,7 +144,7 @@ Notes:
 | **Node 1 (Seasonal)** | Any ComfyUI install. Zero dependencies, no model. |
 | **Node 2 (Gemma TIPO)** | CPU-only works (no GPU required); GPU optional for speed |
 | **RAM** | min ~8 GB (≈5 GB used for the 4-bit model) · 16 GB+ recommended |
-| **Disk** | ~4 GB free (3.2 GB GGUF + deps) |
+| **Disk** | text-only: ~4 GB (3.2 GB GGUF + deps). With vision mode used: ~8.5 GB (additional 4.4 GB for the vision pair). |
 | **Speed** | CPU inference works but is slow (a single prompt can take minutes); a GPU-accelerated `llama-cpp-python` build is recommended for speed |
 | **Python** | ComfyUI's embedded env; `llama-cpp-python >= 0.3.23` (auto-installed/upgraded, one restart prompt) |
 
@@ -159,8 +182,8 @@ pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-c
 | [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) | Python bindings for in-process GGUF inference | MIT |
 | [Gemma](https://ai.google.dev/gemma) by Google ([`google/gemma-4-E2B-it`](https://huggingface.co/google/gemma-4-E2B-it)) | Base model family the TIPO GGUF derives from | Gemma Terms of Use |
 | [`p-e-w/gemma-4-E2B-it-heretic-ara`](https://huggingface.co/p-e-w/gemma-4-E2B-it-heretic-ara) | Decensored gemma-4-E2B the default Korean TIPO GGUF was fine-tuned from (used so over-censoring doesn't corrupt explicit Danbooru tag output) | Gemma Terms of Use |
-| [`unsloth/gemma-4-E2B-it-GGUF`](https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF) by Unsloth | Base gemma-4-E2B `mmproj-F16.gguf` auto-downloaded for vision mode | Gemma Terms of Use |
-| [`raspie/gemma4-tipo-ko-gguf`](https://huggingface.co/raspie/gemma4-tipo-ko-gguf) | Default Korean→tags TIPO model auto-downloaded by Node 2 | Gemma Terms of Use |
+| [`unsloth/gemma-4-E2B-it-GGUF`](https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF) by Unsloth | Base gemma-4-E2B `mmproj-F16.gguf` — only used as legacy fallback for non-vision-v1 models (≤2.7.3 behaviour) | Gemma Terms of Use |
+| [`raspie/gemma4-tipo-ko-gguf`](https://huggingface.co/raspie/gemma4-tipo-ko-gguf) | Default text TIPO model **and** the trained `Gemma-tipo-vision-v1` pair auto-downloaded by Node 2 | Gemma Terms of Use |
 
 The TIPO expansion concept ("upsample"/expand short prompts into detailed
 Danbooru tag sets) originates from KohakuBlueleaf's KGen/TIPO and the

@@ -24,17 +24,21 @@ def _has_image(image):
 
 class GemmaTipoNode:
     """Gemma-4 TIPO: text/tags OR image -> rich category-sorted Danbooru
-    tag set (TIPO-style: capture + plausible expansion).
+    tag set.
 
     One unified node:
       - no image connected  -> text mode: `prompt` (Korean/English NL or
-        tags) is expanded in-process via llama-cpp-python.
+        tags) is expanded in-process via llama-cpp-python. Default model:
+        the Korean-capable text TIPO (`gemma4-tipo-ko-v2`).
       - image connected      -> vision mode: the image is captioned via
-        gemma-4 vision (llama.cpp mtmd) + the base gemma-4-E2B mmproj.
+        gemma-4 vision (llama.cpp mtmd) using the FINE-TUNED vision pair
+        (`Gemma-tipo-vision-v1` text LM + its trained mmproj). Genuine
+        image grounding, not the older base-mmproj hallucination path.
 
-    Model is picked from ComfyUI/models/gguf (or auto-download default).
-    Same kgen post-processing either way. Any failure falls back safely
-    (text -> original prompt; vision -> empty string).
+    Model is picked from ComfyUI/models/gguf (or auto-download default
+    per mode — text default for text mode, vision-v1 pair for vision
+    mode). Same kgen post-processing either way. Any failure falls back
+    safely (text -> original prompt; vision -> empty string).
     """
 
     @classmethod
@@ -66,7 +70,7 @@ class GemmaTipoNode:
                 "image": ("IMAGE",),
                 "mmproj_path": ("STRING", {
                     "default": "",
-                    "placeholder": "vision only; empty = auto-download base gemma-4-E2B mmproj"}),
+                    "placeholder": "vision only; empty = auto (trained mmproj paired with vision-v1; base mmproj for legacy models)"}),
                 "gpu_layers": ("INT", {"default": 0, "min": 0, "max": 100}),
             },
         }

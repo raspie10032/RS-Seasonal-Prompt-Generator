@@ -1,7 +1,7 @@
 [project]
 name = "rs-seasonal-prompt-generator"
 description = "Season-specific fashion/scene prompt generator for ComfyUI, with optional opt-in TIPO prompt expansion (local GGUF)."
-version = "2.7.3"
+version = "2.8.0"
 license = { file = "LICENSE" }
 readme = "README.md"
 requires-python = ">=3.9"

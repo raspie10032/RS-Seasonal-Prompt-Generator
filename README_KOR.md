@@ -5,14 +5,18 @@
  CSV 데이터에서 패션 아이템·배경·날씨·시간·추가 상황 디테일을 무작위로
  조합해 계절별 패션 프롬프트를 생성합니다.
 
-> **v2.7.0** 에서 텍스트 TIPO 노드와 비전 TIPO 노드를 하나의 노드로
-> 합쳤습니다(이미지는 선택 입력 — 이미지를 연결하면 비전 모드, 아니면
-> 텍스트 모드). `simple` 정렬 프리셋도 추가되었습니다. **v2.7.1** 에서
-> 비전 모드가 모든 플랫폼에서 완전 자동이 되었습니다(llama.cpp mtmd
-> 바이너리가 Windows 전용이 아니라 Windows / Linux / macOS 모두에서
-> 자동 다운로드). **v2.7.3** 에서 자동 다운로드 기본 모델이 v2 한국어
-> TIPO 파인튜닝(`gemma4-tipo-ko-v2-Q4_K_M.gguf`, 색상/속성 정확도
-> 개선)으로 업그레이드되었습니다. 자세한 내용은 변경 로그를 참고하세요.
+> **v2.8.0** 에서 제대로 **파인튜닝된 비전 모델**
+> (`Gemma-tipo-vision-v1`) 이 적용되었습니다. 이제 비전 파이프라인은
+> 텍스트 TIPO 모델 + 베이스 unsloth mmproj 조합이 아니라, **학습된
+> 멀티모달 프로젝터** 가 들어간 전용 페어를 사용합니다. 출력이
+> 실제로 **이미지 기반** 으로 바뀌었습니다 — 캐릭터·색상·옷·구도
+> 모두 이미지에 묶임 (인기 Danbooru 캐릭터 식별률 ~60–80% 확인). 단순
+> 그럴듯한 환각이 아닙니다. 비전 모드 최초 사용 시 자동 다운로드.
+> 텍스트 모드 기본 모델은 기존 `gemma4-tipo-ko-v2` 유지.
+>
+> **v2.7.0** 에서 텍스트 TIPO 노드와 비전 TIPO 노드를 하나로 통합.
+> **v2.7.1** 에서 비전 모드 모든 플랫폼 자동화.
+> **v2.7.3** 에서 텍스트 기본 모델을 `gemma4-tipo-ko-v2-Q4_K_M.gguf`로 업그레이드.
 
 이 팩은 **독립적인 두 개의 노드**를 제공합니다(카테고리: `prompt`):
 1) Seasonal Fashion Prompt Generator (CSV, 의존성 없음), 2) Gemma TIPO
@@ -33,8 +37,9 @@
 > school uniform, serafuku, sitting, solo focus, sparkle sticker, striped
 > clothes, sweatdrop, collared shirt, white background`
 
-그리고 **비전 모드** — 이미지를 연결하면 그럴듯하게 확장된 Danbooru
-태그 세트가 나옵니다(TIPO식, 정확한 라벨링이 아님):
+그리고 **비전 모드 (v2.8.0+)** — 이미지를 연결하면 학습된 비전
+모델이 이미지에 기반한 Danbooru 태그를 생성합니다(캐릭터·색상·옷·구도
+정확):
 
 ![ComfyUI의 Gemma TIPO 비전 모드](assets/gemma-tipo-vision-example.png)
 
@@ -48,21 +53,35 @@
 ## 노드 2 — Gemma TIPO (Prompt / Image → Tags)
 
 하나로 통합된 노드입니다. **`image` 를 연결하면 → 비전 모드**
-(이미지를 Gemma-4 비전 = llama.cpp `mtmd` + 자동 다운로드된 base
-gemma-4-E2B `mmproj` 로 캡션). **이미지 없음 → 텍스트 모드**
+(이미지를 Gemma-4 비전 = llama.cpp `mtmd` + 자동 다운로드된 **학습된
+`Gemma-tipo-vision-v1` 페어** 로 캡션). **이미지 없음 → 텍스트 모드**
 (`prompt`, 한국어/영어 자연어 또는 태그를 `llama-cpp-python` 으로
 in-process 확장). 어느 쪽이든 출력은 동일한 `kgen.formatter`
 후처리(정렬 / 중복 제거 / 중복 일반태그 제거 / 인원수 충돌 정리)를
 거칩니다.
 
-> ⚠️ **비전 모드는 정확한 이미지 태거가 아닙니다.** 이미지를
-> 충실히 묘사하는 라벨링/캡셔닝 모델이 *아닙니다*. LLM의 **환각**
-> 성질을 의도적으로 이용합니다: 이미지를 느슨한 시드로만 받아
-> **그럴듯하게 지어낸 태그 세트로 무작위 확장**합니다(TIPO식 창의적
-> 업샘플링). 출력에는 이미지에 *실제로 없는* 태그가 포함되며 실행할
-> 때마다 달라집니다. text-to-image용으로 다양한 프롬프트 아이디어를
-> 만드는 데 사용하세요 — 주어진 이미지의 정확한 태그가 필요한
-> 경우에는 **사용하지 마세요**.
+> **비전 모드 (v2.8.0+):** Danbooru 이미지+태그 페어로 파인튜닝된
+> 실제 비전 모델(`Gemma-tipo-vision-v1` — 학습된 멀티모달 프로젝터 +
+> LM LoRA)이 이미지를 처리합니다. 출력이 **이미지 기반** 입니다:
+> 캐릭터·색상·옷·구도 모두 이미지에 반영되며, 인기 Danbooru 캐릭터
+> 식별률 ~60–80% + 이미지별 속성 캡처. "TIPO식 확장" 성격도 일부
+> 남아 있어(인접 태그가 그럴듯하게 채워짐) 이미지 *묘사* 와 풍부한
+> 프롬프트 *생성* 양쪽 다 적합합니다.
+>
+> **주의사항:**
+> - 풀 컬러 완성된 anime/manga(Danbooru 분포)에 가장 강합니다.
+>   흑백 스케치·라인아트·아마추어 그림·실사 사진은 도메인 밖이고,
+>   출력이 색상·옷 환각을 내놓습니다.
+> - Danbooru 커버리지가 적은 작품(예: 클래식 디지몬)은 캐릭터 식별이
+>   크게 떨어집니다.
+> - Q4 양자화로 인해 이미지 grounding은 맞아도 캐릭터 이름을 잘못
+>   부르는 경우가 가끔 있습니다(예: Arlecchino를 다른 캐릭터로).
+> - 모델이 **태그 포맷**으로 강하게 파인튜닝되어 있어 자연어 산문을
+>   직접 요청하면 환각이 심합니다. 자연어가 필요하면 태그 출력을 다른
+>   텍스트 LM으로 한 번 더 변환하세요.
+>
+> 이전 버전(≤2.7.3)은 텍스트 TIPO 모델 + 베이스 unsloth mmproj 조합
+> 으로 동작했으며, 실제 이미지 기반이 아니라 환각만 의존했습니다.
 
 텍스트 모드는 태그뿐 아니라 **한국어 또는 영어 자연어**도 받습니다:
 
@@ -97,10 +116,13 @@ in-process 확장). 어느 쪽이든 출력은 동일한 `kgen.formatter`
 - *(선택)* `image`: ComfyUI IMAGE를 연결하면 **비전 모드**(이미지
   → 태그)로 전환됩니다. **완전 자동** — 최초 비전 사용 시 OS/아키텍처에
   맞는 프리빌트 llama.cpp mtmd 바이너리(Windows / Linux / macOS ·
-  x64 / arm64, 빌드 불필요)와 base gemma-4-E2B mmproj를 자동
-  다운로드합니다. 수동으로 설치하거나 설정할 것이 없습니다.
-- *(선택, 비전 전용)* `mmproj_path`: **비워 두세요** — base mmproj가
-  자동 다운로드됩니다. 직접 만든 mmproj를 가리킬 때만 설정하세요.
+  x64 / arm64, 빌드 불필요)와 학습된 비전 페어
+  (`Gemma-tipo-vision-v1-E2B-heretic-ara-Q4_K_M.gguf` +
+  `Gemma-tipo-vision-v1-E2B-heretic-ara.mmproj-f16.gguf`, 총 ~4.4 GB
+  1회) 를 자동 다운로드합니다. 수동 설치/설정 없음.
+- *(선택, 비전 전용)* `mmproj_path`: **비워 두세요** — 비전-v1 LM
+  사용 시 학습된 mmproj, 레거시 텍스트 모델 사용 시 베이스 unsloth
+  mmproj를 자동으로 맞춥니다. 직접 만든 mmproj를 가리킬 때만 설정.
   `gpu_layers`: `0` = CPU(기본); 값을 올리면 레이어를 GPU로
   오프로드합니다.
 
@@ -124,7 +146,7 @@ in-process 확장). 어느 쪽이든 출력은 동일한 `kgen.formatter`
 | **노드 1 (Seasonal)** | 모든 ComfyUI 설치. 의존성 없음, 모델 없음. |
 | **노드 2 (Gemma TIPO)** | CPU 전용 동작(GPU 불필요); 속도를 위해 GPU 선택 |
 | **RAM** | 최소 ~8 GB (4-bit 모델에 ≈5 GB 사용) · 16 GB 이상 권장 |
-| **디스크** | ~4 GB 여유(3.2 GB GGUF + 의존성) |
+| **디스크** | 텍스트만: ~4 GB(3.2 GB GGUF + 의존성). 비전 모드 사용 시: ~8.5 GB(비전 페어 추가 4.4 GB). |
 | **속도** | CPU 추론은 동작하지만 느림(프롬프트 하나에 수 분 소요 가능); 속도를 위해 GPU 가속 `llama-cpp-python` 빌드 권장 |
 | **Python** | ComfyUI 내장 환경; `llama-cpp-python >= 0.3.23`(자동 설치/업그레이드, 1회 재시작 안내) |
 
@@ -161,8 +183,8 @@ pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-c
 | [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) | in-process GGUF 추론을 위한 Python 바인딩 | MIT |
 | Google 의 [Gemma](https://ai.google.dev/gemma) ([`google/gemma-4-E2B-it`](https://huggingface.co/google/gemma-4-E2B-it)) | TIPO GGUF가 파생된 베이스 모델 패밀리 | Gemma Terms of Use |
 | [`p-e-w/gemma-4-E2B-it-heretic-ara`](https://huggingface.co/p-e-w/gemma-4-E2B-it-heretic-ara) | 기본 한국어 TIPO GGUF를 파인튜닝한 디센서드 gemma-4-E2B(과도한 검열이 노골적 Danbooru 태그 출력을 망가뜨리지 않도록 사용) | Gemma Terms of Use |
-| Unsloth 의 [`unsloth/gemma-4-E2B-it-GGUF`](https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF) | 비전 모드용으로 자동 다운로드되는 base gemma-4-E2B `mmproj-F16.gguf` | Gemma Terms of Use |
-| [`raspie/gemma4-tipo-ko-gguf`](https://huggingface.co/raspie/gemma4-tipo-ko-gguf) | 노드 2가 자동 다운로드하는 기본 한국어→태그 TIPO 모델 | Gemma Terms of Use |
+| Unsloth 의 [`unsloth/gemma-4-E2B-it-GGUF`](https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF) | base gemma-4-E2B `mmproj-F16.gguf` — 비전-v1 외 모델용 레거시 폴백(≤2.7.3 동작)만 사용 | Gemma Terms of Use |
+| [`raspie/gemma4-tipo-ko-gguf`](https://huggingface.co/raspie/gemma4-tipo-ko-gguf) | 노드 2의 기본 텍스트 TIPO 모델 **및** 학습된 `Gemma-tipo-vision-v1` 페어 자동 다운로드 | Gemma Terms of Use |
 
 TIPO 확장 개념(짧은 프롬프트를 상세한 Danbooru 태그 세트로
 "업샘플"/확장)은 KohakuBlueleaf 의 KGen/TIPO 와
