@@ -20,12 +20,9 @@ pairing it with the vision-v1 text GGUF gives genuine image grounding
 unsloth mmproj — that was TIPO-style hallucination, not real image
 understanding.
 
-Backward compat: if the user explicitly selects a non-vision model in
-the node dropdown (e.g. the legacy `gemma4-tipo-ko-v2-Q4_K_M.gguf`),
-the auto-mmproj falls back to the base unsloth mmproj (the old path).
-Model name lookup is by substring ("vision" in basename) so user can
-also drop their own custom vision GGUF in and have it paired
-automatically.
+Anyone who needs a different mmproj (e.g. pairing a legacy text TIPO
+model, or a custom vision build) can override via the `mmproj_path`
+input on the node. Empty path = always our trained mmproj.
 
 Everything auto-resolves on first use and every failure falls back to an
 empty string so the node never hard-fails. Heavy/native bits are the
@@ -59,12 +56,6 @@ _CLI_NAMES = ("llama-mtmd-cli.exe", "llama-mtmd-cli")
 VISION_HF_REPO = "raspie/gemma4-tipo-ko-gguf"
 VISION_GGUF_FILE = "Gemma-tipo-vision-v1-E2B-heretic-ara-Q4_K_M.gguf"
 VISION_MMPROJ_FILE = "Gemma-tipo-vision-v1-E2B-heretic-ara.mmproj-f16.gguf"
-
-# Legacy fallback (still used for backward compat if the user explicitly
-# picks the old text TIPO model in the dropdown — see _resolve_mmproj).
-_BASE_MMPROJ_URL = ("https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/"
-                    "resolve/main/mmproj-F16.gguf")
-_BASE_MMPROJ_NAME = "gemma-4-E2B-it.mmproj-F16.gguf"
 
 
 def _bin_dir():
@@ -155,34 +146,21 @@ def _resolve_vision_model(gguf_path):
     return target
 
 
-def _resolve_mmproj(path, model_basename=""):
-    """Pair mmproj with the LM. Explicit `path` wins. Otherwise:
-      - vision-trained LM (basename contains 'vision') -> trained mmproj
-        from VISION_HF_REPO. This is the v2.8.0+ default.
-      - any other model (legacy text TIPO etc.) -> base unsloth mmproj
-        (the old <=2.7.3 behaviour, kept for backward compat).
-    """
+def _resolve_mmproj(path):
+    """Auto-resolve to OUR trained mmproj. Explicit `path` wins -
+    anyone who wants to pair a custom or base unsloth mmproj overrides
+    via the node's `mmproj_path` input."""
     if path and path.strip():
         return path
     target_dir = tipo_engine._gguf_dir()
-    is_vision_lm = "vision" in (model_basename or "").lower()
-    if is_vision_lm:
-        target = os.path.join(target_dir, VISION_MMPROJ_FILE)
-        if os.path.exists(target):
-            return target
-        url = (f"https://huggingface.co/{VISION_HF_REPO}/resolve/main/"
-               f"{VISION_MMPROJ_FILE}")
-        print(f"[TIPO-V] downloading TRAINED mmproj "
-              f"{VISION_HF_REPO}/{VISION_MMPROJ_FILE} (first use)")
-        tipo_engine._stream_download(url, target)
-        return target
-    # legacy path: pair non-vision LMs with the base unsloth mmproj
-    target = os.path.join(target_dir, _BASE_MMPROJ_NAME)
+    target = os.path.join(target_dir, VISION_MMPROJ_FILE)
     if os.path.exists(target):
         return target
-    print("[TIPO-V] downloading base gemma-4-E2B mmproj (legacy pair, "
-          "first use)")
-    tipo_engine._stream_download(_BASE_MMPROJ_URL, target)
+    url = (f"https://huggingface.co/{VISION_HF_REPO}/resolve/main/"
+           f"{VISION_MMPROJ_FILE}")
+    print(f"[TIPO-V] downloading trained mmproj "
+          f"{VISION_HF_REPO}/{VISION_MMPROJ_FILE} (first use)")
+    tipo_engine._stream_download(url, target)
     return target
 
 
@@ -250,7 +228,7 @@ def image_to_tags(image, gguf_path, mmproj_path, tag_length, ban_tags,
         if not model or not os.path.exists(model):
             print(f"[TIPO-V] model not found ({model!r})")
             return ""
-        mmproj = _resolve_mmproj(mmproj_path, os.path.basename(model))
+        mmproj = _resolve_mmproj(mmproj_path)
         png = _save_image(image)
 
         target = {"very_short": 20, "short": 35,

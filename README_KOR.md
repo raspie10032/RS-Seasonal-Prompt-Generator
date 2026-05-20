@@ -120,9 +120,9 @@ in-process 확장). 어느 쪽이든 출력은 동일한 `kgen.formatter`
   (`Gemma-tipo-vision-v1-E2B-heretic-ara-Q4_K_M.gguf` +
   `Gemma-tipo-vision-v1-E2B-heretic-ara.mmproj-f16.gguf`, 총 ~4.4 GB
   1회) 를 자동 다운로드합니다. 수동 설치/설정 없음.
-- *(선택, 비전 전용)* `mmproj_path`: **비워 두세요** — 비전-v1 LM
-  사용 시 학습된 mmproj, 레거시 텍스트 모델 사용 시 베이스 unsloth
-  mmproj를 자동으로 맞춥니다. 직접 만든 mmproj를 가리킬 때만 설정.
+- *(선택, 비전 전용)* `mmproj_path`: **비워 두세요** — 자동으로
+  우리 학습된 mmproj(비전-v1과 페어)를 사용합니다. 직접 만든
+  mmproj나 베이스 mmproj를 쓰고 싶을 때만 설정.
   `gpu_layers`: `0` = CPU(기본); 값을 올리면 레이어를 GPU로
   오프로드합니다.
 
@@ -183,7 +183,7 @@ pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-c
 | [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) | in-process GGUF 추론을 위한 Python 바인딩 | MIT |
 | Google 의 [Gemma](https://ai.google.dev/gemma) ([`google/gemma-4-E2B-it`](https://huggingface.co/google/gemma-4-E2B-it)) | TIPO GGUF가 파생된 베이스 모델 패밀리 | Gemma Terms of Use |
 | [`p-e-w/gemma-4-E2B-it-heretic-ara`](https://huggingface.co/p-e-w/gemma-4-E2B-it-heretic-ara) | 기본 한국어 TIPO GGUF를 파인튜닝한 디센서드 gemma-4-E2B(과도한 검열이 노골적 Danbooru 태그 출력을 망가뜨리지 않도록 사용) | Gemma Terms of Use |
-| Unsloth 의 [`unsloth/gemma-4-E2B-it-GGUF`](https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF) | base gemma-4-E2B `mmproj-F16.gguf` — 비전-v1 외 모델용 레거시 폴백(≤2.7.3 동작)만 사용 | Gemma Terms of Use |
+| Unsloth 의 [`unsloth/gemma-4-E2B-it-GGUF`](https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF) | 이전 버전(≤2.7.3)이 사용했던 base gemma-4-E2B `mmproj-F16.gguf` 의 출처. v2.8.0+ 는 자체 학습된 mmproj 를 기본으로 사용. 자동 다운로드되지 않으며, 필요하면 `mmproj_path` 직접 설정. | Gemma Terms of Use |
 | [`raspie/gemma4-tipo-ko-gguf`](https://huggingface.co/raspie/gemma4-tipo-ko-gguf) | 노드 2의 기본 텍스트 TIPO 모델 **및** 학습된 `Gemma-tipo-vision-v1` 페어 자동 다운로드 | Gemma Terms of Use |
 
 TIPO 확장 개념(짧은 프롬프트를 상세한 Danbooru 태그 세트로

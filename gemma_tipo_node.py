@@ -70,7 +70,7 @@ class GemmaTipoNode:
                 "image": ("IMAGE",),
                 "mmproj_path": ("STRING", {
                     "default": "",
-                    "placeholder": "vision only; empty = auto (trained mmproj paired with vision-v1; base mmproj for legacy models)"}),
+                    "placeholder": "vision only; empty = auto-download our trained mmproj (override only if you need a different one)"}),
                 "gpu_layers": ("INT", {"default": 0, "min": 0, "max": 100}),
             },
         }

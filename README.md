@@ -119,9 +119,9 @@ Inputs:
   vision pair (`Gemma-tipo-vision-v1-E2B-heretic-ara-Q4_K_M.gguf` +
   `Gemma-tipo-vision-v1-E2B-heretic-ara.mmproj-f16.gguf`, ~4.4 GB total
   one-time). Nothing to install or configure by hand.
-- *(optional, vision only)* `mmproj_path`: **leave empty** — auto picks
-  the trained mmproj when the vision-v1 LM is in use, or the base
-  unsloth mmproj for legacy text models. Only set this to override.
+- *(optional, vision only)* `mmproj_path`: **leave empty** — auto-uses
+  our trained mmproj (the one paired with `Gemma-tipo-vision-v1`).
+  Only set this to override (e.g. point at a custom or base mmproj).
   `gpu_layers`: `0` = CPU (default); raise to offload layers to GPU.
 
 Notes:
@@ -182,7 +182,7 @@ pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-c
 | [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) | Python bindings for in-process GGUF inference | MIT |
 | [Gemma](https://ai.google.dev/gemma) by Google ([`google/gemma-4-E2B-it`](https://huggingface.co/google/gemma-4-E2B-it)) | Base model family the TIPO GGUF derives from | Gemma Terms of Use |
 | [`p-e-w/gemma-4-E2B-it-heretic-ara`](https://huggingface.co/p-e-w/gemma-4-E2B-it-heretic-ara) | Decensored gemma-4-E2B the default Korean TIPO GGUF was fine-tuned from (used so over-censoring doesn't corrupt explicit Danbooru tag output) | Gemma Terms of Use |
-| [`unsloth/gemma-4-E2B-it-GGUF`](https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF) by Unsloth | Base gemma-4-E2B `mmproj-F16.gguf` — only used as legacy fallback for non-vision-v1 models (≤2.7.3 behaviour) | Gemma Terms of Use |
+| [`unsloth/gemma-4-E2B-it-GGUF`](https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF) by Unsloth | Source of the base gemma-4-E2B `mmproj-F16.gguf` used by earlier versions (≤2.7.3); v2.8.0+ ships its own trained mmproj instead. Not downloaded automatically anymore — set `mmproj_path` manually if you want it. | Gemma Terms of Use |
 | [`raspie/gemma4-tipo-ko-gguf`](https://huggingface.co/raspie/gemma4-tipo-ko-gguf) | Default text TIPO model **and** the trained `Gemma-tipo-vision-v1` pair auto-downloaded by Node 2 | Gemma Terms of Use |
 
 The TIPO expansion concept ("upsample"/expand short prompts into detailed
