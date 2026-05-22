@@ -30,7 +30,8 @@ class GemmaTipoNode:
       - no image connected  -> text mode: `prompt` (Korean/English NL or
         tags) is expanded in-process via llama-cpp-python.
       - image connected      -> vision mode: the image is captioned via
-        gemma-4 vision (llama.cpp mtmd) + the base gemma-4-E2B mmproj.
+        gemma-4 vision (llama.cpp mtmd) + the trained vision mmproj, on
+        GPU when available (CUDA/Vulkan/Metal auto, CPU fallback).
 
     Model is picked from ComfyUI/models/gguf (or auto-download default).
     Same kgen post-processing either way. Any failure falls back safely
@@ -66,7 +67,7 @@ class GemmaTipoNode:
                 "image": ("IMAGE",),
                 "mmproj_path": ("STRING", {
                     "default": "",
-                    "placeholder": "vision only; empty = auto-download base gemma-4-E2B mmproj"}),
+                    "placeholder": "vision only; empty = auto-download trained vision mmproj"}),
                 "gpu_layers": ("INT", {"default": 0, "min": 0, "max": 100}),
             },
         }
