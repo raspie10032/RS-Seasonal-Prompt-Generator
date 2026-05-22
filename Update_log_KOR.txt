@@ -1,3 +1,24 @@
+2026년 5월 23일  (v2.8.0)
+1. 비전 모드 GPU 자동 가속
+비전은 CPU 전용 llama-mtmd-cli 로 동작했습니다. 이제 최초 비전 사용
+시 GPU를 자동 감지해 맞는 llama.cpp 프리빌트를 받습니다 --
+Windows/NVIDIA -> CUDA(+ 매칭 cudart 런타임); Linux/NVIDIA 및
+AMD/Intel(Vulkan 로더로 게이팅) -> Vulkan; macOS -> Metal; 그 외 CPU
+-- 그리고 전 레이어를 오프로드합니다. GPU 실패 시 자동으로 CPU 폴백.
+gpu_layers 기본값은 이제 auto(GPU 감지 시 전 레이어 오프로드)입니다.
+RS_TIPO_FORCE_CPU=1 로 CPU 강제, LLAMA_MTMD_CLI 로 직접 빌드한
+바이너리를 지정할 수 있습니다.
+
+2. 비전 기본을 co-trained 비전 모델 + mmproj 로 변경
+비전은 텍스트 TIPO 모델 + base gemma-4-E2B mmproj 조합을 썼는데,
+이는 로드는 되지만 학습된 이미지 grounding 을 잃습니다. 이제 자동
+다운로드 기본이 raspie/gemma4-tipo-ko-gguf 의 co-trained 비전 GGUF
+(Gemma-tipo-vision-v1-E2B-heretic-ara-Q4_K_M.gguf) 와 페어 mmproj
+(...mmproj-f16.gguf) 라서 이미지가 실제로 grounding 됩니다. 다만
+여전히 TIPO식으로 확장합니다(엄밀한 1:1 태거 아님). 기존 사용자는
+다음 비전 사용 시 새 파일을 받습니다; 직접 고정하려면 모델 드롭다운
+/ mmproj_path 를 지정하세요.
+
 2026년 5월 18일  (v2.7.3)
 1. 기본 모델을 v2 한국어 TIPO 파인튜닝으로 업그레이드
 자동 다운로드되는 기본 모델이 gemma4-tipo-ko-v2-Q4_K_M.gguf 로

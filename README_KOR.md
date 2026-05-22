@@ -12,7 +12,11 @@
 > 바이너리가 Windows 전용이 아니라 Windows / Linux / macOS 모두에서
 > 자동 다운로드). **v2.7.3** 에서 자동 다운로드 기본 모델이 v2 한국어
 > TIPO 파인튜닝(`gemma4-tipo-ko-v2-Q4_K_M.gguf`, 색상/속성 정확도
-> 개선)으로 업그레이드되었습니다. 자세한 내용은 변경 로그를 참고하세요.
+> 개선)으로 업그레이드되었습니다. **v2.8.0** 에서 비전 모드가 GPU를
+> 자동 사용하며(Windows/NVIDIA → CUDA, Linux/AMD/Intel → Vulkan,
+> macOS → Metal, 전 레이어 오프로드, 실패 시 CPU 폴백), 비전 기본을
+> **co-trained 비전 모델 + mmproj** 로 바꿔 실제 이미지 grounding을
+> 제공합니다. 자세한 내용은 변경 로그를 참고하세요.
 
 이 팩은 **독립적인 두 개의 노드**를 제공합니다(카테고리: `prompt`):
 1) Seasonal Fashion Prompt Generator (CSV, 의존성 없음), 2) Gemma TIPO
@@ -48,21 +52,20 @@
 ## 노드 2 — Gemma TIPO (Prompt / Image → Tags)
 
 하나로 통합된 노드입니다. **`image` 를 연결하면 → 비전 모드**
-(이미지를 Gemma-4 비전 = llama.cpp `mtmd` + 자동 다운로드된 base
-gemma-4-E2B `mmproj` 로 캡션). **이미지 없음 → 텍스트 모드**
-(`prompt`, 한국어/영어 자연어 또는 태그를 `llama-cpp-python` 으로
-in-process 확장). 어느 쪽이든 출력은 동일한 `kgen.formatter`
-후처리(정렬 / 중복 제거 / 중복 일반태그 제거 / 인원수 충돌 정리)를
-거칩니다.
+(이미지를 Gemma-4 비전 = llama.cpp `mtmd` + 자동 다운로드된
+**co-trained 비전 모델 + mmproj** 로 캡션, GPU가 있으면 GPU에서 실행).
+**이미지 없음 → 텍스트 모드**(`prompt`, 한국어/영어 자연어 또는
+태그를 `llama-cpp-python` 으로 in-process 확장). 어느 쪽이든 출력은
+동일한 `kgen.formatter` 후처리(정렬 / 중복 제거 / 중복 일반태그 제거 /
+인원수 충돌 정리)를 거칩니다.
 
-> ⚠️ **비전 모드는 정확한 이미지 태거가 아닙니다.** 이미지를
-> 충실히 묘사하는 라벨링/캡셔닝 모델이 *아닙니다*. LLM의 **환각**
-> 성질을 의도적으로 이용합니다: 이미지를 느슨한 시드로만 받아
-> **그럴듯하게 지어낸 태그 세트로 무작위 확장**합니다(TIPO식 창의적
-> 업샘플링). 출력에는 이미지에 *실제로 없는* 태그가 포함되며 실행할
-> 때마다 달라집니다. text-to-image용으로 다양한 프롬프트 아이디어를
-> 만드는 데 사용하세요 — 주어진 이미지의 정확한 태그가 필요한
-> 경우에는 **사용하지 마세요**.
+> ⚠️ **비전 모드는 TIPO식이며, 엄밀한 1:1 태거가 아닙니다.**
+> co-trained 비전 모델 + mmproj 로 이미지의 핵심 내용을 그림에서
+> 가져오지만, 그 위에 **그럴듯하게 확장**해 더 풍부한 Danbooru 태그
+> 세트를 만듭니다(TIPO식 창의적 업샘플링): 이미지에 그대로 있지 않은
+> 태그가 일부 포함되고 `seed` 에 따라 실행마다 달라집니다. 레퍼런스
+> 이미지를 다양한 text-to-image 프롬프트로 바꾸는 데 좋습니다 —
+> 정확하고 충실한 라벨링이 필요하면 전용 태거를 쓰세요.
 
 텍스트 모드는 태그뿐 아니라 **한국어 또는 영어 자연어**도 받습니다:
 
@@ -95,14 +98,18 @@ in-process 확장). 어느 쪽이든 출력은 동일한 `kgen.formatter`
 - `ban_tags`: 결과에서 제거할 콤마 구분 태그.
 - `seed`: 변형을 위해 확장을 바꿉니다.
 - *(선택)* `image`: ComfyUI IMAGE를 연결하면 **비전 모드**(이미지
-  → 태그)로 전환됩니다. **완전 자동** — 최초 비전 사용 시 OS/아키텍처에
-  맞는 프리빌트 llama.cpp mtmd 바이너리(Windows / Linux / macOS ·
-  x64 / arm64, 빌드 불필요)와 base gemma-4-E2B mmproj를 자동
-  다운로드합니다. 수동으로 설치하거나 설정할 것이 없습니다.
-- *(선택, 비전 전용)* `mmproj_path`: **비워 두세요** — base mmproj가
-  자동 다운로드됩니다. 직접 만든 mmproj를 가리킬 때만 설정하세요.
-  `gpu_layers`: `0` = CPU(기본); 값을 올리면 레이어를 GPU로
-  오프로드합니다.
+  → 태그)로 전환됩니다. **완전 자동** — 최초 비전 사용 시 OS/아키텍처와
+  GPU에 맞는 프리빌트 llama.cpp mtmd 바이너리(Windows/NVIDIA → CUDA +
+  cudart; Linux/NVIDIA·AMD/Intel → Vulkan; macOS → Metal; 그 외 CPU,
+  빌드 불필요)와 트레인된 비전 모델 + mmproj를 자동 다운로드합니다.
+  수동으로 설치하거나 설정할 것이 없습니다.
+- *(선택, 비전 전용)* `mmproj_path`: **비워 두세요** — 트레인된 비전
+  mmproj가 자동 다운로드됩니다(비전 모델과 페어). 직접 만든 mmproj를
+  가리킬 때만 설정하세요.
+  `gpu_layers`: `0` = **자동**(GPU가 감지되면 전 레이어 오프로드,
+  아니면 CPU); 특정 레이어 수를 강제하려면 값을 지정. 환경변수
+  `RS_TIPO_FORCE_CPU=1` 로 CPU 강제, `LLAMA_MTMD_CLI` 로 직접 빌드한
+  바이너리 지정 가능.
 
 참고:
 - 설명이 길고 자세할수록 더 많고 더 정확한 태그가 나옵니다.
@@ -122,10 +129,10 @@ in-process 확장). 어느 쪽이든 출력은 동일한 `kgen.formatter`
 | --- | --- |
 | **OS** | Windows / Linux / macOS — ComfyUI가 동작하고 `llama-cpp-python` 휠이 존재하는 모든 환경(x86-64, Apple Silicon/arm64) |
 | **노드 1 (Seasonal)** | 모든 ComfyUI 설치. 의존성 없음, 모델 없음. |
-| **노드 2 (Gemma TIPO)** | CPU 전용 동작(GPU 불필요); 속도를 위해 GPU 선택 |
+| **노드 2 (Gemma TIPO)** | 비전: GPU 자동 가속(CUDA / Vulkan / Metal), CPU 폴백. 텍스트: 기본 CPU(GPU는 CUDA `llama-cpp-python` 빌드로). |
 | **RAM** | 최소 ~8 GB (4-bit 모델에 ≈5 GB 사용) · 16 GB 이상 권장 |
-| **디스크** | ~4 GB 여유(3.2 GB GGUF + 의존성) |
-| **속도** | CPU 추론은 동작하지만 느림(프롬프트 하나에 수 분 소요 가능); 속도를 위해 GPU 가속 `llama-cpp-python` 빌드 권장 |
+| **디스크** | 텍스트 ~4 GB(3.2 GB GGUF + 의존성); 비전은 추가로 ~3.2 GB 비전 GGUF + ~1 GB mmproj + GPU 프리빌트(최초 비전 사용 시 1회) |
+| **속도** | **비전**은 GPU가 있으면 자동 사용(CUDA/Vulkan/Metal) — CPU보다 훨씬 빠름. **텍스트**는 `llama-cpp-python` in-process(기본 CPU 휠이라 느림; 속도는 GPU 빌드 설치). |
 | **Python** | ComfyUI 내장 환경; `llama-cpp-python >= 0.3.23`(자동 설치/업그레이드, 1회 재시작 안내) |
 
 ### 설치 (노드 2 전용)
@@ -157,12 +164,12 @@ pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-c
 | --- | --- | --- |
 | KohakuBlueleaf 의 [KGen / TIPO](https://github.com/KohakuBlueleaf/KGen) | 태그 분류 및 프롬프트 정렬을 위한 `kgen.formatter` | Apache-2.0 |
 | KohakuBlueleaf 의 [z-tipo-extension](https://github.com/KohakuBlueleaf/z-tipo-extension) | TIPO 노드 흐름의 레퍼런스 구현; 학습 데이터 계보 | Apache-2.0 |
-| [llama.cpp](https://github.com/ggml-org/llama.cpp) | GGUF 추론 엔진; 비전 모드용 프리빌트 `llama-mtmd-cli` | MIT |
-| [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) | in-process GGUF 추론을 위한 Python 바인딩 | MIT |
+| [llama.cpp](https://github.com/ggml-org/llama.cpp) | GGUF 추론 엔진; 비전 모드용 프리빌트 `llama-mtmd-cli`(CUDA / Vulkan / Metal / CPU) | MIT |
+| [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) | in-process GGUF 추론을 위한 Python 바인딩(텍스트 모드) | MIT |
 | Google 의 [Gemma](https://ai.google.dev/gemma) ([`google/gemma-4-E2B-it`](https://huggingface.co/google/gemma-4-E2B-it)) | TIPO GGUF가 파생된 베이스 모델 패밀리 | Gemma Terms of Use |
-| [`p-e-w/gemma-4-E2B-it-heretic-ara`](https://huggingface.co/p-e-w/gemma-4-E2B-it-heretic-ara) | 기본 한국어 TIPO GGUF를 파인튜닝한 디센서드 gemma-4-E2B(과도한 검열이 노골적 Danbooru 태그 출력을 망가뜨리지 않도록 사용) | Gemma Terms of Use |
-| Unsloth 의 [`unsloth/gemma-4-E2B-it-GGUF`](https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF) | 비전 모드용으로 자동 다운로드되는 base gemma-4-E2B `mmproj-F16.gguf` | Gemma Terms of Use |
-| [`raspie/gemma4-tipo-ko-gguf`](https://huggingface.co/raspie/gemma4-tipo-ko-gguf) | 노드 2가 자동 다운로드하는 기본 한국어→태그 TIPO 모델 | Gemma Terms of Use |
+| [`p-e-w/gemma-4-E2B-it-heretic-ara`](https://huggingface.co/p-e-w/gemma-4-E2B-it-heretic-ara) | TIPO GGUF들을 파인튜닝한 디센서드 gemma-4-E2B(과도한 검열이 노골적 Danbooru 태그 출력을 망가뜨리지 않도록 사용) | Gemma Terms of Use |
+| Unsloth 의 [`unsloth/gemma-4-E2B-it-GGUF`](https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF) | base gemma-4-E2B `mmproj`(비전 타워 계보; 선택적 폴백 — 더 이상 기본값 아님) | Gemma Terms of Use |
+| [`raspie/gemma4-tipo-ko-gguf`](https://huggingface.co/raspie/gemma4-tipo-ko-gguf) | 노드 2가 자동 다운로드하는 기본 한국어→태그 TIPO 텍스트 모델 **및** co-trained 비전 모델 + mmproj | Gemma Terms of Use |
 
 TIPO 확장 개념(짧은 프롬프트를 상세한 Danbooru 태그 세트로
 "업샘플"/확장)은 KohakuBlueleaf 의 KGen/TIPO 와

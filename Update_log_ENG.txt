@@ -1,3 +1,24 @@
+May 23rd, 2026  (v2.8.0)
+1. Vision mode is now GPU-accelerated automatically
+Vision shelled out to a CPU-only llama-mtmd-cli. It now auto-detects the
+GPU on first vision use and fetches the matching llama.cpp prebuilt --
+Windows/NVIDIA -> CUDA (plus the matching cudart runtime); NVIDIA on
+Linux and AMD/Intel (gated by the Vulkan loader) -> Vulkan; macOS ->
+Metal; otherwise CPU -- and offloads all layers. Any GPU failure
+transparently falls back to CPU. gpu_layers now defaults to auto (all
+layers on the GPU when one is detected). Set RS_TIPO_FORCE_CPU=1 to force
+CPU, or LLAMA_MTMD_CLI to use a binary you built yourself.
+
+2. Vision default switched to the co-trained vision model + mmproj
+Vision used the text TIPO model paired with the base gemma-4-E2B mmproj,
+which loads but drops the trained image grounding. The auto-download
+default is now the co-trained vision GGUF
+(Gemma-tipo-vision-v1-E2B-heretic-ara-Q4_K_M.gguf) and its paired mmproj
+(...mmproj-f16.gguf) from raspie/gemma4-tipo-ko-gguf, so the image is
+actually grounded. It still expands TIPO-style (not a strict 1:1
+labeler). Existing users get the new files on next vision use; set the
+model dropdown / mmproj_path to pin your own.
+
 May 18th, 2026  (v2.7.3)
 1. Default model upgraded to the v2 Korean TIPO fine-tune
 The auto-downloaded default model is now gemma4-tipo-ko-v2-Q4_K_M.gguf
