@@ -266,10 +266,28 @@ _ARTIFACT = {"thought", "thinking", "final", "analysis", "channel",
              "response", "output", "tags"}
 
 
+def _strip_reasoning(raw):
+    """Reasoning models (e.g. the visual-expand checkpoint) think first, then
+    emit the answer after a channel-close marker:
+        <|channel>thought ... (final answer.)<channel|>tag, tag, ...
+    Keep only the text after the LAST such marker (that's the real answer).
+    Models that don't reason have no marker -> text is returned unchanged."""
+    if not raw:
+        return raw
+    best = -1
+    # only the reasoning-channel close marker; NOT <end_of_turn> (that ends
+    # the answer, so slicing past it would drop the tags)
+    for marker in ("<channel|>", "channel|>", "<|channel|>"):
+        i = raw.rfind(marker)
+        if i != -1:
+            best = max(best, i + len(marker))
+    return raw[best:] if best != -1 else raw
+
+
 def _extract_tags(raw):
-    """Pull tag-like comma tokens out of mtmd output (drops gemma-4
-    <|channel>thought markers and prose lines; salvages tag fragments)."""
-    txt = tipo_engine._clean_special_tokens(raw or "")
+    """Pull tag-like comma tokens out of mtmd output (drops the gemma-4
+    <|channel>thought reasoning block and prose lines; salvages tags)."""
+    txt = tipo_engine._clean_special_tokens(_strip_reasoning(raw) or "")
     parts = []
     for line in txt.splitlines():
         s = line.strip().strip("`").strip()
@@ -282,6 +300,10 @@ def _extract_tags(raw):
     out = []
     for t in flat.split(","):
         t = t.strip().strip(".").strip()
+        # drop a leading taxonomy-group label ("clothing: collared shirt" ->
+        # "collared shirt") emitted by the grouped visual-expand model.
+        # require space after ':' so colon-tags ("re:zero") are left intact
+        t = re.sub(r"^[a-z][a-z_ ]*:\s+", "", t).strip()
         # tag-ish: short, no sentence-like content, not a channel artifact
         if (t and len(t.split()) <= 5 and not re.search(r"[.!?]", t)
                 and t.lower() not in _ARTIFACT):
@@ -302,7 +324,7 @@ def _run_cli(backend, model, mmproj, png, instr, gpu_layers, temperature,
     # emitted. The plain template has no thinking channel.
     cmd = [cli, "-m", model, "--mmproj", mmproj, "--image", png,
            "--chat-template", "gemma", "--no-warmup",
-           "-ngl", str(ngl), "-n", "768", "--temp", str(float(temperature)),
+           "-ngl", str(ngl), "-n", "1024", "--temp", str(float(temperature)),
            "--seed", str(int(seed) % (2 ** 31)), "-p", instr]
     env = os.environ.copy()
     if not sys.platform.startswith("win"):
@@ -339,7 +361,8 @@ def image_to_tags(image, gguf_path, mmproj_path, tag_length, ban_tags,
         instr = ("Output ONLY a comma-separated list of English Danbooru "
                  "tags for this image. No thinking, no explanation, no "
                  "sentences. Capture the image and plausibly expand it "
-                 f"(TIPO style). About {target} tags.")
+                 f"(TIPO style). About {target} tags."
+                 + tipo_engine._avoid_hint(ban_tags))
 
         # Try GPU first (if available), then fall back to CPU on failure.
         gpu = _gpu_backend()

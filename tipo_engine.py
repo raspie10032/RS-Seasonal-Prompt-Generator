@@ -421,6 +421,16 @@ def _postprocess_with_kgen(tags_csv, ban_tags, sort_preset):
     return formatted.strip().strip(",").strip()
 
 
+def _avoid_hint(ban_tags):
+    """Soft prompt hint so the model leaves banned tags out from the start
+    (better backfill / tag count). Post-processing still removes them as the
+    hard guarantee — small models don't reliably honor negative instructions."""
+    bans = [b.strip() for b in (ban_tags or "").split(",") if b.strip()]
+    if not bans:
+        return ""
+    return " Do not include these tags: " + ", ".join(bans) + "."
+
+
 def expand_prompt(prompt, gguf_path, tag_length, ban_tags, temperature, seed,
                   sort_preset=DEFAULT_SORT):
     """Expand a comma-separated tag prompt with a local GGUF model.
@@ -451,6 +461,7 @@ def expand_prompt(prompt, gguf_path, tag_length, ban_tags, temperature, seed,
         user_msg = (
             f"Partial tags: {prompt.strip()}\n"
             f"Output around {target} comma-separated English Danbooru tags."
+            + _avoid_hint(ban_tags)
         )
 
         resp = llm.create_chat_completion(
