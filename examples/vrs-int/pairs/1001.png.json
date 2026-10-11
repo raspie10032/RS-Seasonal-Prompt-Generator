@@ -1,0 +1,11 @@
+{
+  "id": 1001,
+  "rating": "g",
+  "tags_general": ["1girl", "solo", "blue_hair", "long_hair", "white_dress", "standing", "flower_field"],
+  "tags_artist": ["example_artist_a"],
+  "tags_character": ["example_character_a"],
+  "tags_copyright": ["example_series_a"],
+  "tags_meta": ["highres", "signature"],
+  "caption": "푸른 머리의 인물이 꽃밭에서 흰 드레스를 입고 서 있다.",
+  "split": "train"
+}

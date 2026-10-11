@@ -19,6 +19,18 @@ This pack provides **two independent nodes** (category: `prompt`):
 `ComfyUI/custom_nodes/` and restarting ComfyUI. Each outputs a `STRING`;
 they're chainable.
 
+## VRS-INT: personal image/tag memory
+
+[VRS-INT](vrs_int/README.md) is an experimental standalone memory builder and
+image-reference tag recommender. Distribution is code-only: users select their
+own Danbooru images and tags, acquire the encoder separately, and build/update
+personal collections in batches. Corpus data and weights are not bundled.
+Artist candidates are creative references, not verified image attribution.
+See the [image/text pair examples (Korean)](examples/vrs-int/README.md) for JSONL
+templates, a local sidecar-to-manifest script, model-free input checks, and batch
+build/update/recommend commands. Optional captions are preserved as metadata;
+recommendations currently use the paired tag arrays, not caption embeddings.
+
 ## Showcase
 
 ![Gemma TIPO node in ComfyUI](assets/gemma-tipo-example.png)

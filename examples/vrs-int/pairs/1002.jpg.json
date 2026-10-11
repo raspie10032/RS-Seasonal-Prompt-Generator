@@ -1,0 +1,11 @@
+{
+  "id": 1002,
+  "rating": "g",
+  "tags_general": ["1girl", "solo", "blue_hair", "long_hair", "coat", "walking", "snow", "night"],
+  "tags_artist": ["example_artist_b"],
+  "tags_character": ["example_character_a"],
+  "tags_copyright": ["example_series_a"],
+  "tags_meta": ["highres"],
+  "caption": "같은 캐릭터를 다른 작가가 그린 겨울 밤 장면.",
+  "split": "train"
+}
