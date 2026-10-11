@@ -2,8 +2,10 @@
 import copy
 import json
 from pathlib import Path
+import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 
@@ -162,6 +164,38 @@ class VersionTests(unittest.TestCase):
             self.store.build([entry(), entry()], contract(), "duplicate")
         with self.assertRaisesRegex(ValueError, "Duplicate"):
             self.store.update(self.base, [self.change(), self.change()], "duplicate")
+
+    def test_build_closes_spool_on_success_and_failure(self):
+        connect = sqlite3.connect
+
+        def broken_input():
+            yield entry()
+            raise ValueError("input interrupted")
+
+        for records, error in (([entry()], None), ([entry(), entry()], "Duplicate"),
+                               (broken_input(), "input interrupted")):
+            with self.subTest(error=error):
+                connections = []
+
+                def track_connection(*args, **kwargs):
+                    db = connect(*args, **kwargs)
+                    connections.append(db)
+                    return db
+
+                try:
+                    with patch("vrs_int.store.sqlite3.connect", side_effect=track_connection):
+                        if error:
+                            with self.assertRaisesRegex(ValueError, error):
+                                self.store.build(records, contract(), "close-on-error")
+                        else:
+                            self.store.build(records, contract(), "close-on-success")
+                    self.assertEqual(len(connections), 1)
+                    with self.assertRaisesRegex(sqlite3.ProgrammingError, "closed"):
+                        connections[0].execute("SELECT 1")
+                    self.assertEqual(list(self.store.root.glob(".build-*")), [])
+                finally:
+                    for db in connections:
+                        db.close()
 
     def test_manifest_corruption_and_path_traversal(self):
         with self.assertRaises(ValueError):

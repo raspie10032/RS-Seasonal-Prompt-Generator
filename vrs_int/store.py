@@ -4,6 +4,7 @@ A snapshot is a flat map of stable key buckets, not a replay-dependent delta
 chain. Packages carry only new compressed buckets. Old snapshots remain readable.
 Hashes detect changes; they do NOT authenticate a publisher.
 """
+from contextlib import closing
 import hashlib
 import json
 import os
@@ -278,7 +279,9 @@ class Store:
         # Spool metadata, never original images. Only one bucket is packed in
         # RAM at a time, including at corpus sizes beyond this initial trial.
         with tempfile.TemporaryDirectory(prefix=".build-", dir=self.root) as staging:
-            with sqlite3.connect(str(Path(staging) / "spool.sqlite3")) as db:
+            # sqlite3's transaction context does not close the connection.
+            # Close on both success and failure before removing the spool on Windows.
+            with closing(sqlite3.connect(str(Path(staging) / "spool.sqlite3"))) as db, db:
                 db.execute("CREATE TABLE records (key TEXT PRIMARY KEY, bucket INTEGER, value BLOB)")
                 for entry in entries:
                     validate_entry(entry, contract)
@@ -301,7 +304,6 @@ class Store:
                     rows = [json.loads(r[0]) for r in db.execute("SELECT value FROM records WHERE bucket=?", (index,))]
                     if rows:
                         objects[str(index)] = self.put_object(rows)
-            db.close()
         provenance = dict(provenance or {}, canonical_input_jsonl_bytes=input_bytes)
         return self._publish(contract, bucket_count, objects, None, label, counts, provenance)
 
