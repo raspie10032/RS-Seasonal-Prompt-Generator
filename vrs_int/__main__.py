@@ -49,10 +49,35 @@ def main():
             sub.add_argument("--neighbors", type=int, default=32)
             sub.add_argument("--limit", type=int, default=20)
             sub.add_argument("--output", type=Path, required=True)
+    evaluation = commands.add_parser("evaluate", help="Evaluate val/test from immutable stored features")
+    evaluation.add_argument("--store", type=Path, required=True)
+    evaluation.add_argument("--snapshot", required=True, help="Exact immutable content hash")
+    evaluation.add_argument("--split", choices=("val", "test"), default="test")
+    evaluation.add_argument("--ks", default="5,10,20")
+    evaluation.add_argument("--neighbors", type=int, default=32)
+    evaluation.add_argument("--ratings", default="g,s,q,e")
+    evaluation.add_argument("--rare-max", type=int, default=5)
+    evaluation.add_argument("--batch-size", type=int, default=2048)
+    evaluation.add_argument("--backend", choices=("numpy", "cuda"), default="numpy")
+    evaluation.add_argument("--gpu", help="Explicit CUDA GPU UUID; required for --backend cuda")
+    evaluation.add_argument("--include-cases", action="store_true", help="Include private tags and error cases locally")
+    evaluation.add_argument("--output", type=Path, required=True)
     install = commands.add_parser("install", help="Verify and install; never activates automatically")
     install.add_argument("--store", type=Path, required=True)
     install.add_argument("--package", type=Path, required=True)
     args = parser.parse_args()
+    if args.command == "evaluate":
+        if args.backend == "cuda" and not args.gpu:
+            parser.error("evaluate --backend cuda requires --gpu")
+        if args.backend == "numpy" and args.gpu:
+            parser.error("--gpu applies only to evaluate --backend cuda")
+        if args.output.exists():
+            raise FileExistsError(args.output)
+        output_path = args.output.resolve()
+        store_path = args.store.resolve()
+        if output_path == store_path or any((store_path / name).resolve() in output_path.parents
+                                            for name in ("objects", "snapshots")) or output_path == store_path / "CURRENT":
+            parser.error("Evaluation output must not modify snapshot objects or active state")
     for name in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
         os.environ[name] = "2"
     if hasattr(os, "sched_getaffinity"):
@@ -71,7 +96,7 @@ def main():
         disk = shutil.disk_usage(ancestor)
         if disk.free / disk.total < .20:
             raise RuntimeError("Keep at least 20% disk free")
-    if args.command in ("build", "recommend"):
+    if args.command in ("build", "recommend") or (args.command == "evaluate" and args.backend == "cuda"):
         os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
         import torch
         torch.set_num_threads(2)
@@ -104,6 +129,16 @@ def main():
             snapshot = store.update(args.snapshot, (json.loads(line) for line in stream if line.strip()),
                                     args.label, json.loads(args.contract.read_text(encoding="utf-8")))
         result = store.verify(snapshot)
+    elif args.command == "evaluate":
+        from .evaluate import evaluate
+        result = evaluate(args.store, args.snapshot, split=args.split,
+                          ks=tuple(int(k) for k in args.ks.split(",")), neighbors=args.neighbors,
+                          ratings=tuple(args.ratings.split(",")), rare_max=args.rare_max,
+                          backend=args.backend, batch_size=args.batch_size, include_cases=args.include_cases)
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        with args.output.open("x", encoding="utf-8") as stream:
+            json.dump(result, stream, ensure_ascii=False, indent=2, allow_nan=False)
+            stream.write("\n")
     else:
         if args.output.exists():
             raise FileExistsError(args.output)
