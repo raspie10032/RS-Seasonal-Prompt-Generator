@@ -1,207 +1,409 @@
-# VRS-INT 0.1 — 개인별 이미지·태그 기억
+# VRS-INT: personal image/tag memory
 
-**코드를 공유하고, 자료는 각자가 취향에 맞게 선택해 구성합니다.**
-이미지·태그 데이터베이스·인코더 가중치는 코드 배포에 포함하지 않습니다.
-사용자가 준비한 단보루 이미지와 태그 목록으로 기억을 구축하고,
-새 이미지와 비슷한 사례의 태그를 창작 재료로 추천하는 실험용 CLI입니다.
-현재 ComfyUI 노드 및 자동 다운로드·정기 수집은 포함하지 않습니다.
+English | [한국어](README_KOR.md) | [Project overview](../README.md) | [Pair examples](../examples/vrs-int/README.md)
 
-직접 생성한 이미지의 메타데이터를 가져오려면
-[생성 이미지 캡션과 PixAI 보완 안내](GENERATED_IMAGES.md)를 참고하세요.
-NovelAI·ComfyUI 등의 생성 프롬프트를 보존하고, 읽을 수 없는 이미지에는
-로컬 PixAI 태거를 선택적으로 적용하는 별도 가져오기 경로입니다.
+Build a versioned memory from your own images and categorized tags, then use a
+new reference image to retrieve material for a new prompt. The existing Gemma
+E2B vision encoder extracts features; VRS-INT stores observations and retrieves
+similar examples. Building memory **does not train encoder weights**.
 
-검색한 경험을 TIPO 생성에 사용하려면 [생성 상태 비교 실험](GENERATION_STATE.md)을
-참고하세요. 요청만 전달 / 같은 참고 태그 나열 / 구조화한 상태를 전달하는 세 방식을
-비교하는 별도 GPU 실행기이며, 신경망 내부 상태 주입이나 노드 자동 연결은 아닙니다.
+**Code and fictional examples only:** no corpus, starter memory, vectors, or
+weights are distributed. This standalone storage/retrieval path does not invoke
+the native VRS judgment core. It is not a WD14 classification model or an author
+identification service. A separate writer is needed for natural-language prompts.
 
-현재 Gemma 모델 선택과 혼합 정밀도 후보의 사용법·검증 범위는
-[Gemma 4 TIPO 실행 기준](GEMMA4_RUNTIME.md)에 정리했습니다.
+## More inputs and Gemma integration
 
-개인 한국어 태그 CSV를 **기본 텍스트 지식풀 + 번역 사전**으로 연결하려면
-[텍스트 지식·태그 사전 안내](TAG_DICTIONARY.md)를 참고하세요.
-이미지 없이도 한국어 문장의 용어를 찾아 영문 태그·한국어 설명·이름 후보를
-조회할 수 있고, 한국어 생성 요청에는 이 용어 지식을 함께 전달합니다.
-`recommend`와 생성 상태 내보내기에 `--tag-dictionary`를 지정할 수
-있고, 상태의 `--resolve`는 선택한 이름과 서로 맞는 참고 재료를 추립니다.
-기존 이미지 경험을 재구축하지 않으며, 이 사전 파일은 개인 경로에 따로 둡니다.
+- [Generated image experience](GENERATED_IMAGES.md): original generation metadata with optional local PixAI tagging.
+- [Korean text knowledge](TAG_DICTIONARY.md): meaning, English tag candidates and names from a separate personal CSV.
+- [Generation state](GENERATION_STATE.md): keep/change/exclude conditions and references passed as text.
+- [Gemma checkpoint](GEMMA4_RUNTIME.md): vision FP16 / PLE Q4 selection and measured limitations.
 
-## 무엇이 남고 무엇이 필요한가
+Generated-image memories support `vrs-int/2` and `u` (unrated). Existing Danbooru
+memories retain `vrs-int/1`; older code is not assumed to read the new format.
+The Danbooru examples below remain valid. Artist/character/copyright categories
+are retained; quality/year tags are excluded from recommendations. This does not
+guarantee recognition or instruction following.
 
-- 기억에는 태그, 작가·캐릭터·작품 분류, 이미지 해시, 출처 ID, 원본 메타데이터,
-  제외한 태그와 사유, 정상 특징 벡터가 들어갑니다. 이미지 픽셀은 넣지 않습니다.
-- 작가·캐릭터·작품은 한 번만 등장해도 보존합니다. 명시적으로 분류된 이름은
-  품질·해상도·워터마크·서명 등 제외 목록보다 우선합니다.
-- 추천에는 **VRS-INT 기억 + 동일한 이미지 인코더 + 실행 라이브러리**가 필요합니다.
-  과거 원본 이미지·옛 특징 캐시·Writer LLM은 필요하지 않습니다.
-- 구축은 한 번에 한 이미지씩 처리합니다. 여러 이미지 묶음을 순차적으로 추가할 수
-  있으므로 전체 원본을 동시에 확보할 필요가 없습니다. 프로그램은 원본을 삭제하지 않습니다.
-  나중에 인코더를 바꾸려면 원본을 다시 확보해 특징을 재추출해야 합니다.
-- 이름 후보는 **비슷한 사례의 창작 참고 후보**입니다. 실제 작가·캐릭터·작품을
-  확인한 결과나 정답 확률이 아닙니다. 사용자가 지정한 이름을 대체하는 기능은 없습니다.
 
-`INT`는 프로젝트 이름이며 모든 값을 정수로 저장한다는 뜻은 아닙니다.
-기본 특징 형식은 `f32le`이고 손실 없는 저장 압축을 사용합니다.
-`i8`은 추천 변화가 생기는 선택적 실험 형식입니다.
+## Contents
 
-## 준비
+- [Setup](#setup)
+- [First build and recommendation](#first-build-and-recommendation)
+- [Understand recommendation output](#understand-recommendation-output)
+- [Update a collection](#update-a-collection)
+- [Backup, transfer, and rollback](#backup-transfer-and-rollback)
+- [Storage, resources, and compatibility](#storage-resources-and-compatibility)
+- [Command reference](#command-reference)
+- [Troubleshooting](#troubleshooting)
 
-처음 구성할 때는 **[이미지·텍스트 쌍 예제와 실행 안내](../examples/vrs-int/README.md)**를
-참고하세요. 최초 구축·증분 수정 JSONL 템플릿, 이미지별 JSON을 묶는 스크립트,
-모델 없이 실행하는 `check-input` 검사를 제공합니다. 작가·캐릭터·작품을 별도 필드로
-보존하며, 자연어 `caption`은 감사 기록으로만 남고 검색 특징이나 추천 태그로 변환되지 않습니다.
+## Setup
 
-저장소 루트에서 `python -m vrs_int --help`로 실행합니다. Python 3.11 이상,
-저장·버전 관리·특징 검증에는 표준 라이브러리와 NumPy가 필요합니다.
-이미지 구축·추천에는 CUDA PyTorch, Transformers의 Gemma4VisionModel,
-bitsandbytes, accelerate, Pillow, safetensors가 필요합니다.
-검사한 조합은 torch 2.14.0+cu130, transformers 5.16.1, bitsandbytes 0.50.2,
-accelerate 1.15.0, Pillow 12.3.0입니다. 새 환경의 자동 설치·패키징은 아직 제공하지 않습니다.
+### 1. Clone and use a separate Python environment
 
-가중치는 별도로 준비한 vision-only 폴더를 `--encoder`로 지정합니다.
-폴더에는 config.json, preprocessor_config.json, model.safetensors 및 파일별
-SHA-256을 적은 provenance.json이 있어야 합니다.
-[`prepare_encoder.py`](prepare_encoder.py)는 명시적으로
-실행할 때 고정 모델의 시각 가중치만 내려받는 도구입니다. 프로세서 판본도
-provenance에 기록합니다. 다른 결과 해시로 만들어진 인코더는 호환된다고 가정하지 않습니다.
-구축·추천 자체는 다운로드하지 않으며 CUDA가 없으면 오류로 멈춥니다.
+Run commands from the **repository root**, not from `vrs_int/`. No ComfyUI
+installation or package installation of this repository is required.
 
 ```bash
-# 사용자가 명시적으로 실행할 때 시각 가중치만 다운로드합니다.
-python -m vrs_int.prepare_encoder ./vrs-int-models/vision-encoder
+git clone https://github.com/raspie10032/RS-Seasonal-Prompt-Generator.git
+cd RS-Seasonal-Prompt-Generator
 ```
 
-이미지는 `--images` 아래에 두고, JSONL에는 한 줄에 한 이미지의 정보를 적습니다.
-다음 이름은 입력 형식을 보여주기 위한 가상 예시입니다.
-
-```json
-{"id":123,"image":"images/123.jpg","rating":"g","tags":["blue_hair","highres"],"tags_artist":["example_artist"],"tags_character":["example_character"],"tags_copyright":["example_series"]}
-```
-
-`id`는 단보루의 양의 정수 ID, `image`는 이미지 루트 기준 상대 경로입니다.
-`rating`은 g/s/q/e 중 하나를 명시합니다. 모든 등급을 지원합니다.
-태그 필드는 문자열 배열입니다. `tags_general`, `tags_meta`도 지원합니다.
-분류가 없는 태그는 unknown으로 남기며 이름만 보고 작가인지 추정하지 않습니다.
-`split`은 기본 train이며 val/test로 지정한 자료는 추천 이웃에서 제외합니다.
-기존 단보루 API 응답을 이 형식으로 자동 변환하는 수집기는 아직 없습니다.
+Linux, using Python 3.11 or later:
 
 ```bash
-python -m vrs_int check-input \
-  --manifest /path/to/batch1.jsonl --images /path/to/image-root
+python3 -m venv .venv-vrs
+source .venv-vrs/bin/activate
+python -m pip install --upgrade pip
 ```
 
-이 명령은 표준 라이브러리만으로 필드·중복 ID·경로·파일 해시를 검사합니다.
-픽셀 디코딩·태그 의미·인코더 호환성 검사는 아니며 모델을 로드하지 않습니다.
+Windows PowerShell, with Python 3.11 installed:
 
-## 개인 기억 구축 및 추가
+```powershell
+py -3.11 -m venv .venv-vrs
+.\.venv-vrs\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+```
 
-아래 경로와 GPU UUID는 사용자 환경에 맞춰 지정합니다.
+If activation is unavailable, use `.venv-vrs/bin/python` or
+`.\.venv-vrs\Scripts\python.exe` instead of `python`; no execution-policy
+change is required. All workflow commands below are single lines and work in
+Bash or PowerShell with the documented placeholders replaced.
+
+| Operation | Dependencies |
+| --- | --- |
+| `check-input`, sidecar preparation, `inspect`, explicit encoder download | Python standard library |
+| Verify/store/export/install/activate memory containing vectors; offline tests | NumPy; no GPU or model |
+| `build`, `recommend` | CUDA PyTorch, NumPy, Pillow, Transformers with Gemma4 PIL support, Accelerate, bitsandbytes, safetensors; compatible NVIDIA GPU |
+
+Install the CUDA-enabled PyTorch build appropriate for your OS and driver using
+the [official PyTorch selector](https://pytorch.org/get-started/locally/). Use
+this virtual environment's `python -m pip` when applying its command. Then:
 
 ```bash
-python -m vrs_int build \
-  --manifest /path/to/batch1.jsonl --images /path/to/image-root \
-  --encoder /path/to/vision-encoder --store /path/to/my-vrs-int \
-  --gpu GPU-YOUR-UUID --label my-first-collection
+python -m pip install numpy pillow transformers accelerate bitsandbytes safetensors
+python -c "import torch; print(torch.__version__); print('CUDA:', torch.cuda.is_available())"
+python -c "from transformers import Gemma4VisionModel; from transformers.models.gemma4.image_processing_pil_gemma4 import Gemma4ImageProcessorPil; print('Gemma4 PIL API available')"
 ```
 
-명령이 출력한 `snapshot` 해시를 보관합니다. 새 묶음을 받았다면:
+The second check must report `CUDA: True`; the third must import both classes.
+Use a Transformers release providing these APIs; root `requirements.txt` is for
+TIPO and is insufficient here. See the official [Gemma4 documentation](https://huggingface.co/docs/transformers/model_doc/gemma4)
+and [bitsandbytes compatibility guide](https://huggingface.co/docs/bitsandbytes/installation)
+if your environment lacks them. Offline CI on macOS does **not** establish GPU
+support there: this adapter has no CPU, MPS, or alternative GPU backend fallback.
+
+### 2. Prepare the separate vision-only encoder
+
+This is the one explicit model-download step. It does not run inference:
 
 ```bash
-python -m vrs_int build \
-  --manifest /path/to/batch2.jsonl --images /path/to/next-image-root \
-  --encoder /path/to/vision-encoder --store /path/to/my-vrs-int \
-  --gpu GPU-YOUR-UUID --base PREVIOUS_SNAPSHOT_HASH --label my-next-collection
+python -m vrs_int.prepare_encoder ./vrs-int-models/gemma4-e2b-vision
 ```
 
-같은 관측 ID의 새 태그는 해당 관측을 대체하며 표를 하나 더 세지 않습니다.
-수정 기록에는 유지할 작가·캐릭터·작품을 포함한 전체 태그·메타데이터와 이미지를
-다시 제공합니다. 변경하지 않는 관측은 새 묶음에 넣지 않아도 유지됩니다.
-같은 내용을 재입력하면 같은 snapshot을 돌려줍니다. 동일 이미지 해시의 다른 ID는
-출처로 보존하지만 추천에서 중복 투표하지 않습니다. 큰 자료는 묶음별로 추가하세요.
-갱신 구현은 변경 대상 bucket을 RAM에 유지하므로 매우 큰 단일 갱신의 RAM 상한은
-보장하지 않습니다. encoder/전처리/특징 codec/태그 정책이 다르면 혼합을 거부합니다.
+Choose a destination that does **not** already exist. The helper requests only
+the contiguous vision tensors using HTTP byte ranges, not the full language
+model. Its weight source is `p-e-w/gemma-4-E2B-it-heretic-ara` at
+`c9a1d4c031981f14d86eeb0c7d87de7fafd34513`. Processor configuration is obtained
+from `unsloth/gemma-4-e2b-it`; the revision resolved at preparation time is recorded.
 
-CLI는 CPU 스레드·실행 범위를 2개로 제한하고 우선순위를 낮춥니다.
-PyTorch의 GPU 할당 예산은 장치 메모리의 20%이며 외부 라이브러리 할당까지 포함한
-하드웨어 전체 상한은 아닙니다. 현재는 GPU에서 제한된 벡터 묶음을 정확 검색합니다.
-첫 조회는 모든 저장 bucket을 해제해 이미지 검색 대상을 캐시하므로 CPU·RAM·I/O를
-사용합니다. 천만 장 규모의 검색 시간·RAM 사용량은 아직 검증하지 않았습니다.
+Keep this entire directory together:
 
-## 새 이미지에서 참고 태그 추천
+```text
+vrs-int-models/gemma4-e2b-vision/
+  model.safetensors
+  config.json
+  preprocessor_config.json
+  provenance.json
+```
+
+This is a separate vision tower, **not `mmproj.gguf`**. Runtime uses NF4 linear
+layers, BF16 computation, PIL preprocessing, and mean-pooling plus normalization
+to produce 768-dimensional vectors. `build`/`recommend` verify local files and
+do not download a missing model. Model terms remain separate from the code license.
+
+Preserve the exact directory for later updates and queries. Re-running preparation
+can resolve a different processor revision, so the resulting encoder is not
+automatically interchangeable even when the base weights are unchanged.
+
+### 3. Select the GPU explicitly
 
 ```bash
-python -m vrs_int recommend \
-  --store /path/to/my-vrs-int --snapshot EXACT_SNAPSHOT_HASH \
-  --encoder /path/to/vision-encoder --image /path/to/new-image.png \
-  --gpu GPU-YOUR-UUID --ratings g,s,q,e --output /path/to/recommendation.json
+nvidia-smi --query-gpu=name,uuid,memory.total --format=csv
 ```
 
-일반 태그, 작가·캐릭터·작품 후보, 근거 관측 ID를 JSON으로 반환합니다.
-품질·연도 상투 태그(`amazing quality`, `very aesthetic`, `newest`, `year 2024`
-등)는 추천 순위를 자르기 전에 제외합니다. 명시적으로 작가·캐릭터·작품으로
-분류된 이름은 우선 보호합니다. 원본 캡션·태그·특징과 snapshot은 그대로 두며,
-기존 기억에도 다음 조회부터 적용됩니다. 결과의 `recommendation_policy`와
-`excluded_tags`에 필터 판본과 제외 사유를 기록합니다.
-Quality/year boilerplate is filtered before the recommendation limit; explicit
-artist/character/copyright labels stay protected. This query-time policy leaves
-stored captions, tags, vectors, and snapshot hashes unchanged.
-점수는 이웃의 가중 지지량입니다. `visual_verdict=U`는 신원·시각적 정답을
-확정하지 않았다는 뜻입니다. 이 독립 경로는 VRS 관측 기억을 압축·검색하지만
-기존 native VRS 판정 코어를 호출하거나 신경망을 재학습하지 않습니다.
+Copy your chosen GPU's complete `GPU-...` UUID. Replace **`GPU-YOUR-UUID`** in
+the following commands. With multiple cards this prevents selecting an unintended
+device. `build` and `recommend` fail if CUDA is unavailable; no CPU inference retry.
 
-## 코드 버전과 기억 버전
+## First build and recommendation
 
-공용 대형 자료를 운영하지 않아도 개인 기억의 재현·되돌리기를 위해 버전은 유지합니다.
-코드 버전, 저장 형식, 인코더/태그 정책 계약, 기억 내용 해시를 구분합니다.
-태그 판본이 바뀌면 새 snapshot이 생기고 이전 snapshot은 그대로 남습니다.
-설치가 자동 활성화로 이어지지 않으며 추천에는 정확한 snapshot을 명시합니다.
+### 1. Prepare actual images and metadata
 
-원할 경우 자신의 기억 전체나 직전 판본 대비 변경 bucket만 내보낼 수 있습니다.
-공유 패키지에는 원본 메타데이터의 로컬 경로 등도 포함될 수 있습니다.
-코드만 배포하는 기본 흐름에는 이 기능을 사용할 필요가 없습니다.
+Follow the [pair walkthrough](../examples/vrs-int/README.md). Example local layout:
+
+```text
+vrs-int-data/
+  pairs/
+    1001.png
+    1002.jpg
+  batch-01.jsonl
+  query.png
+```
+
+The repository's examples use fictional names and `g` ratings; **image files are
+not bundled**. Use your own files and matching metadata. The manifest uses one
+JSON object per line; image paths are relative to `--images`, not to the JSONL.
+The future `query.png` can be outside the collection and needs no tags.
+
+### 2. Validate before loading the model
 
 ```bash
-python -m vrs_int export --store /path/to/my-vrs-int \
-  --snapshot NEW_HASH --base EXACT_PARENT_HASH --output /path/to/delta
-python -m vrs_int install --store /path/to/receiver --package /path/to/delta
-python -m vrs_int activate --store /path/to/receiver \
-  --snapshot NEW_HASH --expected-current OLD_HASH
+python -m vrs_int check-input --manifest ./vrs-int-data/batch-01.jsonl --images ./vrs-int-data/pairs
 ```
 
-최초 전체 내보내기는 `--base`를 생략합니다. 처음 활성화는 `--expected-current none`입니다.
-되돌리기는 이전 snapshot을 지정해 activate합니다. 잘못된 부모, 관측 판본 충돌,
-파일 해시 오류, 인코더 혼합은 거부합니다. 내용 해시는 게시자의 신원을 인증하는
-전자서명이 아닙니다. 구버전 정리·가비지 수집·자동 동기화는 구현하지 않았습니다.
+This checks IDs, tag fields, ratings, paths, file hashes, and retained tags. It
+does **not** decode pixels or prove that the images are readable or well labeled.
+No model/GPU is loaded. Fix reported line-number errors before building.
 
-## 코드 배포와 개인 경험 데이터
+### 3. Build a snapshot
 
-이 저장소는 **VRS-INT 코드·문서·가상 입력 예제만 배포**합니다. 초기 기억을 포함해
-실제 이미지, 수집한 원본 태그, 이미지 특징, 스냅샷, 추천 결과, 모델 가중치를
-Git·릴리스에 포함하지 않습니다. `g/s/q/e` 지원은 프로그램의 입력 기능이며,
-어느 등급의 실제 자료도 기본 제공한다는 뜻이 아닙니다.
+```bash
+python -m vrs_int build --manifest ./vrs-int-data/batch-01.jsonl --images ./vrs-int-data/pairs --encoder ./vrs-int-models/gemma4-e2b-vision --store ./vrs-int-data/memory --gpu GPU-YOUR-UUID --label personal-01
+```
 
-- 개인 입력·기억·추천 결과: 저장소 밖 또는 `./vrs-int-data/`에 보관합니다.
-- 별도 인코더: 저장소 밖 또는 `./vrs-int-models/`에 보관합니다.
-- 공개 예제: `examples/vrs-int/`의 가상 `g` 등급 메타데이터만 사용합니다.
-- `export`는 사용자가 명시적으로 실행하는 로컬 파일 내보내기입니다.
-  자동 업로드나 공용 기억 갱신은 없고, 코드 버전과 개인 기억 판본은 별개입니다.
+Read `snapshot` in the JSON output: it is a **64-character SHA-256 content ID**.
+`observations`, `vectors`, `source_records`, and `snapshot_bytes` describe the
+built snapshot. Save the output and hash. In commands below, **replace
+`SNAPSHOT_1` with that exact hash**, without brackets or a label such as `personal-01`.
 
-`.gitignore`는 개인 폴더와 경험·모델 산출물을 제외합니다. CI의
-`python scripts/check_code_only.py`는 Git에 추적된 파일을 추가로 검사합니다.
-압축 기억도 원본 태그와 메타데이터를 포함하므로 익명화된 자료로 취급하지 않습니다.
+```bash
+python -m vrs_int verify --store ./vrs-int-data/memory --snapshot SNAPSHOT_1
+python -m vrs_int inspect --store ./vrs-int-data/memory --snapshot SNAPSHOT_1
+```
 
-## 오프라인 검증과 현재 한계
+`verify` reads all referenced objects and checks hashes/counts. `inspect` displays
+the manifest, including the encoder contract; it does not list every source tag
+and is not a replacement for `verify`.
+
+### 4. Recommend from a new image
+
+```bash
+python -m vrs_int recommend --store ./vrs-int-data/memory --snapshot SNAPSHOT_1 --encoder ./vrs-int-models/gemma4-e2b-vision --image ./vrs-int-data/query.png --gpu GPU-YOUR-UUID --ratings g,s --neighbors 32 --limit 20 --output ./vrs-int-data/recommendation-01.json
+```
+
+Open the UTF-8 JSON result in a text editor. The output path must be new; existing
+files are never overwritten. Use a new filename for each query.
+
+`--ratings g,s` restricts the **stored neighbors** considered. All four `g,s,q,e`
+ratings are supported and the CLI default includes all four if omitted. This
+filter does not classify the query or sanitize its tags. Write comma-separated
+codes without spaces. `--neighbors` accepts 1–256; `--limit` accepts 1–100.
+
+## Understand recommendation output
+
+| Field | Meaning |
+| --- | --- |
+| `snapshot`, `query_image_sha256` | Exact memory and input file used |
+| `contract_sha256` | Encoder/storage contract hash when neighbors are found |
+| `candidates` | Top tags, up to `--limit`, including any categories that win votes |
+| `identities.artist`, `.character`, `.copyright` | Separate top-three name candidates for each explicitly known category |
+| `score` | Similarity-weighted neighbor vote, **not** accuracy or identity probability |
+| `support` | Number of retrieved neighbors carrying the tag |
+| `observation_keys`, `image_ids` | Stored examples supporting that tag |
+| `neighbors` | Matching observation IDs, cosine similarities, ratings, image hashes |
+| `visual_verdict: "U"` | Visual attribution remains unproved; it is intentionally retained even with candidates |
+
+Only entries with a vector and `split=train` can vote. The exact query file is
+excluded by SHA-256, and identical neighbor files are counted once. Resized or
+re-encoded copies have different hashes and are not detected as near-duplicates.
+Missing typed fields cannot be reconstructed into author/character/series labels
+by guessing names. If no eligible neighbors remain, lists are empty and verdict
+is `U`; even nonempty results can be weak because there is no semantic confidence
+threshold. A memory of a few pictures is a workflow demonstration, not coverage.
+
+For prompt creation, review candidates, keep your specified artist/character/series,
+then combine useful clothing, setting, and composition tags. Retrieved names are
+creative references, not claims about the source image. Copy your selection into
+ComfyUI or another writer; automated prompt composition is not connected here.
+
+## Update a collection
+
+Put **only new or corrected complete records** in `batch-02.jsonl`. Prepare the
+actual images for those records and check the batch, then:
+
+```bash
+python -m vrs_int check-input --manifest ./vrs-int-data/batch-02.jsonl --images ./vrs-int-data/pairs
+python -m vrs_int build --manifest ./vrs-int-data/batch-02.jsonl --images ./vrs-int-data/pairs --encoder ./vrs-int-models/gemma4-e2b-vision --store ./vrs-int-data/memory --gpu GPU-YOUR-UUID --base SNAPSHOT_1 --label personal-02
+```
+
+Save the returned hash as **`SNAPSHOT_2`** and pass it explicitly to subsequent
+queries. A label is descriptive, not a moving alias. Building never activates a
+snapshot or overwrites the old one.
+
+- Same ID (`danbooru:<positive integer>`) replaces that observation; new ID adds one.
+- A correction is a **full replacement**, not a tag merge. Include every wanted artist, character, series, general tag, and caption again.
+- The CLI re-encodes each submitted image, even for a tags-only correction. Unchanged records' images are unnecessary, but corrected/new records' images must exist.
+- Resubmitting the same ID with identical content does not add an extra observation/vote; an update with unchanged stored objects returns its parent. Paths/metadata changes also count as content changes. Different IDs can remain separate observations even when their images match; search deduplicates identical image hashes.
+- Keep original IDs stable and unique. Do not combine unrelated sources by reusing IDs: the current key namespace is `danbooru:`.
+- Keep encoder, codec, tag policy, and preprocessing compatible. `--buckets` chooses the initial layout; an update inherits its parent's layout.
+
+The [two-batch example](../examples/vrs-int/README.md#add-images-and-correct-tags)
+shows two initial images, one corrected record, and one new image. Tag correction
+keeps the earlier source record in the older snapshot, not as an appended history
+inside the replacement record.
+
+## Backup, transfer, and rollback
+
+### Personal backup
+
+Preserve the whole `memory/` directory and exact encoder directory; keep original
+image/metadata backups separately. A memory contains vectors and metadata, **not
+image bytes**. Normal recommendation needs only memory, matching encoder, and the
+new query image. Re-encoding after an encoder change needs original images.
+
+### Full package and incremental package
+
+These commands create **directories**, not ZIP files. Output directories must be new.
+
+```bash
+python -m vrs_int export --store ./vrs-int-data/memory --snapshot SNAPSHOT_1 --output ./vrs-int-data/package-01
+python -m vrs_int export --store ./vrs-int-data/memory --snapshot SNAPSHOT_2 --base SNAPSHOT_1 --output ./vrs-int-data/package-02-delta
+python -m vrs_int install --store ./vrs-int-data/restored --package ./vrs-int-data/package-01
+python -m vrs_int install --store ./vrs-int-data/restored --package ./vrs-int-data/package-02-delta
+python -m vrs_int verify --store ./vrs-int-data/restored --snapshot SNAPSHOT_2
+```
+
+A delta requires its **exact immediate parent**, installed first. Arbitrary version
+jumps or automatic merges of other people's collections are not supported.
+A full export of `SNAPSHOT_2` works without that parent, but does not include the
+parent's history. Objects shared between versions are stored once in a store.
+
+`export` includes original tags, captions, and any source metadata in the records;
+it does not include original images or encoder weights. It is **not a readable
+JSONL tag export or an anonymized package**. Code-only publication should omit
+personal packages too. SHA-256 checks detect content changes; they do not verify
+the identity of a publisher. `install` verifies but never activates a version.
+
+### Optional activation and rollback
+
+The CLI always queries an explicit `--snapshot`; it does not resolve `CURRENT`.
+Activation is an optional pointer for external tooling:
+
+```bash
+python -m vrs_int activate --store ./vrs-int-data/memory --snapshot SNAPSHOT_1 --expected-current none
+python -m vrs_int activate --store ./vrs-int-data/memory --snapshot SNAPSHOT_2 --expected-current SNAPSHOT_1
+python -m vrs_int activate --store ./vrs-int-data/memory --snapshot SNAPSHOT_1 --expected-current SNAPSHOT_2
+```
+
+The final command rolls the pointer back; for CLI queries also choose
+`--snapshot SNAPSHOT_1`. `none` is valid only when no pointer exists. A changed
+pointer causes a conflict rather than silently replacing another activation.
+There is no garbage collector; old objects/history remain until managed separately.
+
+## Storage, resources, and compatibility
+
+```text
+memory/
+  objects/<sha256>.z       compressed tag dictionaries, records, vectors, audit data
+  snapshots/<sha256>.json immutable manifest, contract, parent, counts
+  CURRENT                 optional explicitly activated snapshot hash
+```
+
+Names are dictionary-encoded per bucket and objects use zlib compression. Typed
+artist/character/series tags are protected even at frequency one; general noise
+such as quality/resolution/watermark tags is filtered with reasons preserved.
+Stored lookup tags are lowercase, spaces replace underscores, and duplicates are
+removed. Raw records retain original spelling and `caption`; captions are not embedded.
+
+`inspect` exposes snapshot metadata. There is currently no CLI raw-tag viewer or
+human-readable JSONL export; keep your original manifest/sidecars for direct review.
+Compressed objects remain reversible records, not a way to conceal `q/e` tags.
+
+| Representation | Purpose and limits |
+| --- | --- |
+| `f32le` (default) | Preserves the produced FP32 vectors. 768 × 4 = 3,072 bytes/image before serialization, compression, and metadata |
+| `i8` (opt-in at build) | Lossy vector quantization: 768 codes plus scale/image before overhead. Can alter neighbors/name candidates; not a quality-equivalent default |
+| GPU search | Decodes both formats to FP32 in bounded batches; `i8` storage does not imply 4× lower search VRAM |
+
+NF4 encoder weight quantization and `i8` stored-vector quantization are separate.
+To compare codecs, build separate stores with `--codec f32le` and `--codec i8`;
+do not append a different codec to an existing snapshot. PQ/ANN indexing is not implemented.
+
+The CLI uses two CPU math threads, one PyTorch interop thread, and on supported
+systems two CPU affinity slots and lower process priority. I/O, decoding, packing,
+and hashing still use CPU. It requests a **20% PyTorch CUDA allocator limit**;
+this is not a GPU reservation or a hard cap on all driver/library allocations.
+Build/migration refuses to start below 20% free disk; that initial check does not
+predict final free space. Old snapshots and full exports require additional storage.
+
+Search streams bounded vector blocks to GPU, but caches eligible training entries
+in system RAM and scans them exactly. Cold startup decompresses memory; larger
+collections increase RAM and latency. Million-image performance is not established.
+No constant-VRAM/constant-RAM or accuracy guarantee follows from the small encoder.
+
+The contract records encoder provenance hash, preprocessing, PIL backend, NF4,
+pooling, dimension, codec, and tag policy. Changing these requires a separate
+compatible base/re-encoding, not an automatic merge. Matching contracts do not
+promise bit-identical output across all library/driver versions. Preserve package
+versions alongside important memories (`python -m pip freeze`).
+
+## Command reference
+
+Use `python -m vrs_int --help` and `python -m vrs_int COMMAND --help` for exact syntax.
+
+| Command | Purpose |
+| --- | --- |
+| `check-input --manifest FILE --images DIR` | Model-free input/path/hash checks |
+| `build --manifest FILE --images DIR --encoder DIR --store DIR --gpu UUID` | Build; optional `--base HASH`, `--codec f32le/i8`, `--label TEXT`, `--buckets N` |
+| `recommend --store DIR --snapshot HASH --encoder DIR --image FILE --gpu UUID --output FILE` | Query; optional `--ratings`, `--neighbors`, `--limit` |
+| `inspect --store DIR --snapshot HASH` | Show manifest |
+| `verify --store DIR --snapshot HASH` | Check all referenced data and counts |
+| `export --store DIR --snapshot HASH --output DIR` | Full package; add `--base PARENT_HASH` for a delta |
+| `install --store DIR --package DIR` | Verify and install package without activation |
+| `activate --store DIR --snapshot HASH --expected-current HASH_OR_none` | Explicit pointer change / rollback |
+| `update --store DIR --snapshot HASH --operations FILE --contract FILE --label TEXT` | Advanced pre-encoded operations with expected revisions |
+| `migrate --memory DIR --corrected DIR --encoder DIR --store DIR` | Developer import of the earlier experiment layout; not an arbitrary dataset importer |
+
+For normal additions/corrections use **`build --base`**, not `update`. Advanced
+`update` reads UTF-8 JSONL operations: `upsert` requires `key`, a complete encoded
+`entry`, and `expected_revision` (null only for a new key); `delete` requires an
+existing key, its revision, and a reason. Revisions come from `store.revision(entry)`.
+`--contract` is JSON containing the producer's full matching contract, not the
+whole snapshot manifest. Conflicts abort before a new snapshot is published.
+Use [store.py](store.py) and [storage tests](../tests/test_vrs_int.py) as the API reference.
+`migrate` expects the internal layout in [import_snapshot.py](import_snapshot.py);
+those experiment data are intentionally absent from the distribution.
+
+## Troubleshooting
+
+| Error or result | Action |
+| --- | --- |
+| `No module named vrs_int` | Run from repository root using the intended Python environment. |
+| `CUDA required; no CPU fallback` | Check CUDA PyTorch, driver, and the complete selected UUID. Changing to CPU is not supported. |
+| Missing Gemma4/PIL import or NF4 error | Verify both documented APIs and bitsandbytes compatibility; root TIPO requirements are insufficient. |
+| `Encoder file or digest mismatch` | Restore the unchanged matching encoder directory. Do not edit provenance hashes to bypass the check. |
+| `Query encoder incompatible` / `Incompatible update` | Use the original encoder/contract/codec, or build a separate base from original images. |
+| `FileExistsError` during prepare/export/recommend/sidecar preparation | Pick a fresh destination. Failed preparation can leave a partial directory; preserve/inspect it and retry elsewhere. |
+| HTTP range error in encoder preparation | Server/proxy must honor byte ranges. No full-language-model fallback is attempted. |
+| Invalid path / missing image / duplicate ID | Use `/`-separated paths inside `--images`; one complete record per positive integer ID per batch. |
+| Empty recommendations | Check `train` vectors, rating filters, and query self-exclusion. More tags without visual vectors do not add searchable examples. |
+| Names absent or weak | Supply explicit typed name fields and relevant varied examples. Frequency or a vote score is not identity accuracy. |
+| `Delta requires its exact immediate parent` | Export from the actual parent, or use a full package. Install that exact parent before a delta. |
+| `Active snapshot changed` | Read `CURRENT`, then choose the intended exact hash; do not overwrite a concurrent change blindly. |
+| `Keep at least 20% disk free` | Choose a volume with enough free space; account for temporary data and retained versions. |
+| `Bucket too large` | Rebuild a separate base with more `--buckets`; object decompression is bounded at 64 MiB. |
+| CUDA out of memory / growing RAM | Check other GPU processes, allocator allowance, and collection size. The current CLI has no encoder batch-size or ANN tuning option. |
+
+## Development checks
 
 ```bash
 python -m pip install numpy
-python -m unittest discover -s tests -p 'test_vrs_int*.py' -v
+python -m unittest discover -s tests -p "test_vrs_int*.py" -v
 python scripts/check_code_only.py
 ```
 
-검사는 가상 입력과 대체 인코더를 사용하며 모델 다운로드나 GPU 추론을 실행하지
-않습니다. 입력 검사, 이름·원본 메타데이터 보존, 수정·중복 처리, 이전 판본 유지,
-무손실 압축, 이관 자료 해시 검증, 전체·증분 패키지 검증, 되돌리기를 다룹니다.
-실제 작가 적중률·취향별 유용성·대규모 검색 성능을 입증하는 검사는 아닙니다.
-
-현재 실험용 CLI이며 ComfyUI 통합·자동 수집·새 환경 자동 설치는 제공하지 않습니다.
-전체 검색 비용과 첫 조회의 RAM 사용량은 자료량에 따라 커집니다.
+Tests use fictional data and substitute encoders, with no GPU/model download.
+They validate mechanics, not visual quality. The publication checker reads Git's
+index; inspect staged content as well. Personal memory/packages/weights are excluded
+from this repository; keep them out of pull requests and releases.

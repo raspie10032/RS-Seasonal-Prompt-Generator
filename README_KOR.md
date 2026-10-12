@@ -1,23 +1,121 @@
 # RS-Seasonal-Prompt-Generator
 
-*[English](README.md) | 한국어*
+[English](README.md) | 한국어
 
- CSV 데이터에서 패션 아이템·배경·날씨·시간·추가 상황 디테일을 무작위로
- 조합해 계절별 패션 프롬프트를 생성합니다.
+계절별 CSV, 자연어 설명, 개인 이미지·태그 자료에서 이미지 생성용 프롬프트 재료를
+만듭니다. **ComfyUI 노드 3개**와 독립 실행 도구 **VRS-INT**를 제공합니다.
 
-> **v2.9.0**: 한국어/영어 설명을 이해하는 RS AI Prompt Writer를 추가했습니다.
-> 계절 프롬프트의 시드 재현성·독립 의상 토글·CSV 분류와
-> 텍스트/비전 태그 정리를 수정했습니다. 비전은 짝을 이루는 학습 모델과
-> mmproj를 사용하며 CUDA / Vulkan / Metal 및 CPU 폴백을 지원합니다.
-> **`gpu_layers=0`은 CPU 유지, `-1`은 GPU 자동 선택/전 레이어입니다.**
-> 모델·실행 파일은 다운로드와 설치가 끝나야 캐시에 반영됩니다.
-> 자세한 내용은 [변경 로그](Update_log_KOR.txt)를 참고하세요.
+**VRS-INT는 코드·문서·가상 예제만 공개합니다.** 초기 기억, 수집한 단보루 이미지와
+태그, 특징 벡터, 추천 결과, 모델 가중치는 포함하지 않습니다. 각자 원하는 자료로
+기억을 구성하며, 작가·캐릭터·작품명은 핵심 정보로 보존합니다.
 
-이 팩은 **독립적인 세 개의 노드**를 제공합니다(카테고리: `prompt`):
-1) Seasonal Fashion Prompt Generator (CSV, 의존성 없음), 2) Gemma TIPO
-(Prompt / Image → Tags), 3) RS AI Prompt Writer (Korean / English → Prompt). 이 폴더를 `ComfyUI/custom_nodes/` 에
-클론/복사한 뒤 ComfyUI를 재시작하면 설치됩니다. 각 노드는 `STRING`
-을 출력하며 서로 연결(체이닝)할 수 있습니다.
+## 원하는 기능부터 선택하기
+
+| 원하는 작업 | 사용할 기능 | 필요한 것 |
+| --- | --- | --- |
+| 계절·의상·배경 무작위 조합 | Seasonal Fashion Prompt Generator | ComfyUI. 모델·추가 패키지 불필요 |
+| 한국어 요청으로 영문 태그·문장 작성 | RS AI Prompt Writer | ComfyUI + 별도 Qwen Writer. Gemma TIPO와 다른 모델 |
+| 한국어·영어 설명이나 태그 확장 | Gemma TIPO 텍스트 모드 | ComfyUI + GGUF 실행 환경·모델. GPU 지원 실행 환경과 `gpu_layers=-1`로 GPU 적재 |
+| 참고 이미지에서 프롬프트용 태그 생성 | Gemma TIPO 이미지 모드 | ComfyUI + GGUF·호환 mmproj·llama.cpp 비전 실행 파일 |
+| 개인 자료에서 비슷한 그림의 태그·이름 회수 | VRS-INT | Python 3.11 이상, NVIDIA CUDA 환경, 별도 비전 인코더, 개인 이미지·태그 쌍 |
+
+VRS-INT의 목적은 **새로운 프롬프트에 쓸 참고 재료를 가져오는 것**입니다. 인코더를
+재학습하거나 원작자를 확정하는 기능은 아니며, 완성된 자연어 프롬프트를 작성하지는
+않습니다. 반환된 태그를 이미지 프롬프트에 사용하거나 별도 생성기에 전달하세요.
+현재 공개본에는 VRS-INT ComfyUI 노드·Writer 자동 연결이 없습니다.
+
+- **ComfyUI 사용자:** 아래 [설치](#comfyui에-설치)부터 시작하세요.
+- **VRS-INT만 사용:** [VRS-INT 전체 안내](vrs_int/README_KOR.md)로 바로 이동하세요. ComfyUI와 전체 Gemma 언어모델은 필요 없습니다.
+- **자료 준비:** [이미지·텍스트 쌍 예제](examples/vrs-int/README_KOR.md)를 따라가세요.
+- **영문 안내:** [Overview](README.md) · [VRS-INT](vrs_int/README.md) · [Pair examples](examples/vrs-int/README.md).
+
+## ComfyUI에 설치
+
+### 1. `custom_nodes`에 저장소 넣기
+
+ComfyUI 폴더에서 실행합니다.
+
+```bash
+git clone https://github.com/raspie10032/RS-Seasonal-Prompt-Generator.git custom_nodes/RS-Seasonal-Prompt-Generator
+```
+
+ZIP으로 받았다면 다음 구조로 압축을 풉니다. 저장소 폴더가 한 번 더 중첩되지 않게 합니다.
+
+```text
+ComfyUI/
+  custom_nodes/
+    RS-Seasonal-Prompt-Generator/
+      __init__.py
+      seasonal_fashion_prompt_node.py
+      gemma_tipo_node.py
+      data/
+```
+
+ComfyUI를 재시작하고 **`prompt`** 분류 또는 노드 이름 검색으로 추가합니다.
+세 노드의 출력은 `STRING`입니다. 텍스트 인코더에 연결할 때 ComfyUI 버전에 따라
+프롬프트·텍스트 위젯을 입력으로 변환해야 합니다. 텍스트 미리보기 노드를 연결하면
+이미지 생성 전에 문자열을 확인할 수 있습니다.
+
+### 2. 선택 기능인 TIPO 준비
+
+계절 생성기는 Python 표준 라이브러리만 사용하므로 바로 실행할 수 있습니다.
+TIPO는 실제 생성 시 필요한 의존성 설치와 모델 다운로드를 시도합니다. 노드 패키지
+로드만으로 모델을 내려받지는 않습니다. 미리 설치하려면 **ComfyUI의 Python**으로
+저장소 폴더에서 실행하세요.
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+Windows portable에서는 `ComfyUI_windows_portable` 폴더에서 실행합니다.
+
+```powershell
+.\python_embeded\python.exe -m pip install -r .\ComfyUI\custom_nodes\RS-Seasonal-Prompt-Generator\requirements.txt
+```
+
+의존성은 `tipo-kgen`, `llama-cpp-python>=0.3.23`입니다. 이미 로드된 구버전을
+업그레이드했다면 ComfyUI를 재시작합니다. 이 파일은 **TIPO용**이며 VRS-INT의
+CUDA·Transformers 환경을 설치하지 않습니다. 다운로드에는 인터넷과 저장 공간이
+필요하며 유료 추론 API는 사용하지 않습니다.
+
+## 계절별 프롬프트 생성기
+
+1. **Seasonal Fashion Prompt Generator**를 추가합니다.
+2. 계절을 선택하고 의상은 `random`, 배경은 `background_toggle=on`으로 시작합니다.
+3. 출력을 텍스트 미리보기 또는 이미지 모델의 긍정 프롬프트 입력에 연결합니다.
+4. 실행합니다. 모델로 태그를 확장하려면 출력을 **Gemma TIPO.prompt**에 연결합니다.
+
+| 입력 | 동작 |
+| --- | --- |
+| `season` | `random`, `spring`, `summer`, `autumn`, `winter` |
+| `background_toggle` | `on`: 계절 배경, `off`: 배경 묶음 제외, `simple`: 흰색·회색·검은색 단순 배경 |
+| `weather_toggle`, `time_toggle` | `random`, `off`, 특정 값. 배경이 `on`일 때 사용 |
+| `top_toggle`, `bottom_toggle`, `one_piece_toggle` | 상의·하의·원피스. `random` 또는 `off` |
+| `accessory_toggle`, `hat_toggle`, `shoes_toggle`, `socks_toggle` | 액세서리·모자·신발·양말 무작위 선택 또는 끄기 |
+| `composition_toggle`, `gaze_toggle`, `pose_toggle`, `body_direction_toggle` | 구도·시선·자세·몸 방향. `random`, `off`, 특정 값 |
+| `additional_situation_toggle` | 배경·날씨·시간 조건에 맞는 CSV 상황 설명 추가 |
+| `wanna_shot` | `Yes`이면 일반 장면 대신 카페·커피·텀블러 특수 장면 사용 |
+| `seed` | 0을 포함한 고정 시드로 선택 재현 |
+
+같은 시드와 입력은 같은 결과를 반환합니다. `0`도 고정 시드이며 전역 난수 상태를
+바꾸지 않습니다. 상의·하의를 독립적으로 켤 수 있고, 원피스와 투피스가 모두
+가능하면 둘 중 하나를 고릅니다.
+
+### CSV를 취향에 맞게 바꾸기
+
+[`data/`](data/)의 UTF-8 파일을 수정하되 헤더·열 구조를 유지합니다. 캐시를 다시
+읽도록 ComfyUI를 재시작합니다. 저장소를 갱신하기 전 개인 수정본을 보관하세요.
+
+| 파일 | 내용 |
+| --- | --- |
+| `seasonal_fashion.csv` | 계절, 의상 분류, 항목. 분류: `top`, `bottom`, `one_piece`, `accessory`, `hat`, `shoes`, `socks` |
+| `seasonal_backgrounds.csv` | 계절, 배경 분류, 설명 |
+| `seasonal_weather.csv`, `seasonal_times.csv` | 계절별 날씨·시간 |
+| `general_composition.csv`, `gaze_direction.csv`, `poses.csv`, `body_directions.csv` | 구도·시선·자세·몸 방향 |
+| `additional_situations.csv` | 상황, `\|`로 구분한 일치 조건, 설명 |
+
+쉼표가 들어가는 값은 CSV 따옴표로 감쌉니다. 상황 조건은 `|`로 OR, `&`로 AND를
+지정합니다. 예: `misty & lakeside|foggy & lakeside`.
 
 ## AI로 자연스러운 프롬프트 작성하기
 
@@ -84,40 +182,7 @@ GPU 요청 시 CPU 전용 빌드는 모델 다운로드 전에 거부합니다. 
 `Qwen3-4B-Instruct-2507-Q4_K_M.gguf`, SHA-256
 `3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597`.
 
-## 쇼케이스
-
-![ComfyUI의 Gemma TIPO 노드](assets/gemma-tipo-example.png)
-
-한국어 자연어 입력 → 깔끔한 영어 Danbooru 태그 출력:
-
-> **입력:** `소녀가 하얀 세일러복과 스카프를 하고 있음.`
->
-> **출력:** `white sailor collar, white skirt, black hairband, blue eyes,
-> blush stickers, long sleeves, looking at viewer, open mouth, red scarf,
-> school uniform, serafuku, sitting, solo focus, sparkle sticker, striped
-> clothes, sweatdrop, collared shirt, white background`
-
-그리고 **비전 모드** — 이미지를 연결하면 그럴듯하게 확장된 Danbooru
-태그 세트가 나옵니다(TIPO식, 정확한 라벨링이 아님):
-
-![ComfyUI의 Gemma TIPO 비전 모드](assets/gemma-tipo-vision-example.png)
-
-## 노드 1 — Seasonal Fashion Prompt Generator
-
-원래의 생성기입니다. `season` 을 고르고 패션 / 배경 / 날씨 / 포즈 /
-상황 옵션을 토글하면, 번들된 CSV 데이터에서 무작위로 조합한
-콤마 구분 프롬프트를 반환합니다. **의존성 없음** — 아무것도
-설치하지 않고 모델도 실행하지 않습니다.
-
-같은 입력과 `seed`는 같은 CSV 프롬프트를 재현하며 `seed=0`도 포함됩니다.
-요청마다 별도 난수 생성기를 사용합니다. 재현할 때는 ComfyUI의 시드 동작을
-**fixed**로 두세요. CSV나 생성기 버전을 바꾸면 선택 결과는 달라질 수 있습니다.
-상의·하의 토글은 각각 독립적으로 동작합니다. 원피스가 켜져 있으면 상하의의
-대안으로 선택되며 상하의와 동시에 선택되지 않습니다.
-추가 상황 CSV의 조건은 `|`로 대안을, `&`로 동시에 필요한 조건을
-나타냅니다. 예를 들어 `misty&forest`는 안개와 숲을 모두 요구합니다.
-
-## 노드 2 — Gemma TIPO (Prompt / Image → Tags)
+## Gemma TIPO: 텍스트 또는 이미지에서 태그 생성
 
 하나로 통합된 노드입니다. **`image` 를 연결하면 → 비전 모드**
 (이미지를 Gemma-4 비전 = llama.cpp `mtmd` + 자동 다운로드된
@@ -235,78 +300,91 @@ pip install -r requirements.txt
 pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 ```
 
-## 예제와 검증
+## VRS-INT: 개인 참고 기억
 
-[API 요청 예제 네 개](examples/)는 ComfyUI 기본 **Preview as Text**
-(`PreviewAny`) 출력 노드를 사용합니다.
-
-- `examples/korean-ai-writer.api.json`: 한국어 설명을 AI writer로 작성해 미리 봅니다.
-- `examples/seasonal-to-writer.api.json`: 계절 CSV 출력을 AI writer에 연결해 영어 문장으로 다듬습니다.
-- `examples/seasonal-prompt.api.json`: 모델 없이 CSV 프롬프트를 생성합니다.
-- `examples/seasonal-to-tipo.api.json`: 계절 프롬프트를 Gemma TIPO 텍스트
-  입력에 연결합니다. 첫 실행에는 의존성 설치·모델 다운로드가 발생할 수 있습니다.
-
-이 파일은 캔버스 워크플로 JSON이 아닌 `/prompt` 요청 본문입니다.
-이 팩이 설치된 ComfyUI가 실행 중일 때, 저장소 폴더에서 제출합니다.
-
-```bash
-curl -H 'Content-Type: application/json' --data-binary @examples/seasonal-prompt.api.json http://127.0.0.1:8188/prompt
+```text
+개인 이미지 + 분류된 태그 → 기존 비전 인코더 → 판본이 있는 개인 기억
+새 참고 이미지           → 같은 인코더      → 이웃의 태그 + 이름 후보
 ```
 
-비전은 **Load Image → Gemma TIPO.image → Preview as Text**로 연결하고
-`model`은 자동, `mmproj_path`는 빈 값으로 둡니다. CPU는 `gpu_layers=0`,
-GPU 자동 선택은 `-1`입니다.
+1. [실행 환경과 비전 전용 인코더 준비](vrs_int/README_KOR.md#준비).
+2. [JSONL 또는 이미지별 설명 파일 작성](examples/vrs-int/README_KOR.md).
+3. [입력 검사 → 최초 구축 → 추천](vrs_int/README_KOR.md#최초-구축과-추천).
+4. [새 묶음 추가 또는 태그 수정](vrs_int/README_KOR.md#자료-추가와-수정).
+5. [백업·이전·판본 되돌리기](vrs_int/README_KOR.md#백업과-이전-되돌리기).
 
-저장소 폴더에서 오프라인 회귀 테스트를 실행합니다.
+Gemma E2B의 시각 인코더만 사용하며 언어모델·`mmproj.gguf`를 읽지 않습니다.
+명시적으로 분류한 작가·캐릭터·작품은 한 번만 등장해도 보존합니다. 설명문과 원본
+태그도 감사 기록에 남지만 **설명문만 있고 태그가 없으면 구축할 수 없습니다.**
+
+개인 자료는 저장소 밖이나 Git 제외 폴더인 `vrs-int-data/`, `vrs-int-models/`에
+보관하세요. 압축 기억에도 태그·출처 메타데이터가 들어 있습니다. **압축은 익명화가
+아닙니다.** 자동 수집·업로드·공용 기억 동기화는 하지 않습니다.
+
+## 현재 Gemma 실행 기준과 경험 연결
+
+[Gemma 4 TIPO 실행 기준](vrs_int/GEMMA4_RUNTIME.md)에서 **비전 FP16·PLE Q4 후보**의
+선택 방법과 기존 자동 모델의 차이를 확인하세요. 층·어휘는 유지하며, 혼합 정밀도
+후보는 새 TIPO 학습 완성본이 아닙니다. 내부 FFN 계산 재사용은 포함하지 않습니다.
+
+- [생성 이미지 메타데이터와 선택적 태깅](vrs_int/GENERATED_IMAGES.md)
+- [한국어 텍스트 지식풀·번역 사전](vrs_int/TAG_DICTIONARY.md)
+- [VRS 참고 상태 → TIPO 확장](vrs_int/GENERATION_STATE.md)
+
+VRS 상태 연결은 CLI에서 사용합니다. 한국어 제외 지시나 장면 조건을 모델이 모두
+지킨다고 보장하지 않으므로 생성 결과를 확인하세요. 비전 TIPO 호출은 종료 후
+해제되며, 기존 텍스트 TIPO는 모델을 캐시합니다. CPU 보조 스레드는 기본 2개입니다.
+
+## 문제 해결
+
+| 증상 | 확인할 것 |
+| --- | --- |
+| 노드가 안 보임 | 폴더 중첩, 재시작, 시작 로그 import 오류, `prompt` 분류. VRS-INT는 CLI라 노드 목록에 없음 |
+| TIPO가 원문 그대로 반환 | 의존성·모델·추론 오류 시 원문 반환 가능. `[TIPO]` 로그 확인 |
+| 이미지 출력이 빈 문자열 | `[TIPO-V]` 로그, 모델·프로젝터 호환성, 실행 라이브러리, 이미지, 추론 제한 600초 확인 |
+| `unknown model architecture: gemma4` | ComfyUI의 Python에서 Gemma4 지원 llama-cpp-python ≥0.3.23 확인. 업그레이드 후 재시작 |
+| CPU가 계속 바쁨 | TIPO의 `gpu_layers=-1`과 GPU 빌드 확인. 비전은 실패 시 CPU 재시도가 가능하므로 로그 확인. VRS-INT 설정과 별개 |
+| 설치했는데 패키지가 없다고 나옴 | 실제 ComfyUI의 Python에 설치했는지 확인 |
+| 모델 다운로드 실패 | 주소·인터넷·디스크·로그 확인. 파일이 있는 것만으로 다운로드 완료라고 판단하지 않기 |
+| VRS-INT 오류 | [VRS-INT 문제 해결](vrs_int/README_KOR.md#문제-해결) 참고 |
+
+## 갱신과 검증
+
+수정하지 않은 Git 설치는 저장소 폴더에서 갱신합니다.
 
 ```bash
+git pull --ff-only
+```
+
+노드를 사용하면 ComfyUI도 재시작합니다. 개인 CSV·코드 수정본은 먼저 보존하세요.
+코드 갱신은 자료를 자동 수집하거나 VRS-INT 기억을 변환·활성화하지 않습니다.
+개인 기억의 정확한 snapshot 해시와 인코더 출처 기록을 함께 보관하세요.
+
+공개 오프라인 검사는 가상 자료와 대체 인코더를 사용합니다.
+
+```bash
+python -m pip install numpy Pillow
 python -m unittest discover -s tests -v
+python scripts/check_code_only.py
 ```
 
-NumPy + Pillow가 있으면 실제 PNG 변환 검사도 실행하며, 없으면 그 검사만
-건너뜁니다. 계절·의상 토글 512개 조합, 재현성, 노드 등록, 태그 정리,
-다운로드 중단, 모의 GPU 실패 후 폴백을 검사합니다. 모델을 다운로드하지 않으며
-실제 추론 품질·속도·드라이버 호환성을 입증하지는 않습니다.
-CI는 Linux / Windows / macOS와 Python 3.9 / 3.13 조합으로 구성했습니다
-(macOS의 Python 3.9 검사는 Intel 러너 사용).
+입력·메타데이터·판본·수정·패키지·게시 규칙을 확인합니다. CI는 Linux·Windows·macOS와
+Python 3.11·3.13 조합으로 실행합니다. GPU 추론·추천 품질 평가는 아닙니다.
+게시 검사는 스테이징된 변경을 포함한 Git 인덱스를 검사하므로 diff도 검토하세요.
+이전 노드 변경: [한글](Update_log_KOR.txt) / [영문](Update_log_ENG.txt).
 
-**실제 추론 수동 검사**는 ComfyUI용 Python 환경에서 실행합니다. 첫 실행에
-앞서 설명한 의존성 설치와 수 GB의 모델 다운로드가 발생할 수 있습니다.
-AI writer 검사는 기본 GPU·CPU 보조 스레드 2개이며 기존 TIPO 검사는 기본 CPU입니다.
-원문 폴백·빈 출력이면 실패 코드로 종료하고 선택적으로
-로컬 JSON 보고서를 저장합니다.
+## 라이선스와 출처
 
-```bash
-python tests/smoke_writer.py --report models/writer-smoke.json
-python tests/smoke_inference.py --mode text --report models/text-smoke.json
-python tests/smoke_inference.py --mode vision --image /path/to/image.png --report models/vision-smoke.json
-```
+코드는 [Apache-2.0](LICENSE)입니다. 모델 가중치·데이터·이미지에는 각각의 이용
+조건이 적용되며 코드 라이선스로 재허가되는 것이 아닙니다.
 
-AI writer 검사는 고정 입력 6개를 두 출력 형식으로 실행하고 명시한 장면 요소의
-키워드를 검사합니다. 키워드 통과가 의미 전체의 정확성을 입증하지 않으므로
-보고서의 출력 문장도 읽어야 합니다. 일반적인 품질 벤치마크는 아닙니다.
-기존 TIPO smoke 명령은 각각 입력 1개를 검사합니다.
-Writer 보고서에는 백엔드·요청한 CPU 스레드 수와 확인 가능한 경우 해당 프로세스의
-NVIDIA GPU 메모리 할당을 기록합니다. `RS_TIPO_VERBOSE=1`로 실제 레이어
-오프로드 로그를 남길 수 있습니다. 기존 비전 검사의 `--gpu-layers -1`은
-GPU 감지와 CPU 폴백을 허용하므로 보고서의 통과만으로
-GPU 사용이 입증되지는 않습니다. 오프라인 CI는 이 스크립트를 실행하지 않습니다.
+| 프로젝트 | 사용한 부분 |
+| --- | --- |
+| [KGen / TIPO](https://github.com/KohakuBlueleaf/KGen), [z-tipo-extension](https://github.com/KohakuBlueleaf/z-tipo-extension) | 태그 확장·분류 후처리·TIPO 학습 자료 계보 |
+| [llama.cpp](https://github.com/ggml-org/llama.cpp), [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) | GGUF 추론 |
+| [Gemma](https://ai.google.dev/gemma) | 기반 모델 계열. 별도 모델 이용 조건 적용 |
+| [raspie/gemma4-tipo-ko-gguf](https://huggingface.co/raspie/gemma4-tipo-ko-gguf) | 기본 한국어 TIPO 모델 |
+| [unsloth/gemma-4-E2B-it-GGUF](https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF) | 기존 기반 프로젝터 출처. 현재 비전 기본값은 대응 학습 mmproj |
+| [p-e-w/gemma-4-E2B-it-heretic-ara](https://huggingface.co/p-e-w/gemma-4-E2B-it-heretic-ara) | TIPO 기반 계보, 별도 VRS-INT 시각 인코더 출처 |
 
-## 레퍼런스 & 크레딧
-
-| 프로젝트 | 용도 | 라이선스 |
-| --- | --- | --- |
-| KohakuBlueleaf 의 [KGen / TIPO](https://github.com/KohakuBlueleaf/KGen) | 태그 분류 및 프롬프트 정렬을 위한 `kgen.formatter` | Apache-2.0 |
-| KohakuBlueleaf 의 [z-tipo-extension](https://github.com/KohakuBlueleaf/z-tipo-extension) | TIPO 노드 흐름의 레퍼런스 구현; 학습 데이터 계보 | Apache-2.0 |
-| [llama.cpp](https://github.com/ggml-org/llama.cpp) | GGUF 추론 엔진; 비전 모드용 프리빌트 `llama-mtmd-cli`(CUDA / Vulkan / Metal / CPU) | MIT |
-| [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) | in-process GGUF 추론을 위한 Python 바인딩(텍스트 모드) | MIT |
-| Google 의 [Gemma](https://ai.google.dev/gemma) ([`google/gemma-4-E2B-it`](https://huggingface.co/google/gemma-4-E2B-it)) | TIPO GGUF가 파생된 베이스 모델 패밀리 | Gemma Terms of Use |
-| [`p-e-w/gemma-4-E2B-it-heretic-ara`](https://huggingface.co/p-e-w/gemma-4-E2B-it-heretic-ara) | TIPO GGUF들을 파인튜닝한 디센서드 gemma-4-E2B(과도한 검열이 노골적 Danbooru 태그 출력을 망가뜨리지 않도록 사용) | Gemma Terms of Use |
-| Unsloth 의 [`unsloth/gemma-4-E2B-it-GGUF`](https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF) | base gemma-4-E2B `mmproj`(비전 타워 계보; 선택적 폴백 — 더 이상 기본값 아님) | Gemma Terms of Use |
-| [`raspie/gemma4-tipo-ko-gguf`](https://huggingface.co/raspie/gemma4-tipo-ko-gguf) | 노드 2가 자동 다운로드하는 기본 한국어→태그 TIPO 텍스트 모델 **및** co-trained 비전 모델 + mmproj | Gemma Terms of Use |
-
-TIPO 확장 개념(짧은 프롬프트를 상세한 Danbooru 태그 세트로
-"업샘플"/확장)은 KohakuBlueleaf 의 KGen/TIPO 와
-[z-tipo-extension](https://github.com/KohakuBlueleaf/z-tipo-extension)
-에서 비롯되었으며, 기본 모델의 파인튜닝 학습 데이터도 같은 계보를
-따릅니다.
+처음 ChatGPT로 작성했고 이후 Claude Code와 Codex로 개발했습니다.

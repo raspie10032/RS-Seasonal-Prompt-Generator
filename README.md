@@ -1,44 +1,124 @@
 # RS-Seasonal-Prompt-Generator
 
-*English | [한국어](README_KOR.md)*
+English | [한국어](README_KOR.md)
 
- Generates season-specific fashion prompts by randomly combining fashion items, background settings, weather, time, and additional situational details from CSV data.
+Create image-generation prompt ideas from seasonal CSVs, descriptions, or your
+own reference images and tags. This repository contains three **ComfyUI nodes**
+and the standalone **VRS-INT** command-line tool.
 
-> **v2.9.0** adds RS AI Prompt Writer for Korean/English descriptions.
-> It also fixes seasonal seed reproducibility, independent clothing
-> toggles, CSV categories, and text/vision tag cleanup. Vision uses the paired
-> trained model + mmproj and supports CUDA / Vulkan / Metal with CPU fallback.
-> **`gpu_layers=0` stays CPU; `-1` enables GPU auto/all layers.** Model and
-> runtime downloads are published only after a complete transfer/install.
-> See [the changelog](Update_log_ENG.txt).
+**VRS-INT ships code, documentation, and fictional examples only.** No starter
+memory, collected Danbooru images/tags, feature vectors, recommendation results,
+or model weights are included. You choose the material and build your own memory.
+Artist, character, and series names are retained as core information.
 
-This pack provides **three independent nodes** (category: `prompt`):
-1) Seasonal Fashion Prompt Generator (CSV, zero-dep), 2) Gemma TIPO
-(Prompt / Image → Tags), 3) RS AI Prompt Writer (Korean / English → Prompt). Install by cloning/copying this folder into
-`ComfyUI/custom_nodes/` and restarting ComfyUI. Each outputs a `STRING`;
-they're chainable.
+## Choose a starting point
+
+| What you want | Use | Requirements |
+| --- | --- | --- |
+| Random seasonal clothing and scene prompts | Seasonal Fashion Prompt Generator | ComfyUI; no model or extra packages |
+| Write English tags or prose from Korean/English requests | RS AI Prompt Writer | ComfyUI + a separate Qwen Writer, distinct from Gemma TIPO |
+| Expand Korean/English descriptions or tags | Gemma TIPO, text mode | ComfyUI + GGUF runtime/model; GPU-capable runtime plus `gpu_layers=-1` enables GPU offload |
+| Generate prompt tags inspired by an image | Gemma TIPO, image mode | ComfyUI + GGUF + matching mmproj + llama.cpp vision runtime |
+| Retrieve tags and names from your own reference collection | VRS-INT | Python 3.11+, NVIDIA CUDA environment, separate vision encoder, personal image/tag pairs |
+
+VRS-INT retrieves creative reference material. It does not train the encoder,
+reliably identify an image's author, or write a finished natural-language prompt.
+Use its tags in your image prompt or a separate prompt writer. This public
+version has no VRS-INT ComfyUI node or automatic Writer connection.
+
+- **ComfyUI:** follow [installation](#install-for-comfyui), then the node guides below.
+- **VRS-INT only:** start with the [complete VRS-INT guide](vrs_int/README.md). ComfyUI and the full Gemma language model are unnecessary.
+- **Data preparation:** follow the [image/text pair walkthrough](examples/vrs-int/README.md).
+- **한국어:** [전체 사용법](README_KOR.md) · [VRS-INT](vrs_int/README_KOR.md) · [쌍 구성 예제](examples/vrs-int/README_KOR.md).
+
+## Install for ComfyUI
+
+### 1. Install under `custom_nodes`
+
+From your ComfyUI directory:
+
+```bash
+git clone https://github.com/raspie10032/RS-Seasonal-Prompt-Generator.git custom_nodes/RS-Seasonal-Prompt-Generator
+```
+
+Alternatively, extract the repository ZIP with this layout. Avoid an extra nested folder.
+
+```text
+ComfyUI/
+  custom_nodes/
+    RS-Seasonal-Prompt-Generator/
+      __init__.py
+      seasonal_fashion_prompt_node.py
+      gemma_tipo_node.py
+      data/
+```
+
+Restart ComfyUI. Find the nodes under **`prompt`** or search by display name.
+All return `STRING`. To connect one to a text encoder, convert the encoder's
+prompt/text widget to an input when required by your ComfyUI version. A text
+preview node lets you inspect the string before generating an image.
+
+### 2. Prepare optional TIPO dependencies
+
+The seasonal node needs only Python's standard library. TIPO attempts dependency
+installation and model downloads on its first actual generation, not at import.
+For manual installation, run this from the repository using **ComfyUI's Python**:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+Windows portable, from `ComfyUI_windows_portable`:
+
+```powershell
+.\python_embeded\python.exe -m pip install -r .\ComfyUI\custom_nodes\RS-Seasonal-Prompt-Generator\requirements.txt
+```
+
+The dependencies are `tipo-kgen` and `llama-cpp-python>=0.3.23`. Restart ComfyUI
+after upgrading an already loaded runtime. These are **TIPO requirements**, not
+VRS-INT's CUDA/Transformers setup. Downloads need network access and disk space;
+no paid inference API is used.
+
+## Seasonal Fashion Prompt Generator
+
+1. Add **Seasonal Fashion Prompt Generator**.
+2. Choose a season, leave clothing at `random`, and set `background_toggle=on`.
+3. Connect the output to a text preview or your image model's positive text input.
+4. Run the workflow. Optionally connect it to **Gemma TIPO.prompt** for expansion.
+
+| Input | Meaning |
+| --- | --- |
+| `season` | `random`, `spring`, `summer`, `autumn`, `winter` |
+| `background_toggle` | `on`: seasonal scene; `off`: omit background block; `simple`: plain white/grey/black background |
+| `weather_toggle`, `time_toggle` | `random`, `off`, or listed value; used when background is `on` |
+| `top_toggle`, `bottom_toggle`, `one_piece_toggle` | Clothing choices; `random` or `off` |
+| `accessory_toggle`, `hat_toggle`, `shoes_toggle`, `socks_toggle` | Random accessory/hat/shoes/socks or turn off |
+| `composition_toggle`, `gaze_toggle`, `pose_toggle`, `body_direction_toggle` | `random`, `off`, or listed value |
+| `additional_situation_toggle` | Add CSV situation details when background/weather/time conditions match |
+| `wanna_shot` | `Yes`: special café/coffee/tumbler scene instead of the normal scene path |
+| `seed` | Reproducible selection, including seed 0 |
+
+The same seed and inputs reproduce the selection, including seed `0`, without
+changing the global random state. Top and bottom toggles work independently.
+When both separates and a one-piece are available, one outfit type is selected.
+
+### Customize CSVs
+
+Edit UTF-8 files in [`data/`](data/), preserve headers/columns, and restart
+ComfyUI to reload cached data. Back up personal changes before updating code.
+
+| Files | Contents |
+| --- | --- |
+| `seasonal_fashion.csv` | Season, category, item. Categories: `top`, `bottom`, `one_piece`, `accessory`, `hat`, `shoes`, `socks` |
+| `seasonal_backgrounds.csv` | Season, background classification, description |
+| `seasonal_weather.csv`, `seasonal_times.csv` | Weather and time choices by season |
+| `general_composition.csv`, `gaze_direction.csv`, `poses.csv`, `body_directions.csv` | Composition, gaze, pose, and body-direction choices |
+| `additional_situations.csv` | Situation, `\|`-separated matching alternatives, description |
+
+Quote CSV fields containing commas. Situation conditions support `|` for OR
+and `&` for AND, for example `misty & lakeside|foggy & lakeside`.
 
 ## AI prompt writing
-
-[VRS-INT](vrs_int/README.md) is an experimental standalone memory builder and
-image-reference tag recommender. Distribution is code-only: users select their
-own Danbooru images and tags, acquire the encoder separately, and build/update
-personal collections in batches. Corpus data and weights are not bundled.
-Artist candidates are creative references, not verified image attribution.
-See the [image/text pair examples (Korean)](examples/vrs-int/README.md) for JSONL
-templates, a local sidecar-to-manifest script, model-free input checks, and batch
-build/update/recommend commands. Optional captions are preserved as metadata;
-recommendations currently use the paired tag arrays, not caption embeddings.
-
-A separate [VRS/Danbooru GPU experiment](experiments/README.md) records local
-tag associations and evidence IDs. The [full dataset build](experiments/FULL_DATASET.md)
-and [128 held-out image evaluation](experiments/IMAGE_RETRIEVAL.md) are documented
-separately. The image test found a historical pixel-casting defect in the feature
-cache and includes a matched repair diagnostic. The separate
-[image-inspired prompt experiment](experiments/IMAGE_PROMPT.md) connects the corrected
-index, VRS reference tags, seasonal CSV scenes, and the Writer to create new prompts.
-It targets creative generation rather than exact tag reconstruction, and is not yet
-integrated with the ComfyUI nodes. The experiment guides and measured limits are in Korean.
 
 For descriptions such as “a woman in a white shirt and blue skirt standing in a
 park,” use **RS AI Prompt Writer (Korean / English → Prompt)**. It uses an
@@ -89,40 +169,7 @@ revision `a06e946bb6b655725eafa393f4a9745d460374c9`, file
 `Qwen3-4B-Instruct-2507-Q4_K_M.gguf`, SHA-256
 `3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597`.
 
-## Showcase
-
-![Gemma TIPO node in ComfyUI](assets/gemma-tipo-example.png)
-
-Korean natural language in → clean English Danbooru tags out:
-
-> **In:** `소녀가 하얀 세일러복과 스카프를 하고 있음.`
->
-> **Out:** `white sailor collar, white skirt, black hairband, blue eyes,
-> blush stickers, long sleeves, looking at viewer, open mouth, red scarf,
-> school uniform, serafuku, sitting, solo focus, sparkle sticker, striped
-> clothes, sweatdrop, collared shirt, white background`
-
-And **vision mode** — connect an image, get a plausibly-expanded
-Danbooru tag set (TIPO-style; not exact labeling):
-
-![Gemma TIPO vision mode in ComfyUI](assets/gemma-tipo-vision-example.png)
-
-## Node 1 — Seasonal Fashion Prompt Generator
-
-The original generator. Pick a `season` and toggle the fashion / background /
-weather / pose / situation options; it returns a comma-separated prompt
-randomly combined from the bundled CSV data. **Zero dependencies** — nothing
-is installed and nothing runs a model.
-
-The same inputs and `seed` reproduce the same CSV prompt, including `seed=0`.
-Each request has its own random generator. Turn ComfyUI's seed behavior to
-**fixed** when reproducing results; changing a CSV or this generator's version
-can change the selected items. Top and bottom toggles also work independently;
-an enabled one-piece is an alternative to separates, never combined with them.
-Additional situation CSV conditions use `|` for alternatives and `&` for
-requirements within an alternative (e.g. `misty&forest`).
-
-## Node 2 — Gemma TIPO (Prompt / Image → Tags)
+## Gemma TIPO: text or image to prompt tags
 
 One unified node. **Connect an `image` → vision mode** (the image is
 captioned via Gemma-4 vision = llama.cpp `mtmd` with the auto-downloaded
@@ -242,76 +289,95 @@ platform/Python, install it yourself once:
 pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 ```
 
-## Examples and validation
+## VRS-INT: personal reference memory
 
-Four [API request examples](examples/) use ComfyUI's built-in **Preview as Text**
-(`PreviewAny`) output node:
-
-- `examples/korean-ai-writer.api.json`: Korean description → AI writer → text preview.
-- `examples/seasonal-to-writer.api.json`: seasonal CSV output → AI writer → English prose.
-- `examples/seasonal-prompt.api.json`: seasonal CSV prompt, no model needed.
-- `examples/seasonal-to-tipo.api.json`: seasonal output feeds Gemma TIPO text
-  mode. First execution may install dependencies and download the model.
-
-These are `/prompt` request bodies, not canvas workflow JSON. With this pack
-installed in a running ComfyUI, submit from the repository directory:
-
-```bash
-curl -H 'Content-Type: application/json' --data-binary @examples/seasonal-prompt.api.json http://127.0.0.1:8188/prompt
+```text
+Your images + categorized tags → existing vision encoder → versioned personal memory
+New reference image           → same vision encoder     → neighbor tags + name candidates
 ```
 
-For vision, connect **Load Image → Gemma TIPO.image → Preview as Text** and
-leave `model` at automatic and `mmproj_path` empty. Keep `gpu_layers=0` for
-CPU or choose `-1` to enable GPU detection.
+1. [Set up Python, CUDA, and the vision-only encoder](vrs_int/README.md#setup).
+2. [Prepare JSONL or image-sidecar pairs](examples/vrs-int/README.md).
+3. [Check, build, and recommend](vrs_int/README.md#first-build-and-recommendation).
+4. [Append or correct a batch](vrs_int/README.md#update-a-collection).
+5. [Back up, transfer, and roll back](vrs_int/README.md#backup-transfer-and-rollback).
 
-Run the offline regression suite from the repository directory:
+VRS-INT uses a separate Gemma E2B vision tower, not the language model or
+`mmproj.gguf`. Explicit artist/character/series names survive even with one
+occurrence. Captions and original tags remain audit metadata; a caption alone
+cannot build a searchable tag memory.
+
+Keep personal material outside the repository or in ignored `vrs-int-data/` and
+`vrs-int-models/`. Compressed memories retain tags and source metadata after
+decoding; compression is not anonymization. No automatic collection, upload, or
+shared-memory synchronization is performed.
+
+## Gemma checkpoint and experience inputs
+
+See [Gemma 4 TIPO runtime](vrs_int/GEMMA4_RUNTIME.md) for the **vision FP16 / PLE Q4**
+candidate, explicit model selection and measured limits. Text layers and vocabulary
+remain intact. This candidate is not a newly completed TIPO fine-tune. Internal
+FFN computation replay is not part of this checkpoint.
+
+- [Generated image metadata and optional tagging](vrs_int/GENERATED_IMAGES.md)
+- [Korean text knowledge and translation dictionary](vrs_int/TAG_DICTIONARY.md)
+- [VRS reference state → TIPO expansion](vrs_int/GENERATION_STATE.md)
+
+The state connection is a CLI workflow. Negation and scene constraints still need
+output review. Vision TIPO exits its process after each call; legacy text TIPO
+caches its model. Both use two CPU helper threads by default.
+
+## Troubleshooting
+
+| Symptom | What to check |
+| --- | --- |
+| Nodes missing | Folder nesting, restart, startup import errors; search `prompt`. VRS-INT is a CLI, not a node. |
+| TIPO returns original text | Dependency/model/inference failure can cause fallback. Read `[TIPO]` console messages. |
+| Vision output empty | Read `[TIPO-V]` logs. Check model/projector pairing, executable libraries, input image, and 600-second inference timeout. |
+| `unknown model architecture: gemma4` | Check Gemma4-capable llama-cpp-python ≥0.3.23 in ComfyUI's interpreter; restart after upgrading. |
+| CPU remains busy | Check TIPO `gpu_layers=-1` and a GPU-capable runtime. Legacy vision can retry CPU after GPU failure; inspect logs. VRS-INT settings are separate. |
+| Installed package still missing | Use ComfyUI's Python, not an unrelated system/venv interpreter. |
+| Model download failure | Check URL, network, disk, and console logs. Downloads reject empty or truncated transfers; verify custom files separately. |
+| VRS-INT errors | See [VRS-INT troubleshooting](vrs_int/README.md#troubleshooting). |
+
+## Updates and validation
+
+For an unmodified Git installation, from the repository directory:
 
 ```bash
+git pull --ff-only
+```
+
+Restart ComfyUI if using nodes. Preserve local CSV/code edits before updating.
+Code updates do not fetch a corpus or migrate/activate personal memories. Record
+your exact snapshot hash and encoder provenance.
+
+The public offline suite uses fictional fixtures and substitute encoders:
+
+```bash
+python -m pip install numpy Pillow
 python -m unittest discover -s tests -v
+python scripts/check_code_only.py
 ```
 
-NumPy + Pillow enable the PNG conversion test; it is skipped if they are absent.
-The suite covers all 512 season/clothing-toggle combinations, reproducibility,
-node discovery, tag processing, download interruption and mocked GPU fallback.
-It neither downloads models nor proves real inference quality, speed, or driver
-compatibility. CI is configured for Linux, Windows and macOS with Python 3.9
-and 3.13 (the macOS 3.9 job uses an Intel runner).
+It checks inputs, metadata, snapshots, updates, packages, and publication rules.
+CI covers Linux/Windows/macOS and Python 3.11/3.13. This is not GPU inference or
+recommendation-quality validation. The publication checker reads indexed Git
+blobs, including staged changes; review the diff too. Historical node changelogs:
+[English](Update_log_ENG.txt) / [한국어](Update_log_KOR.txt).
 
-For an **opt-in real inference check**, use the Python environment intended for
-ComfyUI. First use may install the documented dependencies and download several
-GB of models. The writer check defaults to GPU and two CPU helper threads;
-the legacy TIPO checks default to CPU. They return a failing exit code on
-fallback or empty output and can save a local JSON report:
+## License and credits
 
-```bash
-python tests/smoke_writer.py --report models/writer-smoke.json
-python tests/smoke_inference.py --mode text --report models/text-smoke.json
-python tests/smoke_inference.py --mode vision --image /path/to/image.png --report models/vision-smoke.json
-```
+Code: [Apache-2.0](LICENSE). Model weights, datasets, and images retain their own
+terms; the code license does not relicense them.
 
-The writer script checks six fixed inputs in both output formats against explicit
-scene-detail keywords. Read the outputs too: keyword checks do not establish
-semantic correctness. Each legacy smoke command checks one input; these are not
-general quality benchmarks. The writer report records the backend, requested
-thread count and its own NVIDIA process allocation when available. Set
-`RS_TIPO_VERBOSE=1` to capture actual layer-offload messages. Legacy vision
-`--gpu-layers -1` permits GPU detection and CPU fallback, so its passing report
-alone does not establish GPU use. Offline CI never runs these scripts.
+| Project | Contribution |
+| --- | --- |
+| [KGen / TIPO](https://github.com/KohakuBlueleaf/KGen), [z-tipo-extension](https://github.com/KohakuBlueleaf/z-tipo-extension) | Prompt expansion concept, formatter, TIPO training-data lineage |
+| [llama.cpp](https://github.com/ggml-org/llama.cpp), [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) | GGUF inference |
+| [Gemma](https://ai.google.dev/gemma) | Base family; separate model terms |
+| [raspie/gemma4-tipo-ko-gguf](https://huggingface.co/raspie/gemma4-tipo-ko-gguf) | Default Korean TIPO model |
+| [unsloth/gemma-4-E2B-it-GGUF](https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF) | Earlier base projector source; current vision defaults use the paired trained projector |
+| [p-e-w/gemma-4-E2B-it-heretic-ara](https://huggingface.co/p-e-w/gemma-4-E2B-it-heretic-ara) | TIPO base lineage and source of VRS-INT's separately prepared vision tower |
 
-## References & Credits
-
-| Project | Use | License |
-| --- | --- | --- |
-| [KGen / TIPO](https://github.com/KohakuBlueleaf/KGen) by KohakuBlueleaf | `kgen.formatter` for tag categorization & prompt sorting | Apache-2.0 |
-| [z-tipo-extension](https://github.com/KohakuBlueleaf/z-tipo-extension) by KohakuBlueleaf | Reference implementation of the TIPO node flow; training-data lineage | Apache-2.0 |
-| [llama.cpp](https://github.com/ggml-org/llama.cpp) | GGUF inference engine; prebuilt `llama-mtmd-cli` (CUDA / Vulkan / Metal / CPU) for vision mode | MIT |
-| [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) | Python bindings for in-process GGUF inference (text mode) | MIT |
-| [Gemma](https://ai.google.dev/gemma) by Google ([`google/gemma-4-E2B-it`](https://huggingface.co/google/gemma-4-E2B-it)) | Base model family the TIPO GGUF derives from | Gemma Terms of Use |
-| [`p-e-w/gemma-4-E2B-it-heretic-ara`](https://huggingface.co/p-e-w/gemma-4-E2B-it-heretic-ara) | Decensored gemma-4-E2B the TIPO GGUFs were fine-tuned from (used so over-censoring doesn't corrupt explicit Danbooru tag output) | Gemma Terms of Use |
-| [`unsloth/gemma-4-E2B-it-GGUF`](https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF) by Unsloth | Base gemma-4-E2B `mmproj` (vision-tower lineage; optional fallback — no longer the default) | Gemma Terms of Use |
-| [`raspie/gemma4-tipo-ko-gguf`](https://huggingface.co/raspie/gemma4-tipo-ko-gguf) | Default Korean→tags TIPO text model **and** the co-trained vision model + mmproj auto-downloaded by Node 2 | Gemma Terms of Use |
-
-The TIPO expansion concept ("upsample"/expand short prompts into detailed
-Danbooru tag sets) originates from KohakuBlueleaf's KGen/TIPO and the
-[z-tipo-extension](https://github.com/KohakuBlueleaf/z-tipo-extension); the
-default model's fine-tune training data follows that same lineage.
+Originally created with ChatGPT, then developed with Claude Code and Codex.
