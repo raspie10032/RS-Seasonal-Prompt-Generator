@@ -393,3 +393,9 @@ Tests use fictional data and substitute encoders, with no GPU/model download.
 They validate mechanics, not visual quality. The publication checker reads Git's
 index; inspect staged content as well. Personal memory/packages/weights are excluded
 from this repository; keep them out of pull requests and releases.
+
+## Held-out recommendation quality
+
+Use the model-free stored-feature `evaluate` command for val/test metrics. See
+[EVALUATION.md](EVALUATION.md) for leakage controls, metric denominators, offline
+tests and the separate private real-image/CUDA validation stage.

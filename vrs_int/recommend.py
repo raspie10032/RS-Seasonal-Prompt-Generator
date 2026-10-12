@@ -13,26 +13,71 @@ class Recommender:
         self.manifest = self.store.manifest(snapshot)
         self._visual_entries = None
 
-    def recommend(self, vector, image_sha256, neighbors=32, limit=20, ratings=(), batch_size=2048):
+    def _entries(self, image_sha256, ratings=(), exclude_images=(), exclude_source_ids=()):
+        """Shared evidence policy; query/holdout labels never participate in votes."""
+        if self._visual_entries is None:
+            self._visual_entries = [dict(e, audit=[]) for e in self.store.entries(self.snapshot)
+                                    if e["vector"] is not None and e["document"]["split"] == "train"]
+        excluded = exclude_images if isinstance(exclude_images, (set, frozenset)) else set(exclude_images)
+        sources = exclude_source_ids if isinstance(exclude_source_ids, (set, frozenset)) else set(exclude_source_ids)
+        seen_images = set()
+        for entry in self._visual_entries:
+            doc = entry["document"]
+            if doc["image_sha256"] == image_sha256 or doc["image_sha256"] in excluded or (ratings and doc["rating"] not in ratings):
+                continue
+            if sources.intersection([doc["id"], *doc.get("source_ids", [])]):
+                continue
+            if doc["image_sha256"] in seen_images:
+                continue
+            seen_images.add(doc["image_sha256"])
+            yield entry
+
+    def recommend(self, vector, image_sha256, neighbors=32, limit=20, ratings=(), batch_size=2048,
+                  *, exclude_images=(), exclude_source_ids=()):
+        """Production retrieval remains CUDA-only; there is no automatic fallback."""
+        return self._recommend(vector, image_sha256, neighbors, limit, ratings, batch_size,
+                               "cuda", exclude_images, exclude_source_ids)
+
+    def recommend_offline(self, vector, image_sha256, neighbors=32, limit=20, ratings=(), batch_size=2048,
+                          *, exclude_images=(), exclude_source_ids=()):
+        """Explicit NumPy reference path for stored-feature evaluation, not image inference."""
+        return self._recommend(vector, image_sha256, neighbors, limit, ratings, batch_size,
+                               "numpy", exclude_images, exclude_source_ids)
+
+    def _recommend(self, vector, image_sha256, neighbors, limit, ratings, batch_size,
+                   backend, exclude_images, exclude_source_ids):
         import numpy as np
-        import torch
-        if not torch.cuda.is_available():
-            raise RuntimeError("CUDA required; no CPU fallback")
+        if backend == "cuda":
+            import torch
+            if not torch.cuda.is_available():
+                raise RuntimeError("CUDA required; no CPU fallback")
         if not 1 <= neighbors <= 256 or not 1 <= limit <= 100 or not 1 <= batch_size <= 4096:
             raise ValueError("Invalid retrieval limits")
         if any(r not in ("g", "s", "q", "e") for r in ratings):
             raise ValueError("Invalid ratings")
-        query = torch.as_tensor(vector, device="cuda", dtype=torch.float32).flatten()
-        if query.numel() != self.manifest["contract"]["dimension"] or not torch.isfinite(query).all() or query.norm() <= 0:
-            raise ValueError("Invalid query vector")
-        query = query / query.norm()
-        best, pending, seen_images = [], [], set()
+        dimension = self.manifest["contract"]["dimension"]
+        if backend == "cuda":
+            query = torch.as_tensor(vector, device="cuda", dtype=torch.float32).flatten()
+            if query.numel() != dimension or not torch.isfinite(query).all() or query.norm() <= 0:
+                raise ValueError("Invalid query vector")
+            query = query / query.norm()
+        else:
+            query = np.asarray(vector, dtype=np.float32).reshape(-1)
+            norm = np.linalg.norm(query)
+            if query.size != dimension or not np.isfinite(query).all() or not np.isfinite(norm) or norm <= 0:
+                raise ValueError("Invalid query vector")
+            query = query / norm
+        best, pending = [], []
 
         def search_batch(entries):
-            features = np.stack([decode_vector(e["vector"], query.numel()) for e in entries])
-            tensor = torch.from_numpy(features).to("cuda", torch.float32)
-            tensor = torch.nn.functional.normalize(tensor, dim=1)
-            similarities = (tensor @ query).cpu().tolist()
+            features = np.stack([decode_vector(e["vector"], dimension) for e in entries])
+            if backend == "cuda":
+                tensor = torch.from_numpy(features).to("cuda", torch.float32)
+                tensor = torch.nn.functional.normalize(tensor, dim=1)
+                similarities = (tensor @ query).cpu().tolist()
+            else:
+                features = features / np.maximum(np.linalg.norm(features, axis=1, keepdims=True), 1e-12)
+                similarities = (features @ query).tolist()
             # Stable key tie break, including across bucket boundaries.
             best.extend((s, e["key"], e) for s, e in zip(similarities, entries))
             best.sort(key=lambda item: (-item[0], item[1]))
@@ -40,20 +85,7 @@ class Recommender:
 
         # Only a bounded vector block resides on GPU. This is exact streaming
         # search, not a sublinear ANN index; million-scale latency is unproven.
-        if self._visual_entries is None:
-            self._visual_entries = []
-            for entry in self.store.entries(self.snapshot):
-                if entry["vector"] is not None and entry["document"]["split"] == "train":
-                    self._visual_entries.append(dict(entry, audit=[]))
-        for entry in self._visual_entries:
-            doc = entry["document"]
-            if entry["vector"] is None or doc["split"] != "train" or doc["image_sha256"] == image_sha256:
-                continue
-            if ratings and doc["rating"] not in ratings:
-                continue
-            if doc["image_sha256"] in seen_images:
-                continue
-            seen_images.add(doc["image_sha256"])
+        for entry in self._entries(image_sha256, ratings, exclude_images, exclude_source_ids):
             # Audit metadata is preserved in storage, not needed in the vote.
             pending.append(entry)
             if len(pending) >= batch_size:

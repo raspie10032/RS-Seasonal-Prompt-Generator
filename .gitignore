@@ -41,3 +41,6 @@ training/
 .venv*/
 .env
 .env.*
+
+# Private held-out labels, predictions and evaluation reports.
+**/evaluation*.json
