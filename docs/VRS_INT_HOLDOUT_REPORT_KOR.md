@@ -33,8 +33,15 @@ GitHub 조회 및 로컬 checkout에서 기준 커밋과 성공한 기존 CI를 
 품질을 측정하지 않았다.
 
 기존 Windows 수정은 SQLite spool 연결을 임시 디렉터리 정리 전에 닫는 변경이다.
-그 코드와 기억 저장 포맷을 변경하지 않았다. 이 보고서 작성 시점의 새 변경에 대한
-원격 CI 결과는 기존 성공 기록과 별개이며, 리뷰 PR의 checks에서 확인할 수 있다.
+그 코드와 기억 저장 포맷을 변경하지 않았다.
+
+새 구현 커밋 `a19e8917bfd1ace44a7e081bae31666e6fb707f0`의 원격 CI도 확인했다.
+[push CI](https://github.com/raspie10032/RS-Seasonal-Prompt-Generator/actions/runs/38214815531)와
+[PR CI](https://github.com/raspie10032/RS-Seasonal-Prompt-Generator/actions/runs/38214818131)가
+성공했다. PR CI의 코드 공개물 검사 1개와 Ubuntu/Windows/macOS × Python 3.11/3.13
+오프라인 테스트 6개 job 모두 success였다. 이는 실제 CUDA 지원 검증과 별개다.
+리뷰용 [초안 PR #22](https://github.com/raspie10032/RS-Seasonal-Prompt-Generator/pull/22)를
+작성했으며 main에는 병합하지 않았다. 뒤따르는 보고서 갱신 커밋은 코드 변경이 없다.
 
 ## 3. 변경 사항
 
@@ -166,8 +173,8 @@ git diff --check
 
 오프라인 43개 테스트 통과. 공개물 검사와 diff 형식 검사도 최종 stage에서 통과했다.
 기존 CI는 이 파일명 패턴을 이미 사용하므로 신규 평가 테스트도 자동으로 들어간다.
-OS/Python matrix는 Ubuntu/Windows/macOS × Python 3.11/3.13이며, 로컬 Linux 3.12
-성공과 원격 matrix 성공은 별개다.
+OS/Python matrix는 Ubuntu/Windows/macOS × Python 3.11/3.13이다. 해당 6개 원격
+offline job과 code-only job의 성공을 추가로 확인했다. CUDA·인코더는 실행하지 않는다.
 
 신규 12개 테스트의 검증 내용:
 
