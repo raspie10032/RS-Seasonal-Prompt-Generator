@@ -1,3 +1,32 @@
+v2.9.0 — 2026-10-11
+GPU execution: the new writer defaults to full GPU offload, rejects CPU-only
+builds and never retries on CPU. Text inference uses two CPU helper threads
+by default; the writer exposes cpu_threads for adjustment.
+0. Add RS AI Prompt Writer: Korean/English descriptions or tags -> English
+   tags or natural language, with faithful/balanced/creative settings. Use a
+   pinned, SHA-256-verified Qwen3-4B-Instruct-2507 Q4_K_M download. Expose
+   inference failures instead of echoing input; preserve existing TIPO nodes.
+1. Fix CSV reproducibility using a per-request seeded RNG (including seed 0);
+   honor independent top/bottom toggles and background-only situation rules.
+   Compound situation conditions now support AND (&) alongside OR (|), so
+   a misty lakeside no longer automatically becomes a misty forest.
+2. Clean fashion CSV: remove 23 non-clothing/fragment entries, reclassify 24
+   rows and collapse 9 duplicates (454 -> 422 rows).
+3. Keep existing gpu_layers=0 workflows on CPU; -1 opts into GPU auto/all
+   layers. Text mode now forwards this option and caches by offload setting.
+   Vision catches GPU exceptions and retries CPU with projector offload disabled.
+4. Publish model downloads and runtime installs atomically; reject truncated
+   transfers, archive traversal and partial CUDA-runtime installs.
+5. Share text/vision output cleanup; preserve numbers and character identities,
+   respect explicit input counts, normalize ban tags, discard reasoning, and
+   retain basic filtering when the optional category sorter is unavailable.
+6. Separate vision's optional sorter from text inference dependencies. Automatic
+   llama-cpp-python installation uses wheels only. Reject unsupported image
+   batches before downloading and hide mmproj files from the model dropdown.
+7. Add offline regression tests, cross-platform CI and four ComfyUI API examples.
+   These checks do not establish real model inference or GPU performance.
+   Add a separate opt-in inference smoke script with JSON reports.
+
 May 23rd, 2026  (v2.8.0)
 1. Vision mode is now GPU-accelerated automatically
 Vision shelled out to a CPU-only llama-mtmd-cli. It now auto-detects the

@@ -1,6 +1,7 @@
 import random
 import csv
 import os
+import re
 
 # Constants for file paths
 DATA_DIR = 'data'
@@ -23,13 +24,13 @@ def load_data_from_csv(file_path, skip_header=True):
         with open(file_path, mode='r', encoding='utf-8') as file:
             csv_reader = csv.reader(file)
             if skip_header:
-                next(csv_reader)  # Skip header row
+                next(csv_reader, None)  # Skip header row
             for row in csv_reader:
-                if row and not row[0].startswith('#'):
-                    key = row[0]
+                if row and row[0].strip() and not row[0].lstrip().startswith('#'):
+                    key = row[0].strip()
                     if key not in data:
                         data[key] = []
-                    data[key].append(row[1:])
+                    data[key].append([value.strip() for value in row[1:]])
     except Exception as e:
         print(f"Error reading {file_path}: {e}")
     return data
@@ -44,22 +45,34 @@ def load_additional_situations(file_path):
     try:
         with open(file_path, mode='r', encoding='utf-8') as file:
             csv_reader = csv.reader(file)
-            next(csv_reader)  # Skip header row
+            next(csv_reader, None)  # Skip header row
             for row in csv_reader:
-                if row and not row[0].startswith('#'):
-                    situation = row[0]
-                    conditions = row[1].split('|')
+                if row and row[0].strip() and not row[0].lstrip().startswith('#'):
+                    if len(row) < 3:
+                        continue
+                    situation = row[0].strip()
+                    conditions = [c.strip() for c in row[1].split('|') if c.strip()]
                     description = row[2]
                     situations[situation] = {"conditions": conditions, "description": description}
     except Exception as e:
         print(f"Error reading {file_path}: {e}")
     return situations
 
-def get_random_element(lst):
+def get_random_element(lst, rng=None):
     """Get a random element from a list."""
     if not lst:
         return ""
-    return random.choice(lst)
+    return (rng or random).choice(lst)
+
+def situation_matches(conditions, context):
+    """CSV `a&b|c` means (a AND b) OR c; bare words match whole words."""
+    def has_term(term):
+        return any(re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)",
+                             value, re.IGNORECASE) for value in context if value)
+
+    return any(all(has_term(term.strip()) for term in alternative.split('&'))
+               for alternative in conditions
+               if all(term.strip() for term in alternative.split('&')))
 
 # Setting up paths
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -80,86 +93,19 @@ body_directions = load_list_from_csv(file_paths['body_directions'])
 class SeasonalFashionPromptNode:
     @classmethod
     def INPUT_TYPES(cls):
-        # 미리 데이터 로드하기
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        data_dir = os.path.join(current_dir, DATA_DIR)
-        file_paths = {key: os.path.join(data_dir, value) for key, value in FILES.items()}
-        
-        # 데이터 로드
-        weather_options = ["random", "off"]
-        time_options = ["random", "off"]
-        composition_options = ["random", "off"]
-        gaze_options = ["random", "off"]
-        pose_options = ["random", "off"]
-        body_direction_options = ["random", "off"]
-        
-        try:
-            # 날씨 옵션 로드
-            weather_data = {}
-            with open(file_paths['seasonal_weather'], mode='r', encoding='utf-8') as file:
-                csv_reader = csv.reader(file)
-                next(csv_reader)  # Skip header
-                for row in csv_reader:
-                    if row and not row[0].startswith('#'):
-                        season = row[0]
-                        weather = row[1]
-                        if weather not in weather_options and weather != "":
-                            weather_options.append(weather)
-            
-            # 시간 옵션 로드
-            with open(file_paths['seasonal_times'], mode='r', encoding='utf-8') as file:
-                csv_reader = csv.reader(file)
-                next(csv_reader)  # Skip header
-                for row in csv_reader:
-                    if row and not row[0].startswith('#'):
-                        season = row[0]
-                        time = row[1]
-                        if time not in time_options and time != "":
-                            time_options.append(time)
-            
-            # 구성 옵션 로드
-            with open(file_paths['general_composition'], mode='r', encoding='utf-8') as file:
-                csv_reader = csv.reader(file)
-                next(csv_reader)  # Skip header
-                for row in csv_reader:
-                    if row and not row[0].startswith('#'):
-                        comp = row[0]
-                        if comp not in composition_options and comp != "":
-                            composition_options.append(comp)
-            
-            # 시선 방향 옵션 로드
-            with open(file_paths['gaze_direction'], mode='r', encoding='utf-8') as file:
-                csv_reader = csv.reader(file)
-                next(csv_reader)  # Skip header
-                for row in csv_reader:
-                    if row and not row[0].startswith('#'):
-                        gaze = row[0]
-                        if gaze not in gaze_options and gaze != "":
-                            gaze_options.append(gaze)
-            
-            # 포즈 옵션 로드
-            with open(file_paths['poses'], mode='r', encoding='utf-8') as file:
-                csv_reader = csv.reader(file)
-                next(csv_reader)  # Skip header
-                for row in csv_reader:
-                    if row and not row[0].startswith('#'):
-                        pose = row[0]
-                        if pose not in pose_options and pose != "":
-                            pose_options.append(pose)
-            
-            # 몸 방향 옵션 로드
-            with open(file_paths['body_directions'], mode='r', encoding='utf-8') as file:
-                csv_reader = csv.reader(file)
-                next(csv_reader)  # Skip header
-                for row in csv_reader:
-                    if row and not row[0].startswith('#'):
-                        direction = row[0]
-                        if direction not in body_direction_options and direction != "":
-                            body_direction_options.append(direction)
-                            
-        except Exception as e:
-            print(f"Error loading options: {e}")
-        
+        # Use the same loaded tables for the UI and generation.
+        def options(rows):
+            return ["random", "off"] + list(dict.fromkeys(v for v in rows if v))
+
+        weather_options = options(row[0] for rows in seasonal_weather.values()
+                                  for row in rows if row)
+        time_options = options(row[0] for rows in seasonal_times.values()
+                               for row in rows if row)
+        composition_options = options(general_composition)
+        gaze_options = options(gaze_direction)
+        pose_options = options(poses)
+        body_direction_options = options(body_directions)
+
         return {
             "required": {
                 "season": (["random", "spring", "summer", "autumn", "winter"],),
@@ -184,7 +130,7 @@ class SeasonalFashionPromptNode:
                 "additional_situation_toggle": (["on", "off"], {"default": "on"}),
                 # 특수 케이스
                 "wanna_shot": (["Yes", "No"], {"default": "No", "label": "wanna shot?"}),
-                "seed": ("INT", {"default": random.randint(1000000000000000, 9999999999999999)}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
             }
         }
     
@@ -196,50 +142,18 @@ class SeasonalFashionPromptNode:
                          top_toggle, bottom_toggle, one_piece_toggle, accessory_toggle, hat_toggle,
                          shoes_toggle, socks_toggle, composition_toggle, gaze_toggle, pose_toggle,
                          body_direction_toggle, additional_situation_toggle, wanna_shot, seed):
-        # Convert seed to integer
-        seed = int(seed)
-        
-        # Define the range for 16-digit seeds
-        MIN_SEED = 1000000000000000  # 10^15
-        MAX_SEED = 9999999999999999  # 10^16 - 1
-        
-        # Process seed value based on range
-        if seed < MIN_SEED:
-            # For values below minimum, multiply by a random 16-digit number and extract 16 digits
-            multiplier = random.randint(MIN_SEED, MAX_SEED)
-            product = seed * multiplier
-            # Extract 16 digits
-            seed_str = str(product)
-            if len(seed_str) >= 16:
-                # Take the last 16 digits if result has more than 16 digits
-                seed = int(seed_str[-16:])
-            else:
-                # If result is less than 16 digits, square the number and extract again
-                squared = product * product
-                seed_str = str(squared)
-                if len(seed_str) >= 16:
-                    seed = int(seed_str[-16:])
-                else:
-                    # If still less than 16 digits, use the original multiplier as a fallback
-                    seed = multiplier
-        elif seed > MAX_SEED:
-            # For values above maximum, extract 16 digits
-            seed_str = str(seed)
-            # Take the last 16 digits
-            seed = int(seed_str[-16:])
-            
-        # Ensure seed is within range after processing
-        seed = max(MIN_SEED, min(seed, MAX_SEED))
-        random.seed(seed)
+        # A request-local RNG makes every integer seed reproducible and leaves
+        # other ComfyUI nodes' random streams untouched.
+        rng = random.Random(int(seed))
 
         # Randomly select season if set to "random"
         if season == "random":
-            season = get_random_element(["spring", "summer", "autumn", "winter"])
+            season = get_random_element(["spring", "summer", "autumn", "winter"], rng)
 
         # Handle special "wanna shot" case
         if wanna_shot == "Yes":
             fashion = self.get_fashion(season, top_toggle, bottom_toggle, one_piece_toggle,
-                                       accessory_toggle, hat_toggle, shoes_toggle, socks_toggle)
+                                       accessory_toggle, hat_toggle, shoes_toggle, socks_toggle, rng)
             shot_prompt = ", ".join(filter(None, [season, fashion, "cafe, coffee, holding a tumbler, straw inside the tumbler"]))
             return (shot_prompt,)
 
@@ -248,45 +162,45 @@ class SeasonalFashionPromptNode:
         
         # Add fashion elements
         fashion = self.get_fashion(season, top_toggle, bottom_toggle, one_piece_toggle, 
-                                  accessory_toggle, hat_toggle, shoes_toggle, socks_toggle)
+                                  accessory_toggle, hat_toggle, shoes_toggle, socks_toggle, rng)
         if fashion:
             prompt_parts.append(fashion)
         
         # Add composition elements if enabled
         if composition_toggle != "off":
             if composition_toggle == "random":
-                prompt_parts.append(get_random_element(general_composition))
+                prompt_parts.append(get_random_element(general_composition, rng))
             else:
                 prompt_parts.append(composition_toggle)
             
         if gaze_toggle != "off":
             if gaze_toggle == "random":
-                prompt_parts.append(get_random_element(gaze_direction))
+                prompt_parts.append(get_random_element(gaze_direction, rng))
             else:
                 prompt_parts.append(gaze_toggle)
             
         if pose_toggle != "off":
             if pose_toggle == "random":
-                prompt_parts.append(get_random_element(poses))
+                prompt_parts.append(get_random_element(poses, rng))
             else:
                 prompt_parts.append(pose_toggle)
             
         if body_direction_toggle != "off":
             if body_direction_toggle == "random":
-                prompt_parts.append(get_random_element(body_directions))
+                prompt_parts.append(get_random_element(body_directions, rng))
             else:
                 prompt_parts.append(body_direction_toggle)
 
         # Add background elements if enabled
         if background_toggle == "on":
             background_prompt, additional_situation = self.get_background_and_situation(
-                season, weather_toggle, time_toggle, additional_situation_toggle)
+                season, weather_toggle, time_toggle, additional_situation_toggle, rng)
             prompt_parts.append(background_prompt)
             if additional_situation:
                 prompt_parts.append(additional_situation)
                 
         elif background_toggle == "simple":
-            background_prompt = f"simple background, {get_random_element(['white background', 'grey background', 'black background'])}, standing cut"
+            background_prompt = f"simple background, {get_random_element(['white background', 'grey background', 'black background'], rng)}, standing cut"
             prompt_parts.append(background_prompt)
 
         # Join all prompt parts, filtering out any empty strings
@@ -294,35 +208,35 @@ class SeasonalFashionPromptNode:
         return (prompt,)
 
     def get_fashion(self, season, top_toggle, bottom_toggle, one_piece_toggle, 
-                   accessory_toggle, hat_toggle, shoes_toggle, socks_toggle):
+                   accessory_toggle, hat_toggle, shoes_toggle, socks_toggle, rng=None):
         """Get fashion description for the given season based on toggle settings."""
         fashion_category = seasonal_fashion.get(season, [])
         
         # Filter items based on toggles
         items = {
-            "top": [item[1] for item in fashion_category if item[0] == "top"] if top_toggle != "off" else [],
-            "bottom": [item[1] for item in fashion_category if item[0] == "bottom"] if bottom_toggle != "off" else [],
-            "one_piece": [item[1] for item in fashion_category if item[0] == "one_piece"] if one_piece_toggle != "off" else [],
-            "accessory": [item[1] for item in fashion_category if item[0] == "accessory"] if accessory_toggle != "off" else [],
-            "hat": [item[1] for item in fashion_category if item[0] == "hat"] if hat_toggle != "off" else [],
-            "shoes": [item[1] for item in fashion_category if item[0] == "shoes"] if shoes_toggle != "off" else [],
-            "socks": [item[1] for item in fashion_category if item[0] == "socks"] if socks_toggle != "off" else [],
+            "top": [item[1] for item in fashion_category if len(item) >= 2 and item[0] == "top"] if top_toggle != "off" else [],
+            "bottom": [item[1] for item in fashion_category if len(item) >= 2 and item[0] == "bottom"] if bottom_toggle != "off" else [],
+            "one_piece": [item[1] for item in fashion_category if len(item) >= 2 and item[0] == "one_piece"] if one_piece_toggle != "off" else [],
+            "accessory": [item[1] for item in fashion_category if len(item) >= 2 and item[0] == "accessory"] if accessory_toggle != "off" else [],
+            "hat": [item[1] for item in fashion_category if len(item) >= 2 and item[0] == "hat"] if hat_toggle != "off" else [],
+            "shoes": [item[1] for item in fashion_category if len(item) >= 2 and item[0] == "shoes"] if shoes_toggle != "off" else [],
+            "socks": [item[1] for item in fashion_category if len(item) >= 2 and item[0] == "socks"] if socks_toggle != "off" else [],
         }
 
         # Get random elements for each enabled category
-        top = get_random_element(items["top"])
-        bottom = get_random_element(items["bottom"])
-        one_piece = get_random_element(items["one_piece"])
-        accessory = get_random_element(items["accessory"])
-        hat = get_random_element(items["hat"])
-        shoe = get_random_element(items["shoes"])
-        sock = get_random_element(items["socks"])
+        top = get_random_element(items["top"], rng)
+        bottom = get_random_element(items["bottom"], rng)
+        one_piece = get_random_element(items["one_piece"], rng)
+        accessory = get_random_element(items["accessory"], rng)
+        hat = get_random_element(items["hat"], rng)
+        shoe = get_random_element(items["shoes"], rng)
+        sock = get_random_element(items["socks"], rng)
 
         # Decide whether to use top+bottom or one_piece
         use_top_bottom = False
-        if top and bottom and one_piece:
-            use_top_bottom = random.choice([True, False])
-        elif top and bottom:
+        if (top or bottom) and one_piece:
+            use_top_bottom = (rng or random).choice([True, False])
+        elif top or bottom:
             use_top_bottom = True
         elif one_piece:
             use_top_bottom = False
@@ -335,9 +249,10 @@ class SeasonalFashionPromptNode:
 
         return fashion
 
-    def get_background_and_situation(self, season, weather_toggle, time_toggle, additional_situation_toggle):
+    def get_background_and_situation(self, season, weather_toggle, time_toggle, additional_situation_toggle, rng=None):
         """Get background description and additional situation for the given season."""
-        background_info = get_random_element(seasonal_backgrounds.get(season, []))
+        background_info = get_random_element([row for row in seasonal_backgrounds.get(season, [])
+                                              if len(row) >= 2], rng)
         
         if not background_info:
             return "", ""
@@ -351,7 +266,7 @@ class SeasonalFashionPromptNode:
             pass
         elif weather_toggle == "random":
             weather_items = [item[0] for item in seasonal_weather.get(season, [])]
-            weather = get_random_element(weather_items)
+            weather = get_random_element(weather_items, rng)
         else:
             # 특정 날씨가 선택된 경우
             weather = weather_toggle
@@ -362,7 +277,7 @@ class SeasonalFashionPromptNode:
             pass
         elif time_toggle == "random":
             time_items = [item[0] for item in seasonal_times.get(season, [])]
-            time = get_random_element(time_items)
+            time = get_random_element(time_items, rng)
         else:
             # 특정 시간이 선택된 경우
             time = time_toggle
@@ -378,12 +293,12 @@ class SeasonalFashionPromptNode:
         
         # Add additional situation if enabled
         additional_situation = ""
-        if additional_situation_toggle == "on" and background_classification and (weather or time):
-            conditions = [c for c in [background_classification, weather, time] if c]
+        if additional_situation_toggle == "on":
+            context = [season, background_classification, background, weather, time]
             situation_details = [
                 details["description"]
                 for situation, details in additional_situations.items()
-                if any(condition in details["conditions"] for condition in conditions)
+                if situation_matches(details["conditions"], context)
             ]
             additional_situation = ", ".join(situation_details)
             

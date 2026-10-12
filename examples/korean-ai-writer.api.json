@@ -1,0 +1,22 @@
+{
+  "prompt": {
+    "1": {
+      "class_type": "RSPromptWriter",
+      "inputs": {
+        "prompt": "소녀 한 명이 하얀 셔츠와 파란 치마를 입고 공원에 서 있다. 봄 오후의 부드러운 햇살.",
+        "model": "(auto: Qwen3-4B-Instruct-2507)",
+        "output_format": "tags",
+        "creativity": "balanced",
+        "length": "medium",
+        "temperature": 0.6,
+        "seed": 42,
+        "gpu_layers": -1,
+        "cpu_threads": 2
+      }
+    },
+    "2": {
+      "class_type": "PreviewAny",
+      "inputs": {"source": ["1", 0]}
+    }
+  }
+}

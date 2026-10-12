@@ -29,32 +29,32 @@ setting_sun,sunset beach,seeing the setting sun on a beach
 heavy_snow,blizzard,experiencing heavy snow in a blizzard
 on_a_boat,water|lake|river,being on a boat on a lake or river
 snow_covered_trees,snow|frosty,seeing snow-covered trees
-desert,desert|dry,walking through a desert
-rainy_street,rain|urban|city,walking on a rainy street in the city
+desert,desert,walking through a desert
+rainy_street,rain&urban|rain&city|rainy&urban|rainy&city,walking on a rainy street in the city
 busy_market,market|busy,being in a busy market
-quiet_library,library|quiet,being in a quiet library
-windy_beach,windy|beach,being on a windy beach
+quiet_library,library,being in a quiet library
+windy_beach,windy&beach,being on a windy beach
 green_grassland,grassland|green,walking through green grassland
-foggy_mountain,fog|mountain,seeing a foggy mountain
-starry_night_sky,night|stars,seeing a starry night sky
+foggy_mountain,foggy&mountain|misty&mountain,seeing a foggy mountain
+starry_night_sky,night&clear,seeing a starry night sky
 hiking,trail|mountain,going hiking on a trail in the mountains
 camping,forest|mountain,going camping in the forest or mountains
 picnic,park|meadow,having a picnic in a park or meadow
 cityscape,urban|city,seeing a cityscape
-fireworks,night|celebration,seeing fireworks at night during a celebration
-starry_sky,night|clear,seeing a clear starry sky at night
-sunrise,morning|clear,seeing the sunrise on a clear morning
-sunset,evening|clear,seeing the sunset on a clear evening
-foggy_morning,foggy|morning,seeing a foggy morning
-harvest_time,autumn|fields,seeing harvest time in the autumn fields
-sunny_park,sunny|park,being in a sunny park
-rainy_day,rain|day,experiencing a rainy day
-snowy_path,snowy|path,walking on a snowy path
-winter_festival,festival|winter,experiencing a winter festival
+fireworks,night&celebration,seeing fireworks at night during a celebration
+starry_sky,night&clear,seeing a clear starry sky at night
+sunrise,morning&sunny|morning&clear sky,seeing the sunrise on a clear morning
+sunset,evening&sunny|evening&clear sky,seeing the sunset on a clear evening
+foggy_morning,foggy&morning|misty&morning,seeing a foggy morning
+harvest_time,autumn&fields,seeing harvest time in the autumn fields
+sunny_park,sunny&park,being in a sunny park
+rainy_day,rain|rainy|drizzling,experiencing a rainy day
+snowy_path,snowy&path|snow&path,walking on a snowy path
+winter_festival,festival&winter,experiencing a winter festival
 autumn_leaves,autumn|leaves,seeing autumn leaves
 spring_blossoms,spring|blossoms,seeing spring blossoms
 summer_heat,summer|heat,experiencing summer heat
 thunderstorm,storm|thunder,being in a thunderstorm
-rainbow,clear|rain,seeing a rainbow after rain
+rainbow,rain&sunny|rainy&sunny,seeing a rainbow after rain
 lightning,storm|lightning,seeing lightning during a storm
-misty_forest,misty|forest,walking through a misty forest
+misty_forest,misty&forest,walking through a misty forest

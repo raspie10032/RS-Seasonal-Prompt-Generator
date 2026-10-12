@@ -43,7 +43,8 @@ class GemmaTipoNode:
         te, _ = _engines()
         try:
             files = sorted(f for f in os.listdir(te._gguf_dir())
-                           if f.lower().endswith(".gguf"))
+                           if te._is_model_file(f)
+                           and os.path.isfile(os.path.join(te._gguf_dir(), f)))
         except Exception:
             files = []
         return {
@@ -68,7 +69,8 @@ class GemmaTipoNode:
                 "mmproj_path": ("STRING", {
                     "default": "",
                     "placeholder": "vision only; empty = auto-download trained vision mmproj"}),
-                "gpu_layers": ("INT", {"default": 0, "min": 0, "max": 100}),
+                "gpu_layers": ("INT", {"default": 0, "min": -1, "max": 100,
+                    "tooltip": "0 = CPU (compatible with saved workflows); -1 = GPU auto/all layers; positive = layer count. Text needs a GPU-enabled llama-cpp-python build."}),
             },
         }
 
@@ -90,4 +92,4 @@ class GemmaTipoNode:
         if not prompt or not prompt.strip():
             return (prompt,)
         return (te.expand_prompt(prompt, gguf, tag_length, ban_tags,
-                                 temperature, seed, sort),)
+                                 temperature, seed, sort, gpu_layers),)

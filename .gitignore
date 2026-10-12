@@ -5,3 +5,40 @@ models/
 *.gguf
 # offline training pipeline (heavy, may hold secrets) — never commit
 training/
+# Personal VRS-INT collections and separately acquired encoder weights.
+/vrs-int-data/
+/vrs-int-models/
+/vrs-int-generated/
+# Corpus records, compressed memory, vectors, model weights and private outputs.
+*.jsonl
+!/examples/vrs-int/batch-01.jsonl
+!/examples/vrs-int/batch-02.jsonl
+*.sqlite*
+*.db
+*.npy
+*.npz
+*.pt
+*.pth
+*.safetensors
+*.onnx
+*.z
+*.zip
+*.tar
+*.gz
+*.zst
+**/objects/
+**/snapshots/
+**/CURRENT
+**/package.json
+**/provenance.json
+**/recommendation*.json
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.mp4
+*.webm
+.venv*/
+.env
+.env.*

@@ -2,12 +2,9 @@ season,category,item
 spring,top,cardigan
 spring,top,blouse
 spring,top,hoodie
-spring,top,denim
-spring,top,light
 spring,top,sweater
 spring,top,long sleeve shirt
-spring,top,sleeve
-spring,top,scarf
+spring,accessory,scarf
 spring,top,t-shirt
 spring,top,tank top
 spring,top,light topwear
@@ -17,20 +14,18 @@ spring,top,flight jacket
 spring,top,floral print shirt
 spring,top,light shirt
 spring,top,floral topwear
-spring,bottom,ankle boots
+spring,shoes,ankle boots
 spring,bottom,leggings
 spring,bottom,capris
-spring,bottom,cotton
 spring,bottom,culottes
 spring,bottom,denim skirt
 spring,bottom,dolphinshorts
-spring,bottom,flats
+spring,shoes,flats
 spring,bottom,jeans
 spring,bottom,light trousers
 spring,bottom,pleated skirt
 spring,bottom,shorts
 spring,bottom,skirt
-spring,bottom,spring
 spring,bottom,floral print skirt
 spring,bottom,floral print pants
 spring,bottom,light pants
@@ -42,8 +37,7 @@ spring,one_piece,sundress
 spring,one_piece,floral print kimono
 spring,one_piece,floral print apron
 spring,one_piece,floral print dress
-spring,one_piece,light dress shirt
-spring,one_piece,strobe lights
+spring,top,light dress shirt
 spring,hat,baseball cap
 spring,hat,beanie
 spring,hat,beret
@@ -72,11 +66,8 @@ spring,socks,white pantyhose
 spring,socks,floral print thighhighs
 spring,socks,light socks
 spring,socks,light legwear
-spring,accessory,ankle boots
 spring,accessory,anklet
 spring,accessory,bracelet
-spring,accessory,floral
-spring,accessory,scarf
 spring,accessory,handbag
 spring,accessory,sunglasses
 spring,accessory,watch
@@ -138,7 +129,6 @@ summer,bottom,swimwear
 summer,bottom,swim trunks
 summer,bottom,bikini jeans
 summer,bottom,double frill skirt swimsuit
-summer,bottom,pantsuneko
 summer,bottom,bikini under skirt
 summer,bottom,bikini under shorts
 summer,bottom,swimsuit skirt
@@ -162,12 +152,9 @@ summer,hat,visor
 summer,hat,unworn swim cap
 summer,hat,swimming cap
 summer,hat,summer hat
-summer,hat,tatsunoko vs capcom
 summer,hat,swim cap
-summer,hat,hatsuno xxx
 summer,hat,sun hat only
 summer,hat,sun hat ornament
-summer,hat,hatsunatsu
 summer,shoes,shoes
 summer,shoes,flip-flops
 summer,shoes,loafers
@@ -186,18 +173,14 @@ summer,socks,pantyhose over swimsuit
 summer,socks,pantyhose under swimsuit
 summer,accessory,anklet
 summer,accessory,bag
-summer,accessory,hat
 summer,accessory,bracelets
 summer,accessory,necklace
-summer,accessory,straw hat
 summer,accessory,sunglasses
-summer,accessory,visor
 summer,accessory,star sunglasses
 summer,accessory,heart sunglasses
 summer,accessory,purple sunglasses
 summer,accessory,black sunglasses
-summer,accessory,side-tie bikini bottom
-summer,accessory,frontiersun
+summer,bottom,side-tie bikini bottom
 summer,accessory,glistening sunglasses
 summer,accessory,green sunglasses
 summer,accessory,untied bikini
@@ -219,7 +202,7 @@ summer,accessory,white sunglasses
 summer,accessory,neck-tie bikini
 summer,accessory,side-tie swimsuit
 summer,accessory,sunglasses on head
-summer,accessory,untied bikini bottom
+summer,bottom,untied bikini bottom
 summer,accessory,red sunglasses
 summer,accessory,multicolored sunglasses
 summer,accessory,pink sunglasses
@@ -251,7 +234,7 @@ autumn,top,leather shirt
 autumn,top,plaid sweater
 autumn,top,plaid shirt
 autumn,top,leather jacket
-autumn,bottom,ankle boots
+autumn,shoes,ankle boots
 autumn,bottom,autumn trousers
 autumn,bottom,pants
 autumn,bottom,skirt
@@ -267,9 +250,9 @@ autumn,bottom,plaid shorts
 autumn,bottom,leather shorts
 autumn,bottom,leather pants
 autumn,one_piece,tunic
-autumn,one_piece,coat
+autumn,top,coat
 autumn,one_piece,dress
-autumn,one_piece,poncho
+autumn,top,poncho
 autumn,one_piece,plaid apron
 autumn,one_piece,leather dress
 autumn,one_piece,plaid kimono
@@ -282,12 +265,10 @@ autumn,hat,knit hat
 autumn,hat,newsboy cap
 autumn,hat,plaid headwear
 autumn,hat,leather headwear
-autumn,hat,plaid cape
-autumn,hat,plaid capelet
+autumn,top,plaid cape
+autumn,top,plaid capelet
 autumn,hat,leather hat
-autumn,hat,fallen captain
 autumn,hat,plaid hat
-autumn,shoes,ankle boots
 autumn,shoes,boots
 autumn,shoes,moccasins
 autumn,shoes,shoes
@@ -311,7 +292,6 @@ autumn,socks,plaid socks
 autumn,socks,leather legwear
 autumn,socks,leather stockings
 autumn,accessory,handbag
-autumn,accessory,beanie
 autumn,accessory,fingerless gloves
 autumn,accessory,gloves
 autumn,accessory,scarf
@@ -345,10 +325,7 @@ winter,top,tracen winter coat
 winter,top,fur sweater
 winter,top,fur-trimmed coat
 winter,top,christmas topwear
-winter,top,christmas tree topper
-winter,top,top heavy
 winter,top,fur jacket
-winter,top,top heavy belly
 winter,top,fur-trimmed jacket
 winter,top,fur coat
 winter,top,furgonomic topwear
@@ -372,8 +349,7 @@ winter,bottom,furgonomic pants
 winter,bottom,fur skirt
 winter,bottom,fur-trimmed pants
 winter,one_piece,dress
-winter,one_piece,parka
-winter,one_piece,coat
+winter,top,parka
 winter,one_piece,tunic
 winter,one_piece,fur-trimmed jumpsuit
 winter,one_piece,fur-trimmed robe
@@ -387,35 +363,28 @@ winter,hat,knit hat
 winter,hat,christmas headwear
 winter,hat,furgonomic headwear
 winter,hat,snow on headwear
-winter,hat,fur-trimmed waist cape
-winter,hat,captain america: the winter soldier
+winter,accessory,fur-trimmed waist cape
 winter,hat,snowflake hat ornament
-winter,hat,fur capelet
-winter,hat,fur-trimmed capelet
+winter,top,fur capelet
+winter,top,fur-trimmed capelet
 winter,hat,furgonomic hat
 winter,hat,winter hat
 winter,hat,wool headwear
-winter,hat,snowscape
 winter,hat,furgonomic baseball cap
-winter,hat,fur-trimmed cape
-winter,hat,fur cape
+winter,top,fur-trimmed cape
+winter,top,fur cape
 winter,hat,fur-trimmed headwear
 winter,hat,woollen cap
-winter,hat,furahata gen
-winter,hat,fatal fury cap
 winter,shoes,boots
 winter,shoes,clogs
-winter,shoes,snowshoe cat
 winter,shoes,fur footwear
 winter,shoes,furgonomic footwear
 winter,shoes,fur-trimmed sandals
 winter,shoes,fur boots
-winter,shoes,snowshoe hare
 winter,shoes,furred boots
 winter,shoes,fur-trimmed boots
 winter,shoes,fur-trimmed shoes
 winter,shoes,snowshoe
-winter,shoes,bluesnowshoe
 winter,socks,ankle socks
 winter,socks,socks
 winter,socks,black pantyhose
@@ -440,7 +409,6 @@ winter,accessory,earmuffs
 winter,accessory,mittens
 winter,accessory,gloves
 winter,accessory,scarf
-winter,accessory,socks
 winter,accessory,furry specific accessory
 winter,accessory,fur-lined gloves
 winter,accessory,fur panties

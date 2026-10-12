@@ -1,5 +1,6 @@
-# Only needed for the "Gemma TIPO Prompt -> Tags" node (the Seasonal
-# generator node has NO extra dependencies).
+# Optional AI node dependencies (the Seasonal generator has none).
+# RS AI Prompt Writer needs llama-cpp-python only; tipo-kgen is a TIPO
+# formatting helper. Nodes install these lazily on first use as needed.
 #
 # llama-cpp-python : in-process GGUF inference. >=0.3.23 is REQUIRED — older
 #                    builds cannot load the gemma4 architecture. Native

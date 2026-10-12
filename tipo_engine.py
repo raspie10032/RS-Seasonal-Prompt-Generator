@@ -16,9 +16,12 @@ import os
 import re
 import sys
 import time
-import random
+import tempfile
 import threading
 import importlib
+import importlib.metadata
+import importlib.util
+import shutil
 import subprocess
 import urllib.request
 
@@ -27,7 +30,11 @@ import urllib.request
 # llama-cpp-python below this version cannot load the gemma4 architecture.
 _MIN_LLAMA = (0, 3, 23)
 _DEPS_ATTEMPTED = False
+_FORMATTER_ATTEMPTED = False
 _deps_lock = threading.Lock()
+_download_lock = threading.Lock()
+_inference_lock = threading.Lock()
+_LLAMA_IMPORT_ERROR = ""
 
 
 def _have(mod):
@@ -44,30 +51,51 @@ def _ver_tuple(s):
 
 
 def _imported_llama_version():
+    global _LLAMA_IMPORT_ERROR
     try:
         import llama_cpp
+        _LLAMA_IMPORT_ERROR = ""
         return _ver_tuple(getattr(llama_cpp, "__version__", ""))
-    except Exception:
+    except Exception as e:
+        _LLAMA_IMPORT_ERROR = f"{type(e).__name__}: {e}"
         return None
 
 
 def _installed_llama_version():
-    """Version on disk (via pip), independent of what's imported in-process."""
+    """Read package metadata even in uv-managed environments without pip."""
     try:
-        out = subprocess.check_output(
-            [sys.executable, "-m", "pip", "show", "llama-cpp-python"],
-            text=True, stderr=subprocess.DEVNULL)
-        for line in out.splitlines():
-            if line.lower().startswith("version:"):
-                return _ver_tuple(line.split(":", 1)[1])
-    except Exception:
-        pass
-    return None
+        return _ver_tuple(importlib.metadata.version("llama-cpp-python"))
+    except importlib.metadata.PackageNotFoundError:
+        return None
 
 
 def _pip_install(args):
     print(f"[TIPO] auto-installing: {' '.join(args)}")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", *args])
+    if importlib.util.find_spec("pip") is not None:
+        cmd = [sys.executable, "-m", "pip", "install"]
+    elif shutil.which("uv"):
+        cmd = [shutil.which("uv"), "pip", "install", "--python", sys.executable]
+    else:
+        raise RuntimeError("Neither pip nor uv is available for this Python environment")
+    subprocess.check_call([*cmd, *args])
+
+
+def _ensure_formatter():
+    """Vision only needs the formatter, never the Python inference backend."""
+    global _FORMATTER_ATTEMPTED
+    if _have("kgen.formatter"):
+        return True
+    with _deps_lock:
+        if not _FORMATTER_ATTEMPTED:
+            _FORMATTER_ATTEMPTED = True
+            try:
+                # The formatter uses only the standard library. Installing
+                # the full executor dependencies can download torch/CUDA.
+                _pip_install(["tipo-kgen", "--no-deps"])
+                importlib.invalidate_caches()
+            except Exception as e:
+                print(f"[TIPO] formatter install failed ({type(e).__name__}: {e})")
+        return _have("kgen.formatter")
 
 
 def _restart_needed():
@@ -80,14 +108,14 @@ def _restart_needed():
 
 
 def _ensure_deps():
-    """On first TIPO use: install tipo-kgen and a gemma4-capable
+    """On first text TIPO use: install a gemma4-capable
     llama-cpp-python (>= %s). Existing too-old llama-cpp-python is upgraded.
     """ % ".".join(map(str, _MIN_LLAMA))
     global _DEPS_ATTEMPTED
 
     def _ok():
         iv = _imported_llama_version()
-        return _have("kgen.formatter") and iv is not None and iv >= _MIN_LLAMA
+        return iv is not None and iv >= _MIN_LLAMA
 
     if _ok():
         return True
@@ -101,8 +129,6 @@ def _ensure_deps():
             return False
         _DEPS_ATTEMPTED = True
         try:
-            if not _have("kgen.formatter"):
-                _pip_install(["tipo-kgen"])
             ins = _installed_llama_version()
             if ins is None or ins < _MIN_LLAMA:
                 # prebuilt CPU wheel index -> no native build required
@@ -111,7 +137,7 @@ def _ensure_deps():
                     "--upgrade",
                     "--extra-index-url",
                     "https://abetlen.github.io/llama-cpp-python/whl/cpu",
-                    "--prefer-binary",
+                    "--only-binary=llama-cpp-python",
                 ])
         except Exception as e:
             print(f"[TIPO] auto-install failed ({type(e).__name__}: {e})")
@@ -120,7 +146,12 @@ def _ensure_deps():
             print("[TIPO] llama-cpp-python upgraded to a gemma4-capable "
                   "version; RESTART ComfyUI, then run again.")
             return False
-        return _ok()
+        ready = _ok()
+        if not ready and _LLAMA_IMPORT_ERROR:
+            print(f"[TIPO] llama-cpp-python cannot load: {_LLAMA_IMPORT_ERROR}. "
+                  "Install its matching GPU runtime or a compatible CPU wheel "
+                  "in the Python environment running ComfyUI.")
+        return ready
 
 # Default model auto-downloaded from HuggingFace when no local path is given.
 HF_REPO = "raspie/gemma4-tipo-ko-gguf"
@@ -159,11 +190,11 @@ def _resolve_model_path(gguf_path):
     """Return a local GGUF path: use the given path, else auto-download the
     default model into <ComfyUI>/models/gguf (reused if already present)."""
     if gguf_path and gguf_path.strip():
-        return gguf_path
+        return os.path.abspath(os.path.expanduser(gguf_path.strip()))
 
     target_dir = _gguf_dir()
     target = os.path.join(target_dir, HF_FILE)
-    if os.path.exists(target):
+    if os.path.isfile(target) and os.path.getsize(target) > 0:
         return target
 
     url = f"https://huggingface.co/{HF_REPO}/resolve/main/{HF_FILE}"
@@ -185,14 +216,27 @@ def _progress_bar(total):
 def _stream_download(url, dest):
     """Download `url` to `dest` showing a ComfyUI node progress bar (and
     console %). Writes to a .part file and atomically renames on success."""
-    part = dest + ".part"
+    # Recheck under the lock: two nodes may resolve the same missing model.
+    with _download_lock:
+        if os.path.isfile(dest) and os.path.getsize(dest) > 0:
+            return
+        _download_file(url, dest)
+
+
+def _download_file(url, dest):
+    """Publish only a complete, nonempty download; clean up even on cancel."""
+    dest = os.path.abspath(dest)
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    fd, part = tempfile.mkstemp(prefix=os.path.basename(dest) + ".",
+                                suffix=".part", dir=os.path.dirname(dest))
+    os.close(fd)
     req = urllib.request.Request(url, headers={"User-Agent": "rs-seasonal-tipo"})
-    with urllib.request.urlopen(req) as resp:
-        total = int(resp.headers.get("Content-Length") or 0)
-        pbar = _progress_bar(total) if total else None
-        done = 0
-        last = 0.0
-        try:
+    try:
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            total = int(resp.headers.get("Content-Length") or 0)
+            pbar = _progress_bar(total) if total else None
+            done = 0
+            last = 0.0
             with open(part, "wb") as f:
                 while True:
                     chunk = resp.read(1024 * 1024)
@@ -211,12 +255,13 @@ def _stream_download(url, dest):
                         print(f"[TIPO] downloading model: "
                               f"{done * 100 // total}% "
                               f"({done >> 20}/{total >> 20} MB)")
-        except BaseException:
-            if os.path.exists(part):
-                os.remove(part)
-            raise
-    os.replace(part, dest)
-    print("[TIPO] model download complete")
+            if not done or (total and done != total):
+                raise IOError(f"incomplete download: received {done} of {total} bytes")
+        os.replace(part, dest)
+        print("[TIPO] download complete")
+    finally:
+        if os.path.exists(part):
+            os.remove(part)
 
 
 SYSTEM_TIPO = (
@@ -288,10 +333,64 @@ def _dedup(tags):
     seen, out = set(), []
     for t in tags.split(","):
         t = t.strip()
-        key = re.sub(r"[():\d.]", "", t).strip().lower()
+        key = _tag_key(t)
         if key and key not in seen:
             seen.add(key)
             out.append(t)
+    return ", ".join(out)
+
+
+def _tag_key(tag):
+    """Compare spelling/weight variants without losing counts or identities."""
+    tag = tag.strip()
+    weighted = re.fullmatch(r"\((.*):[+-]?(?:\d+(?:\.\d*)?|\.\d+)\)", tag)
+    if weighted:
+        tag = weighted.group(1)
+    return re.sub(r"\s+", " ", tag.replace("_", " ")).strip().casefold()
+
+
+def _filter_banned(tags, ban_tags):
+    banned = {_tag_key(b) for b in (ban_tags or "").split(",") if b.strip()}
+    return ", ".join(t.strip() for t in tags.split(",")
+                     if t.strip() and _tag_key(t) not in banned)
+
+
+def _strip_reasoning(raw):
+    """Discard explicit reasoning blocks, including unfinished ones."""
+    raw = raw or ""
+    raw = re.sub(r"<think>.*?(?:</think>|$)", "", raw, flags=re.S | re.I)
+    markers = list(re.finditer(r"<\|channel>thought|<\|channel\|>analysis", raw))
+    if markers:
+        tail = raw[markers[-1].end():]
+        end = re.search(r"<channel\|>|(?<!<)channel\|>|<\|channel\|>final", tail)
+        if end is None:
+            return ""
+        raw = tail[end.end():]
+    else:
+        # Some CLI builds print only the channel-close marker.
+        raw = re.split(r"<channel\|>|(?<!<)channel\|>", raw)[-1]
+    return raw
+
+
+def _extract_tags(raw):
+    """Read plain, category-delimited or grouped tag lists from either model."""
+    txt = _clean_special_tokens(_strip_reasoning(raw))
+    out = []
+    for line in txt.splitlines():
+        line = line.strip().strip("`").strip()
+        if not line or re.match(r"^(?:here(?:'s| are)|the |this |i |i'll|let's|okay|sure)\b",
+                                line, re.I):
+            continue
+        line = re.sub(r"^(?:[-*]\s+|\d+[.)]\s+)", "", line)
+        for tag in line.split(","):
+            tag = re.sub(r"^[a-z][a-z_ ]*:\s+", "", tag.strip(), flags=re.I)
+            tag = tag.strip().strip(".").strip()
+            # Internal dots occur in names and weighted tags (d.va, :1.2).
+            if (tag and len(tag.split()) <= 5 and not re.search(r"[!?]|\.\s", tag)
+                    and tag.casefold() not in {"thought", "thinking", "final", "analysis",
+                                              "model", "assistant", "user", "system",
+                                              "answer", "output", "tags"}):
+                out.append(tag)
     return ", ".join(out)
 
 
@@ -302,7 +401,7 @@ def _drop_redundant(csv):
     " " + the shorter tag) so distinct tags like "dress" vs "dress shirt"
     are NOT collapsed."""
     tags = [t.strip() for t in csv.split(",") if t.strip()]
-    low = [t.lower() for t in tags]
+    low = [_tag_key(t) for t in tags]
     drop = set()
     for i, s in enumerate(low):
         for j, l in enumerate(low):
@@ -322,7 +421,7 @@ _COUNT_RE = {
 
 
 def _count_group(tag):
-    t = tag.strip().lower()
+    t = _tag_key(tag)
     for g, rx in _COUNT_RE.items():
         if rx.match(t):
             return g
@@ -335,7 +434,7 @@ def _resolve_count_conflicts(csv, input_prompt):
     Groups are independent (`1girl` + `1boy` is fine). The kept tag is the
     one present in the user's input (first by input order), else the first
     in the output."""
-    input_low = [t.strip().lower() for t in input_prompt.split(",")]
+    input_low = [_tag_key(t) for t in input_prompt.split(",")]
     tags = [t.strip() for t in csv.split(",") if t.strip()]
 
     by_group = {}
@@ -351,7 +450,7 @@ def _resolve_count_conflicts(csv, input_prompt):
         chosen = None
         for it in input_low:
             for m in members:
-                if m.lower() == it:
+                if _tag_key(m) == it:
                     chosen = m
                     break
             if chosen:
@@ -367,28 +466,47 @@ def _resolve_count_conflicts(csv, input_prompt):
     return ", ".join(out)
 
 
-def load_tipo(model_path):
-    """Load and cache a GGUF model (CPU, n_gpu_layers=0 for max compatibility)."""
+def _is_model_file(name):
+    return name.lower().endswith(".gguf") and "mmproj" not in name.lower()
+
+
+def require_gpu_offload():
+    """Reject a CPU-only build instead of silently ignoring requested offload."""
+    from llama_cpp import llama_supports_gpu_offload
+    if not llama_supports_gpu_offload():
+        raise RuntimeError("GPU offload requested, but llama-cpp-python has no usable GPU backend. "
+                           "Install a compatible GPU build and runtime. CPU fallback is disabled.")
+
+
+def load_tipo(model_path, gpu_layers=0, n_ctx=2048, n_threads=2, cache=True):
+    """Cache by settings; cache=False gives the caller ownership of close()."""
     if not model_path:
         return None
 
     if os.path.isdir(model_path):
-        gguf_files = [f for f in os.listdir(model_path) if f.endswith(".gguf")]
+        gguf_files = sorted(f for f in os.listdir(model_path)
+                            if _is_model_file(f) and os.path.isfile(os.path.join(model_path, f)))
         if not gguf_files:
             return None
         selected = next((f for f in gguf_files if "q4" in f.lower()), gguf_files[0])
         model_path = os.path.join(model_path, selected)
 
-    if not os.path.exists(model_path):
+    if not os.path.isfile(model_path):
         return None
 
+    model_path = os.path.realpath(model_path)
+    threads = max(1, int(n_threads))
+    key = (model_path, int(gpu_layers), int(n_ctx), threads)
     with _cache_lock:
-        if model_path in _model_cache:
-            return _model_cache[model_path]
+        if cache and key in _model_cache:
+            return _model_cache[key]
         from llama_cpp import Llama
 
-        llm = Llama(model_path=model_path, n_gpu_layers=0, n_ctx=2048, verbose=False)
-        _model_cache[model_path] = llm
+        llm = Llama(model_path=model_path, n_gpu_layers=int(gpu_layers), n_ctx=int(n_ctx),
+                    n_threads=threads, n_threads_batch=threads,
+                    verbose=os.environ.get("RS_TIPO_VERBOSE", "") == "1")
+        if cache:
+            _model_cache[key] = llm
         return llm
 
 
@@ -409,16 +527,25 @@ def _postprocess_with_kgen(tags_csv, ban_tags, sort_preset):
     formatted = _clean_special_tokens(formatted)
     formatted = _dedup(formatted)
 
-    banned = {b.strip().lower() for b in ban_tags.split(",") if b.strip()}
-    if banned:
-        formatted = ", ".join(
-            t.strip()
-            for t in formatted.split(",")
-            if t.strip() and t.strip().lower() not in banned
-        )
+    formatted = _filter_banned(formatted, ban_tags)
 
     formatted = _drop_redundant(formatted)
     return formatted.strip().strip(",").strip()
+
+
+def _postprocess(tags, ban_tags, sort_preset, input_prompt=""):
+    # Filtering and conflict handling still work when optional kgen is absent.
+    tags = _filter_banned(_dedup(_clean_special_tokens(tags)), ban_tags)
+    try:
+        if not _ensure_formatter():
+            raise ImportError("tipo-kgen is unavailable")
+        tags = _postprocess_with_kgen(tags, ban_tags, sort_preset)
+    except Exception as e:
+        print(f"[TIPO] category sorting unavailable ({type(e).__name__}: {e}); "
+              "using basic tag cleanup")
+    tags = _filter_banned(_dedup(tags), ban_tags)
+    tags = _resolve_count_conflicts(tags, input_prompt)
+    return _drop_redundant(tags)
 
 
 def _avoid_hint(ban_tags):
@@ -432,7 +559,7 @@ def _avoid_hint(ban_tags):
 
 
 def expand_prompt(prompt, gguf_path, tag_length, ban_tags, temperature, seed,
-                  sort_preset=DEFAULT_SORT):
+                  sort_preset=DEFAULT_SORT, gpu_layers=0):
     """Expand a comma-separated tag prompt with a local GGUF model.
 
     On any failure (missing llama-cpp-python, model not found, inference or
@@ -441,13 +568,13 @@ def expand_prompt(prompt, gguf_path, tag_length, ban_tags, temperature, seed,
     if not prompt or not prompt.strip():
         return prompt
 
-    if not _ensure_deps():
-        print("[TIPO] dependencies unavailable; using original prompt")
-        return prompt
-
     try:
+        if not _ensure_deps():
+            print("[TIPO] dependencies unavailable; using original prompt")
+            return prompt
         resolved = _resolve_model_path(gguf_path)
-        llm = load_tipo(resolved)
+        layers = 0 if os.environ.get("RS_TIPO_FORCE_CPU", "").lower() in ("1", "true", "yes", "on") else int(gpu_layers)
+        llm = load_tipo(resolved, layers)
         if llm is None:
             print(f"[TIPO] model not loaded (path: {resolved!r}); using original prompt")
             return prompt
@@ -464,33 +591,29 @@ def expand_prompt(prompt, gguf_path, tag_length, ban_tags, temperature, seed,
             + _avoid_hint(ban_tags)
         )
 
-        resp = llm.create_chat_completion(
-            messages=[
-                {"role": "system", "content": SYSTEM_TIPO},
-                {"role": "user", "content": user_msg},
-            ],
-            max_tokens=512,
-            temperature=float(temperature),
-            top_p=0.9,
-            repeat_penalty=1.2,
-            seed=int(seed) % (2 ** 31),
-        )
+        # llama-cpp contexts are mutable and must not serve overlapping calls.
+        with _inference_lock:
+            resp = llm.create_chat_completion(
+                messages=[
+                    {"role": "system", "content": SYSTEM_TIPO},
+                    {"role": "user", "content": user_msg},
+                ],
+                max_tokens=512,
+                temperature=float(temperature),
+                top_p=0.9,
+                repeat_penalty=1.2,
+                seed=int(seed) % (2 ** 31),
+            )
         raw = resp["choices"][0]["message"]["content"]
 
-        tags_raw = _clean_special_tokens(raw).strip()
-        parsed = [
-            line.strip()
-            for line in tags_raw.splitlines()
-            if "," in line or len(line.split()) > 2
-        ]
-        tags = ", ".join(parsed) if parsed else tags_raw
+        tags = _extract_tags(raw)
+        if not tags:
+            return prompt
 
         # For tag input keep the original tags up front; for natural-language
         # input drop the raw text so it doesn't pollute the tag output.
         combined = _dedup(tags if is_nl else prompt.strip() + ", " + tags)
-        expanded = _postprocess_with_kgen(combined, ban_tags, sort_preset)
-        expanded = _resolve_count_conflicts(expanded, prompt)
-        return expanded if expanded else prompt
+        return _postprocess(combined, ban_tags, sort_preset, prompt)
 
     except Exception as e:
         print(f"[TIPO] expansion skipped ({type(e).__name__}: {e}); using original prompt")
