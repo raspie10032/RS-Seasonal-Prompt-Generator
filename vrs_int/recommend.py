@@ -14,9 +14,10 @@ class Recommender:
         self.snapshot = snapshot
         self.manifest = self.store.manifest(snapshot)
         self._visual_entries = None
+        self._pixel_hashes = {}
 
     def recommend(self, vector, image_sha256, neighbors=32, limit=20, ratings=(), batch_size=2048,
-                  dictionary=None):
+                  dictionary=None, device=None, pixel_sha256=None, interrupt=None):
         import numpy as np
         import torch
         if not torch.cuda.is_available():
@@ -25,15 +26,20 @@ class Recommender:
             raise ValueError("Invalid retrieval limits")
         if any(r not in ("g", "s", "q", "e", "u") for r in ratings):
             raise ValueError("Invalid ratings")
-        query = torch.as_tensor(vector, device="cuda", dtype=torch.float32).flatten()
+        device = torch.device(device if device is not None else "cuda")
+        if device.type != "cuda":
+            raise RuntimeError("CUDA search required; no CPU fallback")
+        query = torch.as_tensor(vector, device=device, dtype=torch.float32).flatten()
         if query.numel() != self.manifest["contract"]["dimension"] or not torch.isfinite(query).all() or query.norm() <= 0:
             raise ValueError("Invalid query vector")
         query = query / query.norm()
         best, pending, seen_images = [], [], set()
 
         def search_batch(entries):
+            if interrupt is not None:
+                interrupt()
             features = np.stack([decode_vector(e["vector"], query.numel()) for e in entries])
-            tensor = torch.from_numpy(features).to("cuda", torch.float32)
+            tensor = torch.from_numpy(features).to(device, torch.float32)
             tensor = torch.nn.functional.normalize(tensor, dim=1)
             similarities = (tensor @ query).cpu().tolist()
             # Stable key tie break, including across bucket boundaries.
@@ -44,13 +50,22 @@ class Recommender:
         # Only a bounded vector block resides on GPU. This is exact streaming
         # search, not a sublinear ANN index; million-scale latency is unproven.
         if self._visual_entries is None:
-            self._visual_entries = []
+            visual_entries, pixel_hashes = [], {}
             for entry in self.store.entries(self.snapshot):
+                if interrupt is not None:
+                    interrupt()
                 if entry["vector"] is not None and entry["document"]["split"] == "train":
-                    self._visual_entries.append(dict(recommendation_view(entry), audit=[]))
+                    for audit in entry.get("audit", []):
+                        if audit.get("native_pixel_sha256"):
+                            pixel_hashes[entry["key"]] = audit["native_pixel_sha256"]
+                    visual_entries.append(dict(recommendation_view(entry), audit=[]))
+            # Cancellation or a corrupt bucket must not publish a partial cache.
+            self._visual_entries, self._pixel_hashes = visual_entries, pixel_hashes
         for entry in self._visual_entries:
             doc = entry["document"]
             if entry["vector"] is None or doc["split"] != "train" or doc["image_sha256"] == image_sha256:
+                continue
+            if pixel_sha256 and self._pixel_hashes.get(entry["key"]) == pixel_sha256:
                 continue
             if ratings and doc["rating"] not in ratings:
                 continue

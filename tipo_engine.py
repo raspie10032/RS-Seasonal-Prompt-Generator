@@ -536,13 +536,14 @@ def _postprocess_with_kgen(tags_csv, ban_tags, sort_preset):
 def _postprocess(tags, ban_tags, sort_preset, input_prompt=""):
     # Filtering and conflict handling still work when optional kgen is absent.
     tags = _filter_banned(_dedup(_clean_special_tokens(tags)), ban_tags)
-    try:
-        if not _ensure_formatter():
-            raise ImportError("tipo-kgen is unavailable")
-        tags = _postprocess_with_kgen(tags, ban_tags, sort_preset)
-    except Exception as e:
-        print(f"[TIPO] category sorting unavailable ({type(e).__name__}: {e}); "
-              "using basic tag cleanup")
+    if sort_preset is not None:
+        try:
+            if not _ensure_formatter():
+                raise ImportError("tipo-kgen is unavailable")
+            tags = _postprocess_with_kgen(tags, ban_tags, sort_preset)
+        except Exception as e:
+            print(f"[TIPO] category sorting unavailable ({type(e).__name__}: {e}); "
+                  "using basic tag cleanup")
     tags = _filter_banned(_dedup(tags), ban_tags)
     tags = _resolve_count_conflicts(tags, input_prompt)
     return _drop_redundant(tags)

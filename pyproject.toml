@@ -1,14 +1,13 @@
 [project]
 name = "rs-seasonal-prompt-generator"
 description = "Seasonal fashion/scene prompts and local AI prompt writing for ComfyUI, with optional TIPO text/image tag expansion."
-version = "2.9.0"
+version = "2.10.0"
 license = { file = "LICENSE" }
 readme = "README.md"
 requires-python = ">=3.9"
 
-# Intentionally NO dependencies here: the base node is zero-dependency.
-# Optional AI features lazily auto-install llama-cpp-python / tipo-kgen
-# on first use only (see requirements.txt / README).
+# Seasonal and native Gemma add no packages to ComfyUI.
+# Legacy GGUF nodes have optional dependencies (requirements-legacy.txt).
 dependencies = []
 
 [project.urls]

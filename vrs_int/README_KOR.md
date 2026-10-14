@@ -394,3 +394,5 @@ python scripts/check_code_only.py
 가상 자료와 대체 인코더를 사용하며 GPU·모델 다운로드 없이 동작을 검사합니다.
 시각적 추천 품질 검사는 아닙니다. 게시 검사는 Git 인덱스를 보므로 스테이징된 내용도
 확인하세요. 개인 기억·패키지·가중치는 PR·릴리스에 포함하지 않습니다.
+
+ComfyUI 네이티브 / Native build, recall and Gemma integration: [guide](COMFYUI_NATIVE.md).

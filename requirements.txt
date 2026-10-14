@@ -1,19 +1,6 @@
-# Optional AI node dependencies (the Seasonal generator has none).
-# RS AI Prompt Writer needs llama-cpp-python only; tipo-kgen is a TIPO
-# formatting helper. Nodes install these lazily on first use as needed.
+# Seasonal and Gemma TIPO Native need no additional packages inside ComfyUI.
+# Native Gemma uses ComfyUI's PyTorch, tokenizer and model management.
+# This file intentionally installs nothing (including on Manager installation).
 #
-# llama-cpp-python : in-process GGUF inference. >=0.3.23 is REQUIRED — older
-#                    builds cannot load the gemma4 architecture. Native
-#                    package; if the default install fails, use the prebuilt
-#                    CPU wheel index:
-#                    pip install "llama-cpp-python>=0.3.23" \
-#                      --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
-# tipo-kgen        : used ONLY for its lightweight, pure-Python tag formatter
-#                    (kgen.formatter); kgen.executor / kgen.models are never
-#                    imported, so no torch/transformers is pulled in at runtime.
-#
-# The default model is downloaded with the standard library (urllib) straight
-# into ComfyUI/models/gguf with a node progress bar, so huggingface_hub is no
-# longer required.
-llama-cpp-python>=0.3.23
-tipo-kgen
+# Legacy GGUF TIPO and Qwen Writer have optional dependencies.
+# See requirements-legacy.txt and the README before selecting a CUDA wheel.

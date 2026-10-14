@@ -3,7 +3,7 @@
 [English](README.md) | 한국어
 
 계절별 CSV, 자연어 설명, 개인 이미지·태그 자료에서 이미지 생성용 프롬프트 재료를
-만듭니다. **ComfyUI 노드 3개**와 독립 실행 도구 **VRS-INT**를 제공합니다.
+만듭니다. **ComfyUI 노드 5개**와 독립 실행 도구 **VRS-INT**를 제공합니다.
 
 **VRS-INT는 코드·문서·가상 예제만 공개합니다.** 초기 기억, 수집한 단보루 이미지와
 태그, 특징 벡터, 추천 결과, 모델 가중치는 포함하지 않습니다. 각자 원하는 자료로
@@ -14,6 +14,8 @@
 | 원하는 작업 | 사용할 기능 | 필요한 것 |
 | --- | --- | --- |
 | 계절·의상·배경 무작위 조합 | Seasonal Fashion Prompt Generator | ComfyUI. 모델·추가 패키지 불필요 |
+| 텍스트·이미지 맥락을 태그형·자연어 지시문형으로 확장 | **[Gemma Prompt Expander Native](PROMPT_EXPANSION.md)** | 네이티브 Gemma 4 CLIP. 개인 태그 사전은 선택 입력 |
+| ComfyUI PyTorch로 텍스트·이미지 태그 확장 | **Gemma TIPO Native** | Gemma 4 지원 ComfyUI + 네이티브 safetensors. 추가 패키지 없음 |
 | 한국어 요청으로 영문 태그·문장 작성 | RS AI Prompt Writer | ComfyUI + 별도 Qwen Writer. Gemma TIPO와 다른 모델 |
 | 한국어·영어 설명이나 태그 확장 | Gemma TIPO 텍스트 모드 | ComfyUI + GGUF 실행 환경·모델. GPU 지원 실행 환경과 `gpu_layers=-1`로 GPU 적재 |
 | 참고 이미지에서 프롬프트용 태그 생성 | Gemma TIPO 이미지 모드 | ComfyUI + GGUF·호환 mmproj·llama.cpp 비전 실행 파일 |
@@ -52,31 +54,35 @@ ComfyUI/
 ```
 
 ComfyUI를 재시작하고 **`prompt`** 분류 또는 노드 이름 검색으로 추가합니다.
-세 노드의 출력은 `STRING`입니다. 텍스트 인코더에 연결할 때 ComfyUI 버전에 따라
+노드의 출력은 `STRING`입니다. 텍스트 인코더에 연결할 때 ComfyUI 버전에 따라
 프롬프트·텍스트 위젯을 입력으로 변환해야 합니다. 텍스트 미리보기 노드를 연결하면
 이미지 생성 전에 문자열을 확인할 수 있습니다.
 
-### 2. 선택 기능인 TIPO 준비
+### 2. Gemma TIPO Native 준비 (권장)
 
-계절 생성기는 Python 표준 라이브러리만 사용하므로 바로 실행할 수 있습니다.
-TIPO는 실제 생성 시 필요한 의존성 설치와 모델 다운로드를 시도합니다. 노드 패키지
-로드만으로 모델을 내려받지는 않습니다. 미리 설치하려면 **ComfyUI의 Python**으로
-저장소 폴더에서 실행하세요.
+**추가 pip 설치가 필요 없습니다.** `requirements.txt`와 패키지 기본 의존성은
+비어 있으며, ComfyUI의 PyTorch·토크나이저·GPU 모델 관리를 그대로 사용합니다.
+llama.cpp, C++ 빌드 도구, GGUF용 CUDA 휠이나 별도 mmproj를 설치하지 않습니다.
 
-```bash
-python -m pip install -r requirements.txt
-```
+1. Gemma 4와 `CLIP.generate`를 지원하는 ComfyUI를 사용하세요.
+2. **ComfyUI 형식의 Gemma 4 E2B safetensors**를 `ComfyUI/models/text_encoders/`에 넣습니다.
+3. `Load CLIP`에서 해당 모델, `type=stable_diffusion`, `device=default`를 선택합니다.
+4. `CLIP`을 **Gemma TIPO Native**에 연결하고 요청을 입력합니다. 이미지는 선택 입력입니다.
+5. `tags`를 `Preview as Text` 또는 이미지 생성용 텍스트 입력에 연결합니다.
 
-Windows portable에서는 `ComfyUI_windows_portable` 폴더에서 실행합니다.
+**기존 GGUF + mmproj는 네이티브 노드에 직접 넣을 수 없습니다.** 원래 튜닝된
+전체 HF safetensors가 있으면 [변환 도구·모델 준비 안내](NATIVE_TIPO.md)로
+학습된 텍스트·비전 연결부를 함께 보존하세요. 일반 Gemma 원본은 같은 TIPO
+튜닝 모델이 아닙니다. 변환 자체에는 재학습이 필요 없습니다.
 
-```powershell
-.\python_embeded\python.exe -m pip install -r .\ComfyUI\custom_nodes\RS-Seasonal-Prompt-Generator\requirements.txt
-```
+[네이티브 상세 사용법·Windows 명령·문제 해결](NATIVE_TIPO.md) ·
+[API 워크플로 예제](examples/gemma-tipo-native.api.json)
 
-의존성은 `tipo-kgen`, `llama-cpp-python>=0.3.23`입니다. 이미 로드된 구버전을
-업그레이드했다면 ComfyUI를 재시작합니다. 이 파일은 **TIPO용**이며 VRS-INT의
-CUDA·Transformers 환경을 설치하지 않습니다. 다운로드에는 인터넷과 저장 공간이
-필요하며 유료 추론 API는 사용하지 않습니다.
+기존 **Gemma TIPO** GGUF 노드와 **RS AI Prompt Writer**는 별도 선택 기능입니다.
+그 경로에만 `requirements-legacy.txt`가 필요합니다. GPU를 쓰려면 환경에 맞는
+llama-cpp-python CUDA 빌드를 먼저 선택하세요. 단순 pip 설치는 CPU 빌드를
+설치하거나 소스 빌드를 시작할 수 있습니다. 정렬기만 원하면 ComfyUI의 Python으로
+`python -m pip install --no-deps tipo-kgen`을 사용하세요. VRS-INT 설치는 별도입니다.
 
 ## 계절별 프롬프트 생성기
 
@@ -184,6 +190,8 @@ GPU 요청 시 CPU 전용 빌드는 모델 다운로드 전에 거부합니다. 
 
 ## Gemma TIPO: 텍스트 또는 이미지에서 태그 생성
 
+아래는 **기존 GGUF 노드**의 설명입니다. llama.cpp 없는 설치는 [Gemma TIPO Native](NATIVE_TIPO.md)를 사용하세요.
+
 하나로 통합된 노드입니다. **`image` 를 연결하면 → 비전 모드**
 (이미지를 Gemma-4 비전 = llama.cpp `mtmd` + 자동 다운로드된
 **co-trained 비전 모델 + mmproj** 로 캡션; `gpu_layers=-1`이면 GPU 자동 선택).
@@ -290,7 +298,7 @@ GPU 요청 시 CPU 전용 빌드는 모델 다운로드 전에 거부합니다. 
 대신 미리 수동 설치하려면(선택):
 
 ```
-pip install -r requirements.txt
+pip install -r requirements-legacy.txt
 ```
 
 프리빌트 `llama-cpp-python` 휠 설치가 사용자 플랫폼/Python 에 맞는
@@ -388,3 +396,5 @@ Python 3.11·3.13 조합으로 실행합니다. GPU 추론·추천 품질 평가
 | [p-e-w/gemma-4-E2B-it-heretic-ara](https://huggingface.co/p-e-w/gemma-4-E2B-it-heretic-ara) | TIPO 기반 계보, 별도 VRS-INT 시각 인코더 출처 |
 
 처음 ChatGPT로 작성했고 이후 Claude Code와 Codex로 개발했습니다.
+
+VRS inside ComfyUI / VRS 네이티브 구축·검색: [설치·연결·API 예제](vrs_int/COMFYUI_NATIVE.md)

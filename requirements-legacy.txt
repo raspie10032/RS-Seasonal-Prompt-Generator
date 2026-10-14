@@ -1,0 +1,8 @@
+# Optional: legacy GGUF Gemma TIPO and RS AI Prompt Writer ONLY.
+# This is not needed for Gemma TIPO Native.
+# A plain pip install can compile a CPU build. For GPU use select a compatible
+# llama-cpp-python wheel/build explicitly; see README.md / README_KOR.md.
+llama-cpp-python>=0.3.23
+# Optional category formatter: install separately with
+# python -m pip install --no-deps tipo-kgen
+# The full tipo-kgen dependency set can replace ComfyUI's torch/transformers.

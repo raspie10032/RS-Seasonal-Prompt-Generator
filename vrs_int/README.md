@@ -407,3 +407,5 @@ Tests use fictional data and substitute encoders, with no GPU/model download.
 They validate mechanics, not visual quality. The publication checker reads Git's
 index; inspect staged content as well. Personal memory/packages/weights are excluded
 from this repository; keep them out of pull requests and releases.
+
+ComfyUI 네이티브 / Native build, recall and Gemma integration: [guide](COMFYUI_NATIVE.md).

@@ -3,7 +3,7 @@
 English | [한국어](README_KOR.md)
 
 Create image-generation prompt ideas from seasonal CSVs, descriptions, or your
-own reference images and tags. This repository contains three **ComfyUI nodes**
+own reference images and tags. This repository contains five **ComfyUI nodes**
 and the standalone **VRS-INT** command-line tool.
 
 **VRS-INT ships code, documentation, and fictional examples only.** No starter
@@ -16,6 +16,8 @@ Artist, character, and series names are retained as core information.
 | What you want | Use | Requirements |
 | --- | --- | --- |
 | Random seasonal clothing and scene prompts | Seasonal Fashion Prompt Generator | ComfyUI; no model or extra packages |
+| Expand text/image context into tags and natural-language instructions | **[Gemma Prompt Expander Native](PROMPT_EXPANSION.md)** | Same native Gemma 4 CLIP; optional personal tag dictionary |
+| Expand text/image prompts using ComfyUI PyTorch | **Gemma TIPO Native** | Gemma 4 capable ComfyUI + native safetensors; no extra packages |
 | Write English tags or prose from Korean/English requests | RS AI Prompt Writer | ComfyUI + a separate Qwen Writer, distinct from Gemma TIPO |
 | Expand Korean/English descriptions or tags | Gemma TIPO, text mode | ComfyUI + GGUF runtime/model; GPU-capable runtime plus `gpu_layers=-1` enables GPU offload |
 | Generate prompt tags inspired by an image | Gemma TIPO, image mode | ComfyUI + GGUF + matching mmproj + llama.cpp vision runtime |
@@ -58,26 +60,31 @@ All return `STRING`. To connect one to a text encoder, convert the encoder's
 prompt/text widget to an input when required by your ComfyUI version. A text
 preview node lets you inspect the string before generating an image.
 
-### 2. Prepare optional TIPO dependencies
+### 2. Prepare Gemma TIPO Native (recommended)
 
-The seasonal node needs only Python's standard library. TIPO attempts dependency
-installation and model downloads on its first actual generation, not at import.
-For manual installation, run this from the repository using **ComfyUI's Python**:
+**No extra pip packages are needed.** `requirements.txt` and default package
+dependencies are empty. This path uses ComfyUI's PyTorch, tokenizer and GPU
+model management, without llama.cpp, C++ compilation, GGUF CUDA wheels or mmproj.
 
-```bash
-python -m pip install -r requirements.txt
-```
+1. Use ComfyUI with Gemma 4 and `CLIP.generate` support.
+2. Put a **ComfyUI-format Gemma 4 E2B safetensors** in `ComfyUI/models/text_encoders/`.
+3. Select it in `Load CLIP`, with `type=stable_diffusion`, `device=default`.
+4. Connect its `CLIP` to **Gemma TIPO Native** and enter a request. The image input is optional.
+5. Connect `tags` to `Preview as Text` or your image-generation text input.
 
-Windows portable, from `ComfyUI_windows_portable`:
+**Existing GGUF + mmproj files cannot be loaded directly.** If you have the
+fine-tuned full HF safetensors, use the [model preparation/conversion guide](NATIVE_TIPO.md)
+to retain its trained language and vision projector together. A generic base
+Gemma is not the existing TIPO fine-tune. Repackaging does not require training.
 
-```powershell
-.\python_embeded\python.exe -m pip install -r .\ComfyUI\custom_nodes\RS-Seasonal-Prompt-Generator\requirements.txt
-```
+[Native setup, Windows commands and troubleshooting](NATIVE_TIPO.md) ·
+[API workflow example](examples/gemma-tipo-native.api.json)
 
-The dependencies are `tipo-kgen` and `llama-cpp-python>=0.3.23`. Restart ComfyUI
-after upgrading an already loaded runtime. These are **TIPO requirements**, not
-VRS-INT's CUDA/Transformers setup. Downloads need network access and disk space;
-no paid inference API is used.
+The legacy **Gemma TIPO** GGUF node and **RS AI Prompt Writer** remain optional.
+Only those paths use `requirements-legacy.txt`. Select a matching llama-cpp-python
+CUDA build first for GPU inference: a plain pip install can select CPU wheels or
+start a source build. To install only the category formatter, use ComfyUI's
+Python: `python -m pip install --no-deps tipo-kgen`. VRS-INT setup is separate.
 
 ## Seasonal Fashion Prompt Generator
 
@@ -170,6 +177,8 @@ revision `a06e946bb6b655725eafa393f4a9745d460374c9`, file
 `3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597`.
 
 ## Gemma TIPO: text or image to prompt tags
+
+This section describes the **legacy GGUF node**. For installation without llama.cpp, use [Gemma TIPO Native](NATIVE_TIPO.md).
 
 One unified node. **Connect an `image` → vision mode** (the image is
 captioned via Gemma-4 vision = llama.cpp `mtmd` with the auto-downloaded
@@ -279,7 +288,7 @@ anything.
 To pre-install manually instead (optional):
 
 ```
-pip install -r requirements.txt
+pip install -r requirements-legacy.txt
 ```
 
 If the prebuilt `llama-cpp-python` wheel install can't find a wheel for your
@@ -381,3 +390,5 @@ terms; the code license does not relicense them.
 | [p-e-w/gemma-4-E2B-it-heretic-ara](https://huggingface.co/p-e-w/gemma-4-E2B-it-heretic-ara) | TIPO base lineage and source of VRS-INT's separately prepared vision tower |
 
 Originally created with ChatGPT, then developed with Claude Code and Codex.
+
+VRS inside ComfyUI / VRS 네이티브 구축·검색: [설치·연결·API 예제](vrs_int/COMFYUI_NATIVE.md)

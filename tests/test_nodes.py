@@ -18,9 +18,12 @@ import zipfile
 
 import seasonal_fashion_prompt_node as seasonal
 import gemma_tipo_node as node
+import gemma_tipo_native_node as native
+import gemma_prompt_expand_node as expansion
 import tipo_engine as te
 import tipo_vision_engine as ve
 import prompt_writer_node as writer
+import vrs_native_nodes as vrs_native
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -409,13 +412,17 @@ class NodeContractTests(unittest.TestCase):
     def test_api_examples_match_input_contracts(self):
         classes = {'SeasonalFashionPromptNode': seasonal.SeasonalFashionPromptNode,
                    'GemmaTipoNode': node.GemmaTipoNode,
-                   'RSPromptWriter': writer.RSPromptWriter}
+                   'GemmaTipoNative': native.GemmaTipoNative,
+                   'GemmaPromptExpandNative': expansion.GemmaPromptExpandNative,
+                   'RSPromptWriter': writer.RSPromptWriter,
+                   **{name: getattr(vrs_native, name) for name in (
+                       'VRSNativeVisionLoader', 'VRSNativeMemoryLoader', 'VRSNativeBuild', 'VRSNativeRecall')}}
         examples = sorted((ROOT / 'examples').glob('*.api.json'))
         self.assertGreaterEqual(len(examples), 3)
         for path in examples:
             graph = json.loads(path.read_text())['prompt']
             for entry in graph.values():
-                if entry['class_type'] == 'PreviewAny':
+                if entry['class_type'] in ('PreviewAny', 'CLIPLoader', 'LoadImage', 'VRSNativeVisionLoader'):
                     continue
                 cls = classes[entry['class_type']]
                 with patch.object(te, '_gguf_dir', return_value='/no-models-needed'):
@@ -440,7 +447,7 @@ spec = importlib.util.spec_from_file_location('rs_nodes', root / '__init__.py', 
 module = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = module
 spec.loader.exec_module(module)
-assert set(module.NODE_CLASS_MAPPINGS) == {'SeasonalFashionPromptNode', 'GemmaTipoNode', 'RSPromptWriter'}
+assert set(module.NODE_CLASS_MAPPINGS) == {'SeasonalFashionPromptNode', 'GemmaTipoNode', 'GemmaTipoNative', 'GemmaPromptExpandNative', 'RSPromptWriter', 'VRSNativeVisionLoader', 'VRSNativeMemoryLoader', 'VRSNativeBuild', 'VRSNativeRecall'}
 assert all(name not in sys.modules for name in ('torch', 'numpy', 'PIL', 'llama_cpp', 'kgen'))
 assert ('version = "' + module.__version__ + '"') in (root / 'pyproject.toml').read_text()
 '''

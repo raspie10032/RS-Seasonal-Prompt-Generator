@@ -1,0 +1,36 @@
+{
+  "prompt": {
+    "1": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "gemma4-e2b-native.safetensors",
+        "type": "stable_diffusion",
+        "device": "default"
+      }
+    },
+    "2": {
+      "class_type": "GemmaTipoNative",
+      "inputs": {
+        "clip": [
+          "1",
+          0
+        ],
+        "prompt": "금발 소녀가 겨울 공원에서 코트를 입고 산책",
+        "tag_length": "short",
+        "max_tokens": 384,
+        "temperature": 0.5,
+        "ban_tags": "scarf, masterpiece, best quality",
+        "seed": 42
+      }
+    },
+    "3": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "2",
+          0
+        ]
+      }
+    }
+  }
+}

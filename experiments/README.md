@@ -1,5 +1,15 @@
 # VRS + Danbooru GPU trial
 
+Gemma TIPO의 프롬프트 확장 품질 개선 작업은
+[평가 자료·학습 입력 가이드](TIPO_QUALITY.md)를 참고하세요.
+`experiments.tipo_corpus`는 개인 카탈로그·단보루 사전·작성한 장면 레시피로
+애니·게임 그래픽용 텍스트 학습자료를 준비합니다. 다운로드·학습·픽셀 정답 생성은
+하지 않으며, 실행 방법과 데이터 분리·출처 한계는 위 가이드에 있습니다.
+실제 이미지와 한국어 변경 지시를 함께 학습하는 경로는 가이드의
+[Korean instructions with real image inputs](TIPO_QUALITY.md#korean-instructions-with-real-image-inputs)에 있습니다.
+`--multimodal`로 비전 계산을 유지하고 언어 LoRA를 학습하며, ComfyUI와 입력 토큰·픽셀·패치 위치가
+일치하는지 확인합니다. 이미지 원본·시각 주석·정답·가중치는 개인 경로에 보관하세요.
+
 Gemma 내부 FFN 계산 결과를 저장·재사용하는 200장 실험은
 [내부 계산 경험 안내](../vrs_int/ACTIVATION_MEMORY.md)를 참고하세요.
 이미지·태그 검색과 별개의 실험이며, 가중치나 층을 제거하지 않습니다.

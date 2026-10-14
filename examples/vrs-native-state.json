@@ -1,0 +1,71 @@
+{
+  "schema": "vrs-int-generation-state/2",
+  "snapshot": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "request": "선택한 인물이 겨울 공원에서 컵을 들고 있게. 목도리는 제외.",
+  "controls": {
+    "keep": [
+      "example character (example series)"
+    ],
+    "target": [
+      "holding cup",
+      "winter"
+    ],
+    "exclude": [
+      "scarf"
+    ]
+  },
+  "identity_candidates": {
+    "character": [
+      {
+        "tag": "example character (example series)"
+      },
+      {
+        "tag": "another character"
+      }
+    ],
+    "copyright": [],
+    "artist": [
+      {
+        "tag": "unselected artist"
+      }
+    ]
+  },
+  "reference_groups": {
+    "appearance": [
+      {
+        "tag": "blue eyes"
+      }
+    ],
+    "clothing": [
+      {
+        "tag": "coat"
+      },
+      {
+        "tag": "scarf"
+      }
+    ],
+    "setting": [
+      {
+        "tag": "masterpiece"
+      },
+      {
+        "tag": "2025"
+      },
+      {
+        "tag": "park"
+      }
+    ]
+  },
+  "cooccurrence": [
+    {
+      "tags": [
+        "blue eyes",
+        "coat",
+        "scarf",
+        "park",
+        "unselected artist"
+      ]
+    }
+  ],
+  "note": "Fictional schema example only; snapshot is not a real experience package."
+}

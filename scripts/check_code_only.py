@@ -11,6 +11,11 @@ import sys
 
 # Hashes pin reviewed fixtures; a name alone must not allow replaced contents.
 REVIEWED = {
+    "examples/gemma-prompt-expand-native.api.json": "83c7c3326a01f2a06efa8dc7be90ce59c3b72660af4a8608a8a15e63ca38cb65",
+    "examples/gemma-tipo-native.api.json": "74d457cbfa38ac10a93a37caefd38c5d35762f5cb39876aaaf14fdf3cc239208",
+    "examples/vrs-native-build.api.json": "80e38c6cc608e3fdc40ada0391fbb22c37b74a572f7a2fb257ef36e2691ea56c",
+    "examples/vrs-native-recall.api.json": "fba7db890c6df75572013da64dedde4cc3fb3cae6dc9e59ccce2140d2d48ad31",
+    "examples/vrs-native-state.json": "18ee07175c3d2e9c724e873f22f7d32fd31e73b12c2189d363fc61d0f80bd54b",
     "examples/korean-ai-writer.api.json": "5727b152f343a062452d1a41cd4cef371b70074e61f57d034b1ca09e07da791a",
     "examples/seasonal-prompt.api.json": "bd803209a454c11b941831a5ad7f8b94b3c7a4043dd01fe4f01d10bb9702528b",
     "examples/seasonal-to-tipo.api.json": "5b889482a98b95585bc65f98f3034717da88207d779a90e03745de121b0c8e97",

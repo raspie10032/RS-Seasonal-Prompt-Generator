@@ -1,0 +1,25 @@
+{
+  "prompt": {
+    "1": {"class_type": "VRSNativeVisionLoader", "inputs": {"model_name": "gemma4-e2b-native.safetensors"}},
+    "2": {"class_type": "VRSNativeMemoryLoader", "inputs": {"store_path": "/path/to/native-memory", "snapshot": "REPLACE_WITH_64_CHARACTER_SNAPSHOT"}},
+    "3": {"class_type": "LoadImage", "inputs": {"image": "reference.png"}},
+    "4": {"class_type": "VRSNativeRecall", "inputs": {
+      "encoder": ["1", 0], "memory": ["2", 0], "image": ["3", 0],
+      "prompt": "참고 이미지의 인물을 가을 공원에서 산책하는 장면으로 확장해줘. 초록 코트를 입히고 무기는 빼줘.",
+      "keep_tags": "", "target_tags": "", "exclude_tags": "weapon, bow (weapon), arrow (projectile)",
+      "ratings": "g,s,q,e,u", "neighbors": 32, "limit": 64
+    }},
+    "5": {"class_type": "CLIPLoader", "inputs": {"clip_name": "gemma4-e2b-native.safetensors", "type": "stable_diffusion", "device": "default"}},
+    "6": {"class_type": "GemmaPromptExpandNative", "inputs": {
+      "clip": ["5", 0], "image": ["3", 0], "vrs_state": ["4", 0],
+      "prompt": "참고 이미지의 인물을 가을 공원에서 산책하는 장면으로 확장해줘. 초록 코트를 입히고 무기는 빼줘.",
+      "output_format": "both", "tag_length": "short", "max_tokens": 512, "temperature": 0.5,
+      "ban_tags": "weapon, bow (weapon), arrow (projectile)", "seed": 42,
+      "tag_set": "danbooru", "tag_knowledge_path": ""
+    }},
+    "7": {"class_type": "PreviewAny", "inputs": {"source": ["6", 0]}},
+    "8": {"class_type": "PreviewAny", "inputs": {"source": ["6", 1]}},
+    "9": {"class_type": "PreviewAny", "inputs": {"source": ["4", 2]}},
+    "10": {"class_type": "PreviewAny", "inputs": {"source": ["6", 2]}}
+  }
+}

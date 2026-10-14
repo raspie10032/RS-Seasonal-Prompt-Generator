@@ -12,6 +12,7 @@ import random
 from vrs_int.generation_state import messages_for
 from vrs_int.state_selection import exclusive_slot
 from vrs_int.tag_policy import canonical, filter_recommendation_tags
+from tipo_prompt import row_messages, instruction_messages
 
 SCENES = (
     ("spring_garden", "봄 정원에서 서서 꽃을 바라보는 장면", ["spring", "garden", "standing", "flower", "outdoors"], ["winter", "indoors", "sitting"]),
@@ -54,9 +55,10 @@ def score_output(raw, required, excluded):
 
 
 def validate_row(row):
-    messages = row["messages"]
-    if [m["role"] for m in messages] != ["system", "user", "assistant"]:
-        raise ValueError("Exactly one system/user/assistant exchange is required")
+    messages = row_messages(row)
+    expected = ["user", "assistant"] if row.get("prompt_contract") else ["system", "user", "assistant"]
+    if [m["role"] for m in messages] != expected:
+        raise ValueError("Unexpected instruction/assistant exchange")
     if not all(isinstance(m["content"], str) and m["content"].strip() for m in messages):
         raise ValueError("Empty or non-text message")
     if set(row["required"]) & set(row["excluded"]):
@@ -70,7 +72,7 @@ def validate_splits(train, evaluation):
         validate_row(row)
     if {r["family"] for r in train} & {r["family"] for r in evaluation}:
         raise ValueError("Scene-family leakage")
-    if {digest(r["messages"][:2]) for r in train} & {digest(r["messages"][:2]) for r in evaluation}:
+    if {digest(instruction_messages(r)) for r in train} & {digest(instruction_messages(r)) for r in evaluation}:
         raise ValueError("Prompt leakage")
 
 

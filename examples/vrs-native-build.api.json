@@ -1,0 +1,9 @@
+{
+  "prompt": {
+    "1": {"class_type": "VRSNativeVisionLoader", "inputs": {"model_name": "gemma4-e2b-native.safetensors"}},
+    "2": {"class_type": "VRSNativeBuild", "inputs": {
+      "encoder": ["1", 0], "manifest_path": "/path/to/pairs.jsonl", "images_root": "/path/to/images",
+      "store_path": "/path/to/new-native-memory", "base_snapshot": "", "label": "native-personal"
+    }}
+  }
+}
