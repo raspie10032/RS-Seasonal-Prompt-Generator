@@ -20,7 +20,8 @@
         "max_tokens": 384,
         "temperature": 0.5,
         "ban_tags": "scarf, masterpiece, best quality",
-        "seed": 42
+        "seed": 42,
+        "tipo_lora": "none"
       }
     },
     "3": {

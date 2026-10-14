@@ -9,6 +9,17 @@
 추가 pip 설치·llama.cpp·별도 번역 모델이 필요 없습니다. 기존 `Gemma TIPO Native`의
 태그 전용 입력 형식·출력 포트·학습 템플릿은 유지됩니다.
 
+`tipo_lora`는 `none`(기본), `pilot-001`, `pilot-002` 중 선택합니다. 후보를 선택하면
+노드 내부에서 최초에만 약 45.3MiB를 다운로드·검증해 적용합니다. **별도 네이티브
+베이스 약 9.57GiB는 여전히 필요**합니다. 두 후보는 이전 태그 전용 실험이며 이중
+출력/VRS 품질 개선을 입증하지 않았습니다. 이미 병합된 모델에는 중복 적용하지 마세요.
+[설치와 오프라인 사용](NATIVE_TIPO.md#built-in-experimental-lora--노드-내부-실험-lora)을 참고하세요.
+
+**Optional adapters:** `tipo_lora` defaults to `none`. Either pilot downloads
+~45.3MiB on first use; a separate ~9.57GiB native base is still required.
+These are tag-only experiments, not proven dual-output/VRS improvements.
+See the [native setup](NATIVE_TIPO.md) for exact base and offline installation.
+
 ### 연결과 두 출력
 
 1. [네이티브 모델 준비](NATIVE_TIPO.md)를 마치고 `Load CLIP`의 `CLIP` 출력을

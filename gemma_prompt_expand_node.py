@@ -2,12 +2,12 @@
 import json
 
 try:
-    from .gemma_tipo_native_node import GemmaTipoNative, validate_input, generate_text, clean_tags
+    from .gemma_tipo_native_node import GemmaTipoNative, validate_input, generate_text, clean_tags, apply_tipo_lora, REQUIREMENTS
     from .prompt_expansion import VERSION, OUTPUT_FORMATS, build_expansion_prompt, clean_natural_language
     from .tag_knowledge import load_knowledge, append_vocabulary
     from .vrs_prompt_reference import load_reference, prepare_reference, append_reference, external_fingerprint
 except ImportError:
-    from gemma_tipo_native_node import GemmaTipoNative, validate_input, generate_text, clean_tags
+    from gemma_tipo_native_node import GemmaTipoNative, validate_input, generate_text, clean_tags, apply_tipo_lora, REQUIREMENTS
     from prompt_expansion import VERSION, OUTPUT_FORMATS, build_expansion_prompt, clean_natural_language
     from tag_knowledge import load_knowledge, append_vocabulary
     from vrs_prompt_reference import load_reference, prepare_reference, append_reference, external_fingerprint
@@ -43,11 +43,11 @@ class GemmaPromptExpandNative:
         "Expand text/image context into Danbooru tags and/or an English image-generation instruction. "
         "both creates prose first, then tags from that scene using the same Gemma 4 CLIP. "
         "Accept a connected VRS native retrieval state or a saved state, plus a local tag dictionary. "
-        "The VRS Recall node performs image lookup; no training is required."
+        "The VRS Recall node performs image lookup; no training is required. " + REQUIREMENTS
     )
 
     def run(self, clip, prompt, tag_length, max_tokens, temperature, ban_tags, seed,
-            output_format="both", image=None, tag_set="danbooru", tag_knowledge_path="", vrs_state_path="", vrs_state=None):
+            output_format="both", image=None, tag_set="danbooru", tag_knowledge_path="", vrs_state_path="", vrs_state=None, tipo_lora="none"):
         if output_format not in OUTPUT_FORMATS:
             raise ValueError("Unknown output_format")
         if not validate_input(prompt, tag_length, image):
@@ -76,6 +76,7 @@ class GemmaPromptExpandNative:
         if knowledge and tag_set not in knowledge.provenance["sources"]:
             raise ValueError("Tag knowledge has no entries for the selected tag_set")
         vocab = knowledge.vocabulary(prompt, tag_set) if knowledge else None
+        clip = apply_tipo_lora(clip, tipo_lora)
         scene_vocab = None
         def instruction(kind, scene=None):
             nonlocal scene_vocab

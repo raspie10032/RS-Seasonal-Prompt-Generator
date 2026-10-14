@@ -1,15 +1,17 @@
 """TIPO-style expansion through ComfyUI's own Gemma 4 PyTorch runtime.
 
-No downloads, package installation, model cache, or private GPU allocator here:
-the CLIP input comes from ComfyUI's standard Load CLIP node.
+The base CLIP comes from ComfyUI's Load CLIP. Optional built-in adapters download
+on first use; ComfyUI owns model patching and GPU allocation.
 """
 import re
 import sys
 
 try:
     from .tipo_prompt import build_user_prompt
+    from .tipo_native_lora import CHOICES, REQUIREMENTS, apply_tipo_lora
 except ImportError:
     from tipo_prompt import build_user_prompt
+    from tipo_native_lora import CHOICES, REQUIREMENTS, apply_tipo_lora
 
 
 def _engine():
@@ -90,7 +92,8 @@ class GemmaTipoNative:
                                           "tooltip": "Comma-separated English tags. Removed from tag output after generation; raw output is unfiltered."}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
             },
-            "optional": {"image": ("IMAGE",)},
+            "optional": {"image": ("IMAGE",), "tipo_lora": (list(CHOICES), {
+                "default": "none", "tooltip": REQUIREMENTS})},
         }
 
     RETURN_TYPES = ("STRING", "STRING")
@@ -100,12 +103,13 @@ class GemmaTipoNative:
     DESCRIPTION = (
         "Gemma 4 tag expansion with ComfyUI's native PyTorch/model management. "
         "Connect a Gemma 4 Load CLIP; optionally connect one image. "
-        "No llama.cpp, mmproj, pip installation, or model downloads."
+        "No llama.cpp, mmproj or extra pip installation. " + REQUIREMENTS
     )
 
-    def run(self, clip, prompt, tag_length, max_tokens, temperature, ban_tags, seed, image=None):
+    def run(self, clip, prompt, tag_length, max_tokens, temperature, ban_tags, seed, image=None, tipo_lora="none"):
         if not validate_input(prompt, tag_length, image):
             return ("", "")
+        clip = apply_tipo_lora(clip, tipo_lora)
         raw = generate_text(clip, build_prompt(prompt, tag_length, ban_tags, image is not None),
                             image, max_tokens, temperature, seed)
         tags = clean_tags(raw, ban_tags, prompt)

@@ -8,7 +8,7 @@
       "prompt": "파란 머리 여성 한 명이 겨울 야시장에서 따뜻한 차를 들고 서 있는 장면. 코트는 입히고 목도리는 제외. 2D 애니메이션으로 확장해줘.",
       "output_format": "both", "tag_length": "short", "max_tokens": 512,
       "temperature": 0.5, "ban_tags": "scarf, masterpiece, best quality", "seed": 42,
-      "tag_set": "danbooru", "tag_knowledge_path": ""
+      "tag_set": "danbooru", "tag_knowledge_path": "", "tipo_lora": "none"
     }},
     "3": {"class_type": "PreviewAny", "inputs": {"source": ["2", 0]}},
     "4": {"class_type": "PreviewAny", "inputs": {"source": ["2", 1]}}

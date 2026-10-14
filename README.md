@@ -3,7 +3,7 @@
 English | [한국어](README_KOR.md)
 
 Create image-generation prompt ideas from seasonal CSVs, descriptions, or your
-own reference images and tags. This repository contains five **ComfyUI nodes**
+own reference images and tags. This repository contains nine **ComfyUI nodes**
 and the standalone **VRS-INT** command-line tool.
 
 **VRS-INT ships code, documentation, and fictional examples only.** No starter
@@ -26,7 +26,13 @@ Artist, character, and series names are retained as core information.
 VRS-INT retrieves creative reference material. It does not train the encoder,
 reliably identify an image's author, or write a finished natural-language prompt.
 Use its tags in your image prompt or a separate prompt writer. This public
-version has no VRS-INT ComfyUI node or automatic Writer connection.
+version includes [four native VRS nodes](vrs_int/COMFYUI_NATIVE.md) for building,
+loading and recalling personal experience into the native Gemma Prompt Expander.
+
+**Optional TIPO LoRA:** choose `tipo_lora` inside either native Gemma node;
+first use downloads a ~45.3MiB experimental adapter. A separate **~9.57GiB
+native base** is still required. Default is `none`; no extra loader node.
+See [base setup, downloads and limitations](NATIVE_TIPO.md#built-in-experimental-lora--노드-내부-실험-lora).
 
 - **ComfyUI:** follow [installation](#install-for-comfyui), then the node guides below.
 - **VRS-INT only:** start with the [complete VRS-INT guide](vrs_int/README.md). ComfyUI and the full Gemma language model are unnecessary.
@@ -56,7 +62,8 @@ ComfyUI/
 ```
 
 Restart ComfyUI. Find the nodes under **`prompt`** or search by display name.
-All return `STRING`. To connect one to a text encoder, convert the encoder's
+Prompt-generation nodes return `STRING`; native VRS nodes also return typed
+encoder, memory and generation-state connections. To connect a string to a text encoder, convert the encoder's
 prompt/text widget to an input when required by your ComfyUI version. A text
 preview node lets you inspect the string before generating an image.
 
@@ -332,7 +339,8 @@ FFN computation replay is not part of this checkpoint.
 - [Korean text knowledge and translation dictionary](vrs_int/TAG_DICTIONARY.md)
 - [VRS reference state → TIPO expansion](vrs_int/GENERATION_STATE.md)
 
-The state connection is a CLI workflow. Negation and scene constraints still need
+The state connection is available through the CLI and [native VRS nodes](vrs_int/COMFYUI_NATIVE.md).
+Negation and scene constraints still need
 output review. Vision TIPO exits its process after each call; legacy text TIPO
 caches its model. Both use two CPU helper threads by default.
 
@@ -340,7 +348,7 @@ caches its model. Both use two CPU helper threads by default.
 
 | Symptom | What to check |
 | --- | --- |
-| Nodes missing | Folder nesting, restart, startup import errors; search `prompt`. VRS-INT is a CLI, not a node. |
+| Nodes missing | Folder nesting, restart, startup import errors; search `prompt` or `VRS Native`. See [native VRS requirements](vrs_int/COMFYUI_NATIVE.md). |
 | TIPO returns original text | Dependency/model/inference failure can cause fallback. Read `[TIPO]` console messages. |
 | Vision output empty | Read `[TIPO-V]` logs. Check model/projector pairing, executable libraries, input image, and 600-second inference timeout. |
 | `unknown model architecture: gemma4` | Check Gemma4-capable llama-cpp-python ≥0.3.23 in ComfyUI's interpreter; restart after upgrading. |

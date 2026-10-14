@@ -14,8 +14,9 @@ Evaluation and shared training-input instructions: [TIPO quality guide](experime
 
 `Gemma TIPO Native`는 ComfyUI의 `CLIP.tokenize/generate/decode`와 모델 관리로
 Gemma 4 E2B를 실행합니다. 한국어·영어 요청, 태그, 선택한 이미지 한 장으로
-이미지 생성용 영문 태그를 확장합니다. 노드가 모델이나 패키지를 자동 설치하지
-않으며, 별도 llama.cpp 프로세스·GGUF·mmproj가 필요 없습니다.
+이미지 생성용 영문 태그를 확장합니다. 베이스 모델은 별도로 준비하며 패키지 자동
+설치는 없습니다. 선택한 실험 LoRA는 최초 실행 시 다운로드합니다.
+별도 llama.cpp 프로세스·GGUF·mmproj가 필요 없습니다.
 
 ### 설치와 연결
 
@@ -42,7 +43,8 @@ Gemma 4 E2B를 실행합니다. 한국어·영어 요청, 태그, 선택한 이�
 | ComfyUI 형식의 Gemma 4 E2B safetensors | `Load CLIP`에서 직접 로드 |
 | 튜닝 완료된 전체 HF Gemma 4 E2B safetensors + tokenizer/config | 아래 도구로 이름·포장을 변환. 학습된 비전 연결부도 함께 보존 |
 | GGUF 텍스트 + mmproj만 있음 | 직접 로드 불가. 기존 GGUF 노드를 쓰거나 원래 전체 HF 체크포인트 확보 |
-| LoRA/adapter만 있음 | 이 도구의 입력이 아님. 해당 원본 모델에 정상 병합한 전체 체크포인트 필요 |
+| 공개 TIPO LoRA pilot-001/002 | 해당 네이티브 베이스를 연결하고 TIPO 안에서 `tipo_lora` 선택. 별도 LoRA 로더 불필요 |
+| 그 외 LoRA/adapter만 있음 | 해당 원본 모델에 정상 병합한 전체 체크포인트 필요 |
 | 일반 Gemma 4 E2B 원본 | 실행 가능. 기존 TIPO 튜닝을 가진 모델은 아니므로 품질을 따로 비교해야 함 |
 
 기존 GGUF를 safetensors로 이름만 바꾸거나, 별개의 원본 모델에 튜닝된 mmproj를
@@ -117,8 +119,9 @@ Windows portable의 최상위 폴더에서:
 
 Gemma TIPO Native uses ComfyUI's own PyTorch Gemma 4 runtime and model management
 to expand Korean/English requests or a single optional image into prompt tags.
-There are **no extra pip dependencies, automatic downloads, llama.cpp processes,
-GGUF files or separate mmproj files** on this path.
+There are **no extra pip dependencies, llama.cpp processes, GGUF files or separate
+mmproj files** on this path. Optional TIPO adapters download only when selected;
+the full native base must be prepared separately.
 
 ### Setup
 
@@ -143,8 +146,9 @@ not provide its size reduction. VRAM depends on ComfyUI loading/offload settings
 
 Existing GGUF/mmproj cannot be loaded directly. To retain TIPO tuning, obtain its
 matching full HF weights and tokenizer, including its trained vision projector.
-Adapters must first be merged into the correct base outside this tool. A generic
-base Gemma can run here but does not thereby inherit TIPO fine-tuning. Runtime
+The published TIPO pilots can be selected inside the node, without a separate
+adapter loader. Other adapters must first be merged into the correct base outside
+this tool. A generic base Gemma can run here but does not thereby inherit TIPO fine-tuning. Runtime
 conversion itself does not require training.
 
 ### Controls and behavior
@@ -173,3 +177,57 @@ The [API graph example](examples/gemma-tipo-native.api.json) is the request body
 for `POST /prompt`, **not a canvas workflow export**. Change `clip_name` to your
 local filename. Add `LoadImage` and connect `image` for image input. Legacy GGUF
 nodes remain available with their separate `requirements-legacy.txt` dependencies.
+
+## Built-in experimental LoRA / 노드 내부 실험 LoRA
+
+**용량 안내: LoRA만으로 실행할 수 없습니다. 약 9.57GiB의 네이티브 Gemma 베이스가
+별도로 필요합니다.** 원본 HF 다운로드와 변환본을 모두 보관하면 가중치만 약
+19.2GiB를 사용하므로 작업 여유 공간도 확보하세요. 이는 디스크 크기이며 VRAM
+사용량이 아닙니다. 기존 GGUF·mmproj는 이 경로의 베이스로 쓸 수 없습니다.
+
+1. [베이스 모델](https://huggingface.co/p-e-w/gemma-4-E2B-it-heretic-ara)의
+   revision `c9a1d4c031981f14d86eeb0c7d87de7fafd34513`을 받습니다.
+   이는 Google 원본 그대로가 아닌 **Heretic ARA 파생 모델**입니다.
+2. 위 변환 명령으로 네이티브 safetensors를 만들고 `Load CLIP`으로 연결합니다.
+   베이스 다운로드·변환은 노드가 자동으로 수행하지 않습니다.
+3. `Gemma TIPO Native` 또는 `Gemma Prompt Expander Native`의 `tipo_lora`를 고릅니다.
+   `none`이 기본값이며 기존 워크플로는 그대로 동작합니다.
+4. `pilot-001` 또는 `pilot-002`를 선택하면 처음 실행할 때만 약 **45.3MiB**의
+   LoRA와 설정 파일을 받고, SHA-256 확인 후 ComfyUI의 CLIP 복제본에 적용합니다.
+   별도 LoRA 로더 노드·PEFT·Transformers·bitsandbytes 설치가 필요 없습니다.
+5. `none`으로 돌아가면 연결된 원본 CLIP을 사용합니다. 파일을 영구 병합하지 않습니다.
+
+| 선택 | 공개 배포 | 용도와 한계 |
+| --- | --- | --- |
+| `none` | 연결된 네이티브 모델 | 기본값. 원본으로 두 출력/VRS 연결을 검증한 상태 |
+| `pilot-001` | [LoRA 001](https://huggingface.co/raspie/gemma4-tipo-lora-pilot-001) | 태그 전용 학습 320건. 이름 보존은 002보다 나았지만 실험 후보 |
+| `pilot-002` | [LoRA 002](https://huggingface.co/raspie/gemma4-tipo-lora-pilot-002) | 태그 전용 학습 1,872건. 일부 확장 개선, 이름·제외 조건 후퇴 |
+
+두 후보는 **자연어+태그 이중 출력/VRS용으로 새 학습된 모델이 아닙니다.** 원문 평가
+42/100·50/100은 기존 병합 BF16 모델의 개발 문제 조건 검사이며, 네이티브 런타임
+LoRA의 전체 품질 점수가 아닙니다. 모델 카드에 출처와 비교 범위를 기록했습니다.
+
+**이미 LoRA가 병합된 pilot 모델에 다시 적용하지 마세요.** 런타임 패치 중복은
+검사하지만, 임의의 전체 모델이 이미 병합됐는지 구조만으로 식별할 수는 없습니다.
+동일한 구조의 다른 Gemma도 대응 베이스라는 뜻은 아닙니다. 정확한 베이스를 쓰세요.
+태그 노드의 LoRA 선택은 VRS 비전 로더에 영향을 주지 않습니다.
+
+오프라인 사용은 각 HF 저장소의 `adapter_config.json`, `adapter_model.safetensors`를
+`ComfyUI/models/loras/rs_gemma_tipo/pilot-001/` 또는 `pilot-002/`에 넣으면 됩니다.
+검증된 파일은 재다운로드하지 않습니다. 해시·크기가 틀린 기존 파일은 덮어쓰지 않고
+오류를 냅니다. 오류 파일을 다른 위치로 옮겨 보관한 뒤 다시 다운로드하세요.
+전송 중단 시 임시 파일은 제거되며 불완전한 파일로 추론하지 않습니다.
+
+**English:** adapters alone cannot run: prepare the separate **~9.57GiB native
+base** above (HF source plus converted copy: ~19.2GiB of weights on disk).
+This is not a VRAM estimate. Select `tipo_lora=pilot-001` or `pilot-002` inside
+either native TIPO/Prompt Expander node. First use downloads ~45.3MiB into
+`models/loras/rs_gemma_tipo/<choice>/`, checks pinned hashes, and patches a cloned
+CLIP through ComfyUI. No separate LoRA loader or additional packages are required.
+`none` preserves existing workflows and passes the original CLIP unchanged.
+The full base is not automatically downloaded/converted. Use the exact Heretic
+ARA revision linked above; GGUF/mmproj and already merged pilot models are not
+valid bases for this option. Both pilots are **experimental tag-only training**,
+not validated dual-output/VRS improvements. See their model cards for metrics.
+Offline installs use the same two files and directories; corrupted files are
+rejected without overwrite, and interrupted transfers are never cached as models.
