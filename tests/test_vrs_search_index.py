@@ -3,6 +3,7 @@ import gc
 import hashlib
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -56,6 +57,11 @@ def eligible_reference(store, snapshot, image=None, pixel=None, ratings=()):
 
 class SearchIndexTests(unittest.TestCase):
     def setUp(self):
+        # Disk-pressure behavior is tested separately; CI runner capacity varies.
+        disk = patch("vrs_int.search_cache.shutil.disk_usage",
+                     return_value=SimpleNamespace(total=100 * 1024 ** 3, free=80 * 1024 ** 3))
+        disk.start()
+        self.addCleanup(disk.stop)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)

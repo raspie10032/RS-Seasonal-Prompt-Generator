@@ -48,6 +48,10 @@ class Queue:
 
 class FolderTests(unittest.TestCase):
     def setUp(self):
+        disk = patch("vrs_int.search_cache.shutil.disk_usage",
+                     return_value=SimpleNamespace(total=100 * 1024 ** 3, free=80 * 1024 ** 3))
+        disk.start()
+        self.addCleanup(disk.stop)
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name)

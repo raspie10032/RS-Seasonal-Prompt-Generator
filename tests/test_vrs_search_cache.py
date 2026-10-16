@@ -8,6 +8,7 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -21,6 +22,10 @@ from vrs_int.store import Store, revision
 
 class PersistentSearchTests(unittest.TestCase):
     def setUp(self):
+        disk = patch("vrs_int.search_cache.shutil.disk_usage",
+                     return_value=SimpleNamespace(total=100 * 1024 ** 3, free=80 * 1024 ** 3))
+        disk.start()
+        self.addCleanup(disk.stop)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
@@ -65,10 +70,13 @@ class PersistentSearchTests(unittest.TestCase):
         self.index().close()
         code = """
 import json,sys
+from types import SimpleNamespace
 from unittest.mock import patch
 from vrs_int.search_index import SearchIndex
 from vrs_int.store import Store
-with patch.object(Store, 'read_bucket', side_effect=AssertionError('unpack')):
+with patch.object(Store, 'read_bucket', side_effect=AssertionError('unpack')), patch(
+    'vrs_int.search_cache.shutil.disk_usage',
+    return_value=SimpleNamespace(total=100 * 1024 ** 3, free=80 * 1024 ** 3)):
     index=SearchIndex(Store(sys.argv[1]), sys.argv[2])
 print(json.dumps(index.stats)); index.close()
 """
@@ -181,21 +189,43 @@ print(json.dumps(index.stats)); index.close()
         self.assertFalse(old.path.exists())
         self.assertGreater(new.count, 0)
 
+    def test_disk_reserve_rejects_low_space_without_losing_active_cache(self):
+        old = self.index()
+        docs = old.documents(range(old.count))
+        with patch("vrs_int.search_cache.shutil.disk_usage",
+                   return_value=SimpleNamespace(total=100 * 1024 ** 3, free=19 * 1024 ** 3)):
+            with self.assertRaisesRegex(OSError, "20% free disk reserve"):
+                self.index()
+        self.assertTrue(old.path.exists())
+        self.assertEqual(old.documents(range(old.count)), docs)
+        self.assertEqual(self.index().path, old.path)
+
     def test_two_processes_serialize_preparation_and_share_one_pool(self):
         code = """
 import json,sys
+from types import SimpleNamespace
+from unittest.mock import patch
 from vrs_int.search_index import SearchIndex
 from vrs_int.store import Store
-index=SearchIndex(Store(sys.argv[1]), sys.argv[2])
+with patch('vrs_int.search_cache.shutil.disk_usage',
+           return_value=SimpleNamespace(total=100 * 1024 ** 3, free=80 * 1024 ** 3)):
+    index=SearchIndex(Store(sys.argv[1]), sys.argv[2])
 print(json.dumps(dict(path=str(index.path), stats=index.stats))); index.close()
 """
         command = [sys.executable, "-c", code, str(self.store.root), self.snapshot]
         workers = [subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) for _ in range(2)]
         results = []
-        for worker in workers:
-            out, err = worker.communicate(timeout=30)
-            self.assertEqual(worker.returncode, 0, err)
-            results.append(json.loads(out))
+        try:
+            for worker in workers:
+                out, err = worker.communicate(timeout=30)
+                self.assertEqual(worker.returncode, 0, err)
+                results.append(json.loads(out))
+        finally:
+            # Release file locks before removing the fixture even on failure.
+            for worker in workers:
+                if worker.poll() is None:
+                    worker.kill()
+                worker.communicate()
         self.assertEqual(results[0]["path"], results[1]["path"])
         self.assertEqual(sum(r["stats"]["converted_entries"] for r in results), self.index().count)
         self.assertEqual(sorted(r["stats"]["built_objects"] for r in results), [0, 7])
