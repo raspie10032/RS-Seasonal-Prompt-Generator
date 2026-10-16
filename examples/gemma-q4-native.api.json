@@ -1,0 +1,23 @@
+{
+  "prompt": {
+    "1": {
+      "class_type": "GemmaPromptExpandNative",
+      "inputs": {
+        "prompt": "파란 머리 인물이 초록 코트를 입고 가을 공원을 걷는 2D 애니메이션 장면. 우산은 제외해.",
+        "tag_length": "long",
+        "max_tokens": 384,
+        "temperature": 0.5,
+        "ban_tags": "umbrella",
+        "seed": 42,
+        "output_format": "both",
+        "model_source": "heretic_ara_q4",
+        "tipo_lora": "none",
+        "gguf_path": "",
+        "mmproj_path": "",
+        "tokenizer_path": ""
+      }
+    },
+    "2": {"class_type": "PreviewAny", "inputs": {"source": ["1", 0]}},
+    "3": {"class_type": "PreviewAny", "inputs": {"source": ["1", 1]}}
+  }
+}

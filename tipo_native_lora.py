@@ -1,9 +1,9 @@
 """Built-in TIPO PEFT adapters, applied through ComfyUI's CLIP patcher.
 
-No import-time I/O; only an explicitly selected published adapter is fetched.
-The full native base stays the user's responsibility, as with Load CLIP.
+No import-time I/O; only explicitly selected published files are fetched.
 """
 import hashlib
+from functools import lru_cache
 import json
 import logging
 import os
@@ -16,17 +16,27 @@ import urllib.request
 
 BASE_MODEL = "p-e-w/gemma-4-E2B-it-heretic-ara"
 BASE_REVISION = "c9a1d4c031981f14d86eeb0c7d87de7fafd34513"
-CHOICES = ("none", "pilot-001", "pilot-002")
+CHOICES = ("none", "pilot-001", "pilot-002", "image-30k")
 REQUIREMENTS = (
-    "Requires the separate native Gemma 4 E2B base (~9.57 GiB), connected via Load CLIP. "
-    "LoRA alone cannot run. GGUF/mmproj cannot be used here. "
-    "기본 네이티브 모델 별도 필요: 약 9.57 GiB. LoRA만으로 실행 불가. "
-    "Select none for the unmodified input; pilot-001/002 download ~45.3 MiB each on first use. "
+    "Requires a base: built-in Q4 GGUF (~3.19 GiB + tokenizer; image adds ~0.92 GiB), "
+    "or native Gemma 4 E2B (~9.57 GiB) connected via Load CLIP. LoRA alone cannot run. "
+    "베이스 모델 필요: 내부 Q4 자동 다운로드 또는 네이티브 CLIP 연결. "
+    "Select none for the base; each adapter downloads ~45.3 MiB on first use. "
+    "image-30k improves image-tag agreement; use tags_only scope for dual output. "
+    "Tested on 16GB NVIDIA GPUs. GPU compute/RAM demand is significant; results can omit names or alter appearance. "
+    "고사양 GPU 권장. 취향과 다른 결과, 이름 누락·외형 변경 가능. "
     "Experimental tag-only adapters; not the default for prose/VRS. "
     "Use p-e-w/gemma-4-E2B-it-heretic-ara; do not apply on an already merged pilot model."
 )
 # Public release identifiers and SHA-256 hashes, never personal dataset paths.
 CATALOG = {
+    "image-30k": {
+        "repo": "raspie/gemma4-tipo-lora-image-30k", "revision": "5e919e81801a19066d6df8114d10730b1a9d1e5b",
+        "files": {
+            "adapter_config.json": (11125, "d3db6392a71e36e80486cc4eabe0bde581396399bf07b12f1a1c12157fababaa"),
+            "adapter_model.safetensors": (47487272, "9cfae7497b9031923b238e7e94afd1a654cc9e86d732d39007fbf6fc093bf4dc"),
+        },
+    },
     "pilot-001": {
         "repo": "raspie/gemma4-tipo-lora-pilot-001", "revision": "432e2f074a200cf20137475e13020efa23b74aec",
         "files": {
@@ -49,13 +59,28 @@ _TARGET = re.compile(r"model\.language_model\.layers\.(?:[0-9]|[12][0-9]|3[0-4])
 def _check_file(path, expected):
     size, digest = expected
     if path.is_symlink() or not path.is_file() or path.stat().st_size != size:
-        raise ValueError(f"TIPO adapter file has wrong size/type: {path}. Move it aside and retry, or install the published file offline.")
+        raise ValueError(f"TIPO model/adapter file has wrong size/type: {path}. Move it aside and retry, or install the published file offline.")
+    _check_digest(str(path.resolve()), digest, _file_stat(path))
+
+
+def _file_stat(path):
+    stat = Path(path).stat()
+    return stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns
+
+
+@lru_cache(maxsize=32)
+def _check_digest(filename, digest, signature):
+    # Multi-GiB bases should be hashed once per unchanged local file, not once
+    # per generation. ctime/inode invalidate edits even if mtime is restored.
+    path = Path(filename)
     hasher = hashlib.sha256()
     with path.open("rb") as stream:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             hasher.update(chunk)
     if hasher.hexdigest() != digest:
-        raise ValueError(f"TIPO adapter checksum mismatch: {path}. Existing files are not overwritten; move it aside and retry.")
+        raise ValueError(f"TIPO model/adapter checksum mismatch: {path}. Existing files are not overwritten; move it aside and retry.")
+    if _file_stat(path) != signature:
+        raise ValueError(f"TIPO model/adapter changed during verification: {path}")
 
 
 def ensure_adapter(choice, root, progress=None):
@@ -64,6 +89,12 @@ def ensure_adapter(choice, root, progress=None):
         raise ValueError(f"Unknown TIPO LoRA: {choice}")
     entry = CATALOG[choice]
     directory = Path(root) / choice
+    return ensure_files(entry, directory, progress)
+
+
+def ensure_files(entry, directory, progress=None):
+    """Download a pinned model asset bundle; preserve existing invalid files."""
+    directory = Path(directory)
     with _DOWNLOAD_LOCK:
         directory.mkdir(parents=True, exist_ok=True)
         for name, expected in entry["files"].items():

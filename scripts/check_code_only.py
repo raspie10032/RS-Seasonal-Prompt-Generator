@@ -11,6 +11,8 @@ import sys
 
 # Hashes pin reviewed fixtures; a name alone must not allow replaced contents.
 REVIEWED = {
+    "examples/gemma-image-30k.api.json": "cc2a4ad61e3e88dc122c371c2419affecc8d6518e14ab270755f4f963b2d1c39",
+    "examples/gemma-q4-native.api.json": "3d59a96f5f7a0e834f42fac9d3404fc46399a0348c35a22f7fdb26518ff1c772",
     "examples/gemma-prompt-expand-native.api.json": "41a9a4c317e8912be297210f50a08ffcef05dfdd679fc06fbac0cfd46e055e33",
     "examples/gemma-tipo-native.api.json": "a1852ca607e97f6d74fdc8c52252d0664226eda79a3559904c2f5841a31e9e11",
     "examples/vrs-native-build.api.json": "80e38c6cc608e3fdc40ada0391fbb22c37b74a572f7a2fb257ef36e2691ea56c",

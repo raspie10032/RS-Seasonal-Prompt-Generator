@@ -1,22 +1,27 @@
 # Gemma context expansion: tags + natural-language instructions
 
+**2026-10-16: [Image 30K 배포 / release guide](TIPO_IMAGE_30K.md)** —
+`tipo_lora=image-30k`; 두 출력은 `tipo_lora_scope=tags_only` 권장.
+High compute requirements; outputs may disappoint or contradict the input.
+See the linked guide for hardware, setup, measured results and known failures.
+
 [한국어 README](README_KOR.md) · [English README](README.md) · [Native model setup](NATIVE_TIPO.md)
 
 ## 한국어
 
 **Gemma Prompt Expander Native (Tags / Natural Language)**는 텍스트·이미지의
-맥락을 읽고 새 장면을 구성하는 노드입니다. 같은 Gemma 4 E2B `CLIP`을 사용하며
-추가 pip 설치·llama.cpp·별도 번역 모델이 필요 없습니다. 기존 `Gemma TIPO Native`의
+맥락을 읽고 새 장면을 구성하는 노드입니다. [내부 Q4 다운로드](GGUF_NATIVE.md) 또는
+기존 Gemma 4 E2B `CLIP`을 사용합니다. Q4는 `gguf` 파서가 필요하며 llama.cpp·별도 번역 모델은 없습니다. 기존 `Gemma TIPO Native`의
 태그 전용 입력 형식·출력 포트·학습 템플릿은 유지됩니다.
 
 `tipo_lora`는 `none`(기본), `pilot-001`, `pilot-002` 중 선택합니다. 후보를 선택하면
-노드 내부에서 최초에만 약 45.3MiB를 다운로드·검증해 적용합니다. **별도 네이티브
-베이스 약 9.57GiB는 여전히 필요**합니다. 두 후보는 이전 태그 전용 실험이며 이중
+노드 내부에서 최초에만 약 45.3MiB를 다운로드·검증해 적용합니다. **베이스는 내부 Q4(텍스트 약 3.22GiB, 이미지 포함 약 4.14GiB) 또는 기존 BF16
+약 9.57GiB를 선택**합니다. 두 후보는 이전 태그 전용 실험이며 이중
 출력/VRS 품질 개선을 입증하지 않았습니다. 이미 병합된 모델에는 중복 적용하지 마세요.
 [설치와 오프라인 사용](NATIVE_TIPO.md#built-in-experimental-lora--노드-내부-실험-lora)을 참고하세요.
 
 **Optional adapters:** `tipo_lora` defaults to `none`. Either pilot downloads
-~45.3MiB on first use; a separate ~9.57GiB native base is still required.
+~45.3MiB on first use; use the [built-in Q4](GGUF_NATIVE.md) or a connected ~9.57GiB BF16 base.
 These are tag-only experiments, not proven dual-output/VRS improvements.
 See the [native setup](NATIVE_TIPO.md) for exact base and offline installation.
 
@@ -42,10 +47,33 @@ See the [native setup](NATIVE_TIPO.md) for exact base and offline installation.
 `max_tokens`는 **호출 한 번당** 한도입니다. `tag_length`는 목표 상세도이며 개수 보장이 아닙니다.
 두 출력의 의미 일치도는 여전히 검증 대상입니다.
 
+태그 전용 LoRA를 실험한다면 `tipo_lora_scope=tags_only`로 자연어 호출에는 연결한
+베이스 CLIP을, 태그 호출에는 선택한 LoRA를 적용할 수 있습니다. 기본값 `both`는
+기존처럼 두 호출에 LoRA를 적용합니다. `natural_language` 단독 출력과 `tags_only`를
+함께 선택하면 사용하지 않는 어댑터를 내려받지 않습니다. 원본 CLIP을 연결하세요.
+이 옵션은 이미 병합했거나 다른 노드에서 적용한 LoRA를 제거하지 않습니다.
+모델 전체를 두 벌 로드하지 않으며, `raw_output.tipo_lora`에 호출별 선택을 기록합니다.
+이 분리는 자연어에 태그 LoRA를 적용하지 않기 위한 기능이며 태그와 문장의 의미 일치를
+보장하지 않습니다. 특히 이미지 태그만 학습한 LoRA의 문장→태그 변환은 별도 평가가 필요합니다.
+
+`repetition_penalty`는 **태그 호출에만** 적용됩니다. 기본값은 기존과 같은 1.05이고,
+자연어 호출은 이 설정을 바꿔도 1.05를 유지합니다. 범위는 1.0~2.0이며 1.0은 반복 억제를
+끕니다. 현재 ComfyUI는 `temperature=0`일 때 반복 억제를 적용하지 않으므로,
+효과 비교에는 양수 temperature가 필요합니다. 높은 값이 반복을 줄여도 이름·시각 태그를
+누락할 수 있습니다. 동일 입력과 seed로
+태그 연관성·이름 보존·원시 출력의 반복을 함께 비교하세요. `raw_output.generation`에는
+호출별로 **요청한** 반복 억제 값과 temperature·seed·출력 토큰 한도를 기록합니다.
+이 값이 기록됐다는 사실만으로 실제 sampler가 반복 억제를 적용했다고 판정하지 않습니다.
+
 예: `파란 머리는 유지하고 겨울 야시장에서 차를 들고 서 있게. 코트는 입히고 목도리는 빼줘.`
 `ban_tags`에는 `scarf`처럼 영어 제외 항목을 넣습니다. 두 호출에 제외 지시를 전달하고,
 태그 출력에만 기존 필터를 적용합니다. 자연어에서 제외 대상을 확실히 제거하거나,
 한국어 부정을 자동 판정해 태그에서 강제로 지우는 기능은 아닙니다.
+
+네이티브 태그 후처리는 `:<`, `>_<`, `<3` 같은 표정 태그를 보존하며,
+짧은 태그가 긴 태그의 끝부분과 같다는 이유로 삭제하지 않습니다. 이 방식으로
+모델이 실제로 출력한 작가·캐릭터·작품명이 후처리에서 사라지는 일을 방지합니다.
+모델이 빠뜨린 이름을 추가하는 기능은 아니며, 원시 출력의 누락·반복도 따로 평가해야 합니다.
 
 [API 그래프 예제](examples/gemma-prompt-expand-native.api.json)는 모델 파일 이름을
 수정해 `/prompt`에 제출할 API 형식입니다. 캔버스 드래그용 UI workflow JSON은 아닙니다.
@@ -208,20 +236,49 @@ python -m vrs_int.generation_state \
 
 **다음 작업 단위:** 저장된 상태를 연결한 소규모 실행 결과를 검토하고, 한국어 표현과
 재료 선택의 실패를 보강합니다. 회수·선택·표현의 원인을 분리해도 반복되는 결함이 남을 때
-추가 학습을 다시 판단합니다. 300건 학습 자료와 이중 출력 LoRA는 현재 실행 계획에서 보류합니다.
+추가 학습을 다시 판단합니다. 300건 학습 자료와 이중 출력 LoRA는 이 계획 시점에는 보류했습니다.
 개인 사전·이미지·경험·가중치·결과는 저장소 밖에 보관합니다.
+
+**2026-10-16 마무리:** 추가 확대 학습을 종료하고 3만 장 후보를 배포했습니다.
+[최종 배포 안내](TIPO_IMAGE_30K.md)에 집계 결과와 남은 한계를 기록했습니다.
+개인 원자료와 체크포인트는 보존하며 자동 추가 학습은 없습니다.
 
 ## English
 
-Use **Gemma Prompt Expander Native (Tags / Natural Language)** with the same native Gemma 4 E2B
-`Load CLIP` used by the existing TIPO node. Optional input: one RGB `IMAGE`. No extra dependency,
-translation model, download, llama.cpp process, or independent model allocator is introduced.
+Use **Gemma Prompt Expander Native (Tags / Natural Language)** with the [built-in Q4](GGUF_NATIVE.md)
+or an existing Gemma 4 E2B `Load CLIP`. Optional input: one RGB `IMAGE`. Q4 adds the pure Python
+`gguf` parser and downloads its base on first use. No translation model, llama.cpp process,
+or independent model allocator is introduced.
 
 - `both`: first expand one coherent scene into an English image-generation instruction, then render
   that scene into tags with the original constraints. Two sequential calls to the same model; the
   second call does not encode the image again.
 - `tags` / `natural_language`: one call; the unused STRING output is empty.
 - Outputs: `tags`, `natural_language`, `raw_output` (JSON audit, including both unfiltered responses).
+
+`tipo_lora_scope=tags_only` applies the selected adapter only to tag generation;
+prose uses the supplied base CLIP. The default `both` preserves existing behavior.
+Prose-only requests with `tags_only` do not download or apply an unused adapter.
+Supply an unpatched base: this option cannot undo an already merged or upstream
+adapter. ComfyUI switches patchers on shared base weights instead of loading two
+full models. `raw_output.tipo_lora` records the adapter choice per call. Routing
+alone does not establish semantic agreement; image-tag adapters still need
+evaluation on prose-to-tag conversion.
+
+`repetition_penalty` affects **only the tag call** (default 1.05, range 1.0–2.0;
+1.0 disables the penalty). Prose keeps 1.05. Current ComfyUI bypasses penalties at
+`temperature=0`; a positive temperature is required to compare their effect.
+Higher settings may reduce repeated
+tags but also omit names or visual details. Compare raw repetition, name retention
+and tag relevance with the same input and seed. `raw_output.generation` records
+each call's requested penalty plus temperature, seed and output-token limit.
+Recording a requested value does not prove that the sampler applied it.
+
+Native tag cleanup preserves expression tags such as `:<`, `>_<` and `<3`.
+It does not remove a tag merely because it is a suffix of a longer tag; that
+heuristic can erase valid supplied names. This preserves names actually emitted
+by the model and does not insert missing names. Evaluate raw omissions and
+repetition separately from cleanup.
   Prose never passes through the comma-based tag filter. `max_tokens` applies to each call.
 - `tag_set`: `danbooru` or `e621`. `tag_knowledge_path`: optional local legacy Danbooru Korean CSV
   or `rs-tag-knowledge/1` JSONL. The dictionary stays in CPU/RAM and only bounded lexical references
@@ -266,18 +323,10 @@ but additional prompt tokens can cost latency and memory. For retrieval inside C
 is bound to the supplied image by an RGB pixel hash. Full dictionaries, source images, and experiences
 remain private external files.
 
-### Next development plan — 2026-10-14
+### Training closeout — 2026-10-16
 
-Additional LoRA training is deferred in favor of VRS-assisted inference. Preserve prior adapters and
-datasets. Gemma composes and renders one scene; dictionaries supply meanings and canonical vocabulary,
-and retrieved experience supplies optional creative references. The saved-state bridge is implemented.
-Compare the same base model, request, dictionary and exclusions with/without the reference. Save raw
-outputs, hashes, delivered references, time and memory; reused material is not fresh image retrieval.
-
-Next, improve Korean contextual vocabulary and reference selection, then integrate automatic compatible
-image/text retrieval with provenance, bounded context and resource accounting. Keep Danbooru/e621
-sources separate. Evaluate requested names, semantic conditions, image-only evidence, cross-output
-agreement and creative usefulness, with image-swapped/absent and mismatched-reference controls.
-Do not count dictionary membership as meaning or creativity. Consider training again only for residual
-failures after separating retrieval, selection and rendering errors. The previous 300-request training
-and dual-output LoRA proposal is deferred, not a completed data collection or an active training run.
+Further scaling stopped after the 30k candidate and its development comparison.
+The [Image 30K release guide](TIPO_IMAGE_30K.md) records results, installation and limitations.
+Private data and checkpoints are preserved. No additional training runs automatically.
+VRS provides optional reference material; this release does not establish reliable
+Korean edits, identity/appearance preservation, or improved natural-language output.

@@ -5,7 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import tempfile
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from gemma_prompt_expand_node import GemmaPromptExpandNative
 from prompt_expansion import build_expansion_prompt, clean_natural_language
@@ -47,6 +47,75 @@ class ExpansionTests(unittest.TestCase):
         self.assertEqual(tags, "1girl, winter")
         self.assertEqual(prose, "")
         self.assertEqual(self.clip.generate.call_count, 1)
+
+    def test_tag_penalty_does_not_change_prose_generation(self):
+        self.clip.decode.side_effect = ['Create a woman holding a cup.', '1girl, holding cup']
+        _, _, raw = GemmaPromptExpandNative().run(**self.args, repetition_penalty=1.15)
+        calls = self.clip.generate.call_args_list
+        self.assertEqual([call.kwargs['repetition_penalty'] for call in calls], [1.05, 1.15])
+        self.assertEqual(json.loads(raw)['generation'], {
+            'temperature': 0, 'seed': 42, 'max_tokens': 512,
+            'repetition_penalty': {'natural_language': 1.05, 'tags': 1.15}})
+
+    def test_new_penalty_widget_follows_saved_workflow_widgets(self):
+        fields = GemmaPromptExpandNative.INPUT_TYPES()['optional']
+        self.assertEqual(list(fields), [
+            'clip', 'image', 'tipo_lora', 'model_source', 'gguf_path', 'mmproj_path',
+            'tokenizer_path', 'tag_set', 'tag_knowledge_path', 'vrs_state_path', 'vrs_state',
+            'tipo_lora_scope', 'repetition_penalty'])
+        self.assertEqual(fields['repetition_penalty'][1]['default'], 1.05)
+
+    def test_prose_only_records_no_tag_sampling(self):
+        self.clip.decode.return_value = 'Create a quiet winter scene.'
+        _, _, raw = GemmaPromptExpandNative().run(
+            **self.args, output_format='natural_language', repetition_penalty=1.15)
+        self.assertEqual(self.clip.generate.call_args.kwargs['repetition_penalty'], 1.05)
+        self.assertEqual(json.loads(raw)['generation']['repetition_penalty'],
+                         {'natural_language': 1.05, 'tags': None})
+
+    def test_invalid_tag_penalty_rejected_before_download(self):
+        with patch('gemma_prompt_expand_node.resolve_clip') as resolve:
+            with self.assertRaisesRegex(ValueError, 'repetition_penalty'):
+                GemmaPromptExpandNative().run(**self.args, repetition_penalty=float('nan'))
+        resolve.assert_not_called()
+
+    def test_tag_only_adapter_keeps_prose_on_base_and_records_routing(self):
+        adapted = Mock()
+        scene = "Create a scene with a woman holding a cup."
+        with patch('gemma_prompt_expand_node.apply_tipo_lora', return_value=adapted) as apply, \
+                patch('gemma_prompt_expand_node.generate_text', side_effect=[scene, '1girl, holding cup']) as generate:
+            tags, prose, raw = GemmaPromptExpandNative().run(
+                **self.args, tipo_lora='test-adapter', tipo_lora_scope='tags_only')
+        apply.assert_called_once_with(self.clip, 'test-adapter')
+        self.assertIs(generate.call_args_list[0].args[0], self.clip)
+        self.assertIs(generate.call_args_list[1].args[0], adapted)
+        self.assertIn(scene, generate.call_args_list[1].args[1])
+        self.assertEqual(prose, scene)
+        self.assertEqual(tags, '1girl, holding cup')
+        self.assertEqual(json.loads(raw)['tipo_lora'], {
+            'selected': 'test-adapter', 'scope': 'tags_only',
+            'natural_language': 'none', 'tags': 'test-adapter'})
+
+    def test_tag_only_scope_does_not_download_unused_adapter_for_prose(self):
+        with patch('gemma_prompt_expand_node.apply_tipo_lora') as apply, \
+                patch('gemma_prompt_expand_node.generate_text', return_value='Create a scene.') as generate:
+            GemmaPromptExpandNative().run(**self.args, output_format='natural_language',
+                tipo_lora='test-adapter', tipo_lora_scope='tags_only')
+        apply.assert_not_called()
+        self.assertIs(generate.call_args.args[0], self.clip)
+
+    def test_default_scope_preserves_existing_adapter_behavior(self):
+        adapted = Mock()
+        with patch('gemma_prompt_expand_node.apply_tipo_lora', return_value=adapted), \
+                patch('gemma_prompt_expand_node.generate_text', side_effect=['Create a scene.', '1girl']) as generate:
+            GemmaPromptExpandNative().run(**self.args, tipo_lora='test-adapter')
+        self.assertTrue(all(call.args[0] is adapted for call in generate.call_args_list))
+
+    def test_invalid_scope_rejected_before_model_resolution(self):
+        with patch('gemma_prompt_expand_node.resolve_clip') as resolve:
+            with self.assertRaisesRegex(ValueError, 'tipo_lora_scope'):
+                GemmaPromptExpandNative().run(**self.args, tipo_lora_scope='unknown')
+        resolve.assert_not_called()
 
     def test_empty_wrong_mode_and_runtime_failure(self):
         self.assertEqual(GemmaPromptExpandNative().run(**dict(self.args, prompt="")), ("", "", ""))

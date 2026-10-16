@@ -1,14 +1,14 @@
 [project]
 name = "rs-seasonal-prompt-generator"
 description = "Seasonal fashion/scene prompts and local AI prompt writing for ComfyUI, with optional TIPO text/image tag expansion."
-version = "2.10.1"
+version = "2.11.0"
 license = { file = "LICENSE" }
 readme = "README.md"
 requires-python = ">=3.9"
 
-# Seasonal and native Gemma add no packages to ComfyUI.
+# Pure Python GGUF parsing; execution uses ComfyUI's existing PyTorch.
 # Legacy GGUF nodes have optional dependencies (requirements-legacy.txt).
-dependencies = []
+dependencies = ["gguf>=0.19.0,<0.20; python_version >= '3.10'"]
 
 [project.urls]
 Repository = "https://github.com/raspie10032/RS-Seasonal-Prompt-Generator"

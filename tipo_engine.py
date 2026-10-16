@@ -312,9 +312,10 @@ _cache_lock = threading.Lock()
 
 def _clean_special_tokens(raw):
     # TIPO category tokens (<|general|> etc.) -> comma so adjacent tags don't
-    # glue together; any other angle-bracket token -> dropped.
+    # glue together. Match named model tokens, not tag punctuation: ':<' must
+    # never consume the remainder of the answer, including supplied names.
     raw = re.sub(r"<\|[^|>]*\|>", ", ", raw)
-    raw = re.sub(r"<[^>]*>?", "", raw)  # also strips unterminated "<..." tails
+    raw = re.sub(r"<(?:/?[A-Za-z][A-Za-z0-9_|]*|\|[^|>]*\|?)(?:>|$)", "", raw)
     return raw
 
 
@@ -510,7 +511,7 @@ def load_tipo(model_path, gpu_layers=0, n_ctx=2048, n_threads=2, cache=True):
         return llm
 
 
-def _postprocess_with_kgen(tags_csv, ban_tags, sort_preset):
+def _postprocess_with_kgen(tags_csv, ban_tags, sort_preset, *, drop_redundant=True):
     """Categorize + reorder tags using kgen's lightweight formatter."""
     import kgen.formatter as kf
     from kgen.formatter import seperate_tags, apply_format
@@ -529,24 +530,25 @@ def _postprocess_with_kgen(tags_csv, ban_tags, sort_preset):
 
     formatted = _filter_banned(formatted, ban_tags)
 
-    formatted = _drop_redundant(formatted)
+    if drop_redundant:
+        formatted = _drop_redundant(formatted)
     return formatted.strip().strip(",").strip()
 
 
-def _postprocess(tags, ban_tags, sort_preset, input_prompt=""):
+def _postprocess(tags, ban_tags, sort_preset, input_prompt="", *, drop_redundant=True):
     # Filtering and conflict handling still work when optional kgen is absent.
     tags = _filter_banned(_dedup(_clean_special_tokens(tags)), ban_tags)
     if sort_preset is not None:
         try:
             if not _ensure_formatter():
                 raise ImportError("tipo-kgen is unavailable")
-            tags = _postprocess_with_kgen(tags, ban_tags, sort_preset)
+            tags = _postprocess_with_kgen(tags, ban_tags, sort_preset, drop_redundant=drop_redundant)
         except Exception as e:
             print(f"[TIPO] category sorting unavailable ({type(e).__name__}: {e}); "
                   "using basic tag cleanup")
     tags = _filter_banned(_dedup(tags), ban_tags)
     tags = _resolve_count_conflicts(tags, input_prompt)
-    return _drop_redundant(tags)
+    return _drop_redundant(tags) if drop_redundant else tags
 
 
 def _avoid_hint(ban_tags):

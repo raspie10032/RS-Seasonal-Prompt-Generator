@@ -50,6 +50,12 @@ def row_messages(row):
     """Versioned rows are rebuilt, so stale or hand-edited templates fail closed."""
     if row.get("prompt_contract") is None:
         return row["messages"]  # Historical pilot retains its historical framing.
+    try:
+        from .prompt_expansion import VERSION as CONTEXT_VERSION, context_messages
+    except ImportError:
+        from prompt_expansion import VERSION as CONTEXT_VERSION, context_messages
+    if row["prompt_contract"] == CONTEXT_VERSION:
+        return context_messages(row)
     if row["prompt_contract"] != VERSION:
         raise ValueError("Unknown TIPO prompt contract")
     if row.get("purpose") == "evaluation":
@@ -61,5 +67,11 @@ def row_messages(row):
 
 
 def instruction_messages(row):
+    try:
+        from .prompt_expansion import VERSION as CONTEXT_VERSION, context_messages
+    except ImportError:
+        from prompt_expansion import VERSION as CONTEXT_VERSION, context_messages
+    if row.get("prompt_contract") == CONTEXT_VERSION:
+        return context_messages(row, include_answer=False)
     messages = row_messages(row)
     return messages[:-1] if messages[-1]["role"] == "assistant" else messages

@@ -1,5 +1,10 @@
 # Gemma TIPO Native / ComfyUI 네이티브 실행
 
+**2026-10-16: [Image 30K 배포 / release guide](TIPO_IMAGE_30K.md)** —
+`tipo_lora=image-30k`; 두 출력은 `tipo_lora_scope=tags_only` 권장.
+High compute requirements; outputs may disappoint or contradict the input.
+See the linked guide for hardware, setup, measured results and known failures.
+
 [한국어 README](README_KOR.md) · [English README](README.md)
 
 태그형·자연어 지시문형 두 출력은 **[Gemma Prompt Expander Native](PROMPT_EXPANSION.md)**를
@@ -10,18 +15,23 @@ For context expansion into two renderings, see the new [Prompt Expander guide](P
 [TIPO 품질 평가 가이드](experiments/TIPO_QUALITY.md)를 참고하세요.
 Evaluation and shared training-input instructions: [TIPO quality guide](experiments/TIPO_QUALITY.md).
 
+**Q4 자동 다운로드:** [GGUF 네이티브 안내](GGUF_NATIVE.md). TIPO 안에서
+`model_source=heretic_ara_q4`를 선택하면 전체 BF16 없이 실행할 수 있습니다.
+**Built-in Q4:** see [GGUF native setup](GGUF_NATIVE.md); no separate loader or llama.cpp.
+아래 `Load CLIP` 설명은 기존 `connected_clip` safetensors 경로입니다.
+
 ## 한국어
 
 `Gemma TIPO Native`는 ComfyUI의 `CLIP.tokenize/generate/decode`와 모델 관리로
 Gemma 4 E2B를 실행합니다. 한국어·영어 요청, 태그, 선택한 이미지 한 장으로
-이미지 생성용 영문 태그를 확장합니다. 베이스 모델은 별도로 준비하며 패키지 자동
+이미지 생성용 영문 태그를 확장합니다. `connected_clip` 베이스 모델은 별도로 준비하며 패키지 자동
 설치는 없습니다. 선택한 실험 LoRA는 최초 실행 시 다운로드합니다.
 별도 llama.cpp 프로세스·GGUF·mmproj가 필요 없습니다.
 
 ### 설치와 연결
 
 1. 이 저장소를 `ComfyUI/custom_nodes/RS-Seasonal-Prompt-Generator`에 설치합니다.
-   계절 노드와 네이티브 노드는 추가 pip 설치가 없습니다. ComfyUI의 torch를
+   계절 노드와 `connected_clip`은 추가 pip 설치가 없습니다. Q4는 `requirements.txt`가 필요합니다. ComfyUI의 torch를
    교체하지 마세요. Gemma 4와 `CLIP.generate`를 지원하는 ComfyUI가 필요합니다.
 2. ComfyUI 형식의 **Gemma 4 E2B 전체 safetensors**를
    `ComfyUI/models/text_encoders/`에 넣습니다. 파일 이름은 자유입니다.
@@ -42,7 +52,7 @@ Gemma 4 E2B를 실행합니다. 한국어·영어 요청, 태그, 선택한 이�
 | --- | --- |
 | ComfyUI 형식의 Gemma 4 E2B safetensors | `Load CLIP`에서 직접 로드 |
 | 튜닝 완료된 전체 HF Gemma 4 E2B safetensors + tokenizer/config | 아래 도구로 이름·포장을 변환. 학습된 비전 연결부도 함께 보존 |
-| GGUF 텍스트 + mmproj만 있음 | 직접 로드 불가. 기존 GGUF 노드를 쓰거나 원래 전체 HF 체크포인트 확보 |
+| Gemma 4 E2B GGUF 텍스트 + 대응 mmproj | [내부 Q4 경로](GGUF_NATIVE.md)에서 로컬 경로 지정. 별도 llama.cpp 불필요 |
 | 공개 TIPO LoRA pilot-001/002 | 해당 네이티브 베이스를 연결하고 TIPO 안에서 `tipo_lora` 선택. 별도 LoRA 로더 불필요 |
 | 그 외 LoRA/adapter만 있음 | 해당 원본 모델에 정상 병합한 전체 체크포인트 필요 |
 | 일반 Gemma 4 E2B 원본 | 실행 가능. 기존 TIPO 튜닝을 가진 모델은 아니므로 품질을 따로 비교해야 함 |
@@ -87,6 +97,11 @@ Windows portable의 최상위 폴더에서:
 - `tag_length`: 원하는 확장량. 모델의 실제 태그 개수를 보장하는 제한은 아닙니다.
 - `max_tokens`: 출력 토큰 상한. 초기값 384; 길게 설명하거나 잘리면 조정합니다.
 - `temperature`: 0은 greedy, 양수는 샘플링. `seed`는 ComfyUI에 전달합니다.
+- `repetition_penalty`: 태그 생성의 반복 억제 강도입니다. 기본값 1.05, 범위 1.0~2.0이며
+  1.0은 억제를 끕니다. 현재 ComfyUI는 `temperature=0`의 greedy 경로에서 이 값을
+  적용하지 않습니다. 효과를 비교하려면 양수 temperature를 사용합니다.
+  높이면 반복뿐 아니라 필요한 태그·이름도 누락될 수 있으므로
+  같은 입력·seed의 `raw_output`과 함께 비교합니다. 기존 워크플로의 기본 동작은 유지됩니다.
 - `ban_tags`: 쉼표로 구분한 **영문 태그**. 요청에도 알려주고 `tags`에서 사후 제거합니다.
   한국어 문장의 모든 부정·변경 지시를 자동으로 강제하는 기능은 아닙니다.
 - `tags`: 추론 문구·중복·금지 태그를 정리한 결과. 선택적인 kgen 정렬기는 사용하지 않습니다.
@@ -119,8 +134,8 @@ Windows portable의 최상위 폴더에서:
 
 Gemma TIPO Native uses ComfyUI's own PyTorch Gemma 4 runtime and model management
 to expand Korean/English requests or a single optional image into prompt tags.
-There are **no extra pip dependencies, llama.cpp processes, GGUF files or separate
-mmproj files** on this path. Optional TIPO adapters download only when selected;
+The **connected safetensors path** needs no extra pip dependencies, llama.cpp or
+GGUF files. The [built-in Q4 path](GGUF_NATIVE.md) uses the `gguf` parser and downloads its base. Optional TIPO adapters download only when selected;
 the full native base must be prepared separately.
 
 ### Setup
@@ -144,7 +159,8 @@ models. The full BF16 example is **9.57GiB**; reserve additional disk space.
 This is different from the earlier PLE-Q4/FP16-vision GGUF configuration and does
 not provide its size reduction. VRAM depends on ComfyUI loading/offload settings.
 
-Existing GGUF/mmproj cannot be loaded directly. To retain TIPO tuning, obtain its
+Matching Gemma 4 E2B GGUF/mmproj can use the [built-in Q4 path](GGUF_NATIVE.md).
+For connected safetensors, to retain TIPO tuning, obtain its
 matching full HF weights and tokenizer, including its trained vision projector.
 The published TIPO pilots can be selected inside the node, without a separate
 adapter loader. Other adapters must first be merged into the correct base outside
@@ -157,6 +173,12 @@ conversion itself does not require training.
 `[1,H,W,3]`. Either input is sufficient. `tag_length` is a soft target;
 `max_tokens` caps generation. Temperature 0 uses greedy decoding; otherwise
 sampling and `seed` are passed to ComfyUI.
+`repetition_penalty` controls tag sampling (default 1.05, range 1.0–2.0;
+1.0 disables the penalty). Current ComfyUI ignores this value in the greedy path
+at `temperature=0`; use a positive temperature to compare its effect.
+Increasing it can suppress useful tags or names as well
+as duplicates; compare raw responses with the same input and seed. Existing
+workflows keep the previous default.
 
 `ban_tags` is a comma-separated **English tag** list, applied as a prompt hint
 and post-generation filter. It does not parse all Korean exclusion instructions.
@@ -180,10 +202,11 @@ nodes remain available with their separate `requirements-legacy.txt` dependencie
 
 ## Built-in experimental LoRA / 노드 내부 실험 LoRA
 
-**용량 안내: LoRA만으로 실행할 수 없습니다. 약 9.57GiB의 네이티브 Gemma 베이스가
-별도로 필요합니다.** 원본 HF 다운로드와 변환본을 모두 보관하면 가중치만 약
+**용량 안내: LoRA만으로 실행할 수 없습니다.** [내부 Q4](GGUF_NATIVE.md)는 텍스트 약
+3.22GiB, 이미지 포함 약 4.14GiB를 자동 다운로드합니다. 기존 `connected_clip`의
+BF16 베이스는 약 9.57GiB입니다. 원본 HF 다운로드와 변환본을 모두 보관하면 가중치만 약
 19.2GiB를 사용하므로 작업 여유 공간도 확보하세요. 이는 디스크 크기이며 VRAM
-사용량이 아닙니다. 기존 GGUF·mmproj는 이 경로의 베이스로 쓸 수 없습니다.
+사용량이 아닙니다. 아래 1~2단계는 `connected_clip`용이며, 내부 Q4는 생략합니다.
 
 1. [베이스 모델](https://huggingface.co/p-e-w/gemma-4-E2B-it-heretic-ara)의
    revision `c9a1d4c031981f14d86eeb0c7d87de7fafd34513`을 받습니다.
@@ -218,16 +241,17 @@ LoRA의 전체 품질 점수가 아닙니다. 모델 카드에 출처와 비교 
 오류를 냅니다. 오류 파일을 다른 위치로 옮겨 보관한 뒤 다시 다운로드하세요.
 전송 중단 시 임시 파일은 제거되며 불완전한 파일로 추론하지 않습니다.
 
-**English:** adapters alone cannot run: prepare the separate **~9.57GiB native
-base** above (HF source plus converted copy: ~19.2GiB of weights on disk).
+**English:** adapters alone cannot run. Choose [built-in Q4](GGUF_NATIVE.md)
+(~3.22GiB text, ~4.14GiB with vision), or prepare the **~9.57GiB native BF16 base**
+(HF source plus converted copy: ~19.2GiB of weights on disk).
 This is not a VRAM estimate. Select `tipo_lora=pilot-001` or `pilot-002` inside
 either native TIPO/Prompt Expander node. First use downloads ~45.3MiB into
 `models/loras/rs_gemma_tipo/<choice>/`, checks pinned hashes, and patches a cloned
 CLIP through ComfyUI. No separate LoRA loader or additional packages are required.
 `none` preserves existing workflows and passes the original CLIP unchanged.
-The full base is not automatically downloaded/converted. Use the exact Heretic
-ARA revision linked above; GGUF/mmproj and already merged pilot models are not
-valid bases for this option. Both pilots are **experimental tag-only training**,
+The BF16 base is not automatically downloaded/converted; built-in Q4 is. Use the
+exact Heretic ARA revision linked above. Already merged pilot models are not
+valid bases for applying the same adapter again. Both pilots are **experimental tag-only training**,
 not validated dual-output/VRS improvements. See their model cards for metrics.
 Offline installs use the same two files and directories; corrupted files are
 rejected without overwrite, and interrupted transfers are never cached as models.

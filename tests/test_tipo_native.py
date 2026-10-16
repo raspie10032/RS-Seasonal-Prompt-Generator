@@ -28,9 +28,23 @@ class NativeTests(unittest.TestCase):
         self.assertIn("scarf", raw)
         self.assertFalse(self.clip.generate.call_args.kwargs["do_sample"])
         self.assertEqual(self.clip.generate.call_args.kwargs["seed"], 42)
+        self.assertEqual(self.clip.generate.call_args.kwargs["repetition_penalty"], 1.05)
         kw = self.clip.tokenize.call_args.kwargs
         self.assertFalse(kw["skip_template"])
         self.assertFalse(kw["thinking"])
+
+    def test_repetition_penalty_reaches_native_sampler_without_filtering_raw(self):
+        _, raw = native.GemmaTipoNative().run(**self.args, repetition_penalty=1.15)
+        self.assertEqual(self.clip.generate.call_args.kwargs["repetition_penalty"], 1.15)
+        self.assertEqual(raw, self.clip.decode.return_value)
+
+    def test_invalid_repetition_penalty_rejected_before_loading(self):
+        for value in (float('nan'), float('inf'), 0.99, 2.01, True, '1.15'):
+            with self.subTest(value=value), patch.object(native, 'resolve_clip') as resolve:
+                with self.assertRaisesRegex(ValueError, 'repetition_penalty'):
+                    native.GemmaTipoNative().run(**self.args, repetition_penalty=value)
+                resolve.assert_not_called()
+        self.clip.generate.assert_not_called()
 
     def test_image_is_passed_without_host_conversion(self):
         image = SimpleNamespace(shape=(1, 32, 48, 3))
@@ -94,6 +108,17 @@ class NativeTests(unittest.TestCase):
         self.clip.decode.return_value = "<think>unfinished"
         with self.assertRaisesRegex(RuntimeError, "only reasoning"):
             native.GemmaTipoNative().run(**self.args)
+
+    def test_expression_tags_do_not_swallow_later_names(self):
+        raw = '1girl, :<, >_<, <3, example_hero_(ghost), example_artist, example_series<end_of_turn>'
+        self.assertEqual(native.clean_tags(raw, '', ''), raw.removesuffix('<end_of_turn>'))
+        self.assertEqual(native.clean_tags('1girl, :<, example_series<end_of_turn', '', ''),
+                         '1girl, :<, example_series')
+
+    def test_native_cleanup_keeps_nested_titles_and_still_enforces_bans(self):
+        raw = 'title, long title, blue hair, BLUE_HAIR, 2girls, 1girl, skirt, white skirt'
+        self.assertEqual(native.clean_tags(raw, 'blue_hair', '1girl'),
+                         'title, long title, 1girl, skirt, white skirt')
 
 
 def write_weights(path, payloads):

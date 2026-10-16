@@ -2,13 +2,13 @@
 import json
 
 try:
-    from .gemma_tipo_native_node import GemmaTipoNative, validate_input, generate_text, clean_tags, apply_tipo_lora, REQUIREMENTS
-    from .prompt_expansion import VERSION, OUTPUT_FORMATS, build_expansion_prompt, clean_natural_language
+    from .gemma_tipo_native_node import GemmaTipoNative, validate_input, validate_repetition_penalty, generate_text, clean_tags, apply_tipo_lora, REQUIREMENTS, resolve_clip
+    from .prompt_expansion import VERSION, OUTPUT_FORMATS, assemble_instruction, clean_natural_language
     from .tag_knowledge import load_knowledge, append_vocabulary
     from .vrs_prompt_reference import load_reference, prepare_reference, append_reference, external_fingerprint
 except ImportError:
-    from gemma_tipo_native_node import GemmaTipoNative, validate_input, generate_text, clean_tags, apply_tipo_lora, REQUIREMENTS
-    from prompt_expansion import VERSION, OUTPUT_FORMATS, build_expansion_prompt, clean_natural_language
+    from gemma_tipo_native_node import GemmaTipoNative, validate_input, validate_repetition_penalty, generate_text, clean_tags, apply_tipo_lora, REQUIREMENTS, resolve_clip
+    from prompt_expansion import VERSION, OUTPUT_FORMATS, assemble_instruction, clean_natural_language
     from tag_knowledge import load_knowledge, append_vocabulary
     from vrs_prompt_reference import load_reference, prepare_reference, append_reference, external_fingerprint
 
@@ -17,6 +17,9 @@ class GemmaPromptExpandNative:
     @classmethod
     def INPUT_TYPES(cls):
         inputs = GemmaTipoNative.INPUT_TYPES()
+        # Append the new widget after this node's existing optional widgets so
+        # serialized workflows keep their positional values.
+        penalty_input = inputs["optional"].pop("repetition_penalty")
         inputs["required"]["output_format"] = (list(OUTPUT_FORMATS), {
             "default": "both", "tooltip": "both: expand a scene in prose, then render that same scene as tags (two sequential calls)."})
         inputs["required"]["tag_length"][1]["tooltip"] = "Detail target for tags and prose; not a guaranteed length."
@@ -29,6 +32,11 @@ class GemmaPromptExpandNative:
         inputs["optional"]["vrs_state_path"] = ("STRING", {"default": "", "tooltip":
             "Optional local VRS generation-state /1 or /2 JSON, exported for this exact prompt. Danbooru only. Saved references, not automatic image search."})
         inputs["optional"]["vrs_state"] = ("VRS_STATE", {"tooltip": "Connect VRS Native Image Recall. Uses this request and, if supplied, the same IMAGE."})
+        inputs["optional"]["tipo_lora_scope"] = (["both", "tags_only"], {"default": "both", "tooltip":
+            "both applies the selected adapter to both calls. tags_only leaves prose on the supplied base CLIP and applies the adapter only to tags; use an unpatched base CLIP."})
+        penalty_input[1]["tooltip"] = (
+            "Tag call only; prose keeps 1.05. Current ComfyUI ignores penalties at temperature=0; use a positive temperature. Larger values can also omit useful tags or names. Existing workflows retain 1.05.")
+        inputs["optional"]["repetition_penalty"] = penalty_input
         return inputs
 
     @classmethod
@@ -46,10 +54,15 @@ class GemmaPromptExpandNative:
         "The VRS Recall node performs image lookup; no training is required. " + REQUIREMENTS
     )
 
-    def run(self, clip, prompt, tag_length, max_tokens, temperature, ban_tags, seed,
-            output_format="both", image=None, tag_set="danbooru", tag_knowledge_path="", vrs_state_path="", vrs_state=None, tipo_lora="none"):
+    def run(self, clip=None, prompt="", tag_length="long", max_tokens=512, temperature=0.5, ban_tags="", seed=0,
+            output_format="both", image=None, tag_set="danbooru", tag_knowledge_path="", vrs_state_path="", vrs_state=None, tipo_lora="none",
+            model_source="connected_clip", gguf_path="", mmproj_path="", tokenizer_path="", tipo_lora_scope="both",
+            repetition_penalty=1.05):
+        validate_repetition_penalty(repetition_penalty)
         if output_format not in OUTPUT_FORMATS:
             raise ValueError("Unknown output_format")
+        if tipo_lora_scope not in ("both", "tags_only"):
+            raise ValueError("Unknown tipo_lora_scope")
         if not validate_input(prompt, tag_length, image):
             return ("", "", "")
         if tag_set not in ("danbooru", "e621"):
@@ -76,35 +89,45 @@ class GemmaPromptExpandNative:
         if knowledge and tag_set not in knowledge.provenance["sources"]:
             raise ValueError("Tag knowledge has no entries for the selected tag_set")
         vocab = knowledge.vocabulary(prompt, tag_set) if knowledge else None
-        clip = apply_tipo_lora(clip, tipo_lora)
+        clip = resolve_clip(clip, model_source, image, gguf_path, mmproj_path, tokenizer_path)
+        # Keep the base handle: ComfyUI switches shared weights through each
+        # CLIP's patcher. Do not attach a tag-only adapter to the prose call.
+        needs_adapter = tipo_lora_scope == "both" or output_format in ("both", "tags")
+        adapted_clip = apply_tipo_lora(clip, tipo_lora) if needs_adapter else clip
+        prose_clip = adapted_clip if tipo_lora_scope == "both" else clip
         scene_vocab = None
         def instruction(kind, scene=None):
             nonlocal scene_vocab
-            text = build_expansion_prompt(prompt, tag_length, effective_bans,
-                                          image is not None and scene is None, kind, scene, tag_set)
-            if vocab:
-                text = append_vocabulary(text, vocab)
             if knowledge and scene:
                 # Generated prose may contain ordinary words that also alias
                 # artists. Only the user's request can introduce named identities.
                 scene_vocab = knowledge.vocabulary(scene, tag_set, include_identities=False)
-                text = append_vocabulary(text, scene_vocab)
-            return append_reference(text, reference, render_scene=scene is not None)
+            return assemble_instruction(
+                {"prompt": prompt, "tag_length": tag_length, "ban_tags": ban_tags,
+                 "image": image if scene is None else None, "output_format": kind,
+                 "scene": scene, "tag_set": tag_set},
+                reference=reference, vocabulary=vocab, scene_vocabulary=scene_vocab)
         tags = natural = ""
         raw_tags = raw_natural = None
         if output_format in ("both", "natural_language"):
-            raw_natural = generate_text(clip, instruction("natural_language"),
+            raw_natural = generate_text(prose_clip, instruction("natural_language"),
                 image, max_tokens, temperature, seed)
             natural = clean_natural_language(raw_natural)
         if output_format in ("both", "tags"):
             # The second pass renders the chosen scene, rather than encoding the
             # image again and independently inventing a second scene.
             tag_image = image if output_format == "tags" else None
-            raw_tags = generate_text(clip, instruction("tags", scene=natural if output_format == "both" else None),
-                tag_image, max_tokens, temperature, seed)
+            raw_tags = generate_text(adapted_clip, instruction("tags", scene=natural if output_format == "both" else None),
+                tag_image, max_tokens, temperature, seed, repetition_penalty=repetition_penalty)
             tags = clean_tags(raw_tags, effective_bans, prompt)
         raw = json.dumps({"prompt_contract": VERSION, "output_format": output_format,
                           "tag_set": tag_set, "natural_language": raw_natural, "tags": raw_tags,
+                          "generation": {"temperature": temperature, "seed": seed, "max_tokens": max_tokens,
+                                         "repetition_penalty": {"natural_language": 1.05 if raw_natural is not None else None,
+                                                                "tags": repetition_penalty if raw_tags is not None else None}},
+                          "tipo_lora": {"selected": tipo_lora, "scope": tipo_lora_scope,
+                                        "natural_language": (tipo_lora if tipo_lora_scope == "both" else "none") if raw_natural is not None else None,
+                                        "tags": tipo_lora if raw_tags is not None else None},
                           "knowledge": knowledge.provenance if knowledge else None,
                           "request_vocabulary": vocab,
                           "scene_vocabulary": scene_vocab,

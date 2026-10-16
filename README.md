@@ -11,13 +11,17 @@ memory, collected Danbooru images/tags, feature vectors, recommendation results,
 or model weights are included. You choose the material and build your own memory.
 Artist, character, and series names are retained as core information.
 
+**New: [TIPO Image 30K](TIPO_IMAGE_30K.md)** — choose `tipo_lora=image-30k` for image-tag assistance.
+**Compute-heavy: tested on 16GB NVIDIA GPUs. Outputs may be wrong or not match your taste.**
+Korean edits, names and appearance remain unreliable. Read the [setup, resource costs and evaluation](TIPO_IMAGE_30K.md) before downloading.
+
 ## Choose a starting point
 
 | What you want | Use | Requirements |
 | --- | --- | --- |
 | Random seasonal clothing and scene prompts | Seasonal Fashion Prompt Generator | ComfyUI; no model or extra packages |
-| Expand text/image context into tags and natural-language instructions | **[Gemma Prompt Expander Native](PROMPT_EXPANSION.md)** | Same native Gemma 4 CLIP; optional personal tag dictionary |
-| Expand text/image prompts using ComfyUI PyTorch | **Gemma TIPO Native** | Gemma 4 capable ComfyUI + native safetensors; no extra packages |
+| Expand text/image context into tags and natural-language instructions | **[Gemma Prompt Expander Native](PROMPT_EXPANSION.md)** | Built-in Q4 or connected native Gemma 4 CLIP; optional personal tag dictionary |
+| Expand text/image prompts using ComfyUI PyTorch | **Gemma TIPO Native** | Gemma 4 capable ComfyUI; built-in Q4 GGUF or native safetensors |
 | Write English tags or prose from Korean/English requests | RS AI Prompt Writer | ComfyUI + a separate Qwen Writer, distinct from Gemma TIPO |
 | Expand Korean/English descriptions or tags | Gemma TIPO, text mode | ComfyUI + GGUF runtime/model; GPU-capable runtime plus `gpu_layers=-1` enables GPU offload |
 | Generate prompt tags inspired by an image | Gemma TIPO, image mode | ComfyUI + GGUF + matching mmproj + llama.cpp vision runtime |
@@ -30,8 +34,9 @@ version includes [four native VRS nodes](vrs_int/COMFYUI_NATIVE.md) for building
 loading and recalling personal experience into the native Gemma Prompt Expander.
 
 **Optional TIPO LoRA:** choose `tipo_lora` inside either native Gemma node;
-first use downloads a ~45.3MiB experimental adapter. A separate **~9.57GiB
-native base** is still required. Default is `none`; no extra loader node.
+first use downloads a ~45.3MiB experimental adapter. A base is required: **built-in
+Q4 (~3.22GiB text, ~4.14GiB with vision)** or connected BF16 (~9.57GiB). Default
+is `none`; no extra loader node. See [Q4 setup](GGUF_NATIVE.md).
 See [base setup, downloads and limitations](NATIVE_TIPO.md#built-in-experimental-lora--노드-내부-실험-lora).
 
 - **ComfyUI:** follow [installation](#install-for-comfyui), then the node guides below.
@@ -69,9 +74,12 @@ preview node lets you inspect the string before generating an image.
 
 ### 2. Prepare Gemma TIPO Native (recommended)
 
-**No extra pip packages are needed.** `requirements.txt` and default package
-dependencies are empty. This path uses ComfyUI's PyTorch, tokenizer and GPU
-model management, without llama.cpp, C++ compilation, GGUF CUDA wheels or mmproj.
+**For built-in Q4, install `requirements.txt` with ComfyUI's Python.** It adds the
+pure Python `gguf` parser. Select `model_source=heretic_ara_q4`, disconnect `clip`,
+and keep paths empty for automatic downloads. [Full Q4 setup and example](GGUF_NATIVE.md).
+No llama.cpp, C++ compilation, CUDA wheels or replacement torch are needed.
+
+For an existing full native safetensors, use `model_source=connected_clip` (default):
 
 1. Use ComfyUI with Gemma 4 and `CLIP.generate` support.
 2. Put a **ComfyUI-format Gemma 4 E2B safetensors** in `ComfyUI/models/text_encoders/`.
@@ -79,7 +87,7 @@ model management, without llama.cpp, C++ compilation, GGUF CUDA wheels or mmproj
 4. Connect its `CLIP` to **Gemma TIPO Native** and enter a request. The image input is optional.
 5. Connect `tags` to `Preview as Text` or your image-generation text input.
 
-**Existing GGUF + mmproj files cannot be loaded directly.** If you have the
+**Matching Gemma 4 E2B GGUF + mmproj can use the [built-in Q4 path](GGUF_NATIVE.md).** If you have the
 fine-tuned full HF safetensors, use the [model preparation/conversion guide](NATIVE_TIPO.md)
 to retain its trained language and vision projector together. A generic base
 Gemma is not the existing TIPO fine-tune. Repackaging does not require training.

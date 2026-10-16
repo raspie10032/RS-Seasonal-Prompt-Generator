@@ -1,6 +1,7 @@
 """First-use download integrity and old-workflow behavior, with no network."""
 import hashlib
 import io
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -43,6 +44,23 @@ class DownloadTests(unittest.TestCase):
             with self.assertRaises(OSError):
                 lora.ensure_adapter("test", self.root)
         self.assertEqual(list((self.root / "test").iterdir()), [])
+
+    def test_cancellation_cleans_partial_file(self):
+        with patch.object(lora.urllib.request, "urlopen", return_value=io.BytesIO(self.payload)):
+            with self.assertRaises(InterruptedError):
+                lora.ensure_adapter("test", self.root, Mock(side_effect=InterruptedError))
+        self.assertEqual(list((self.root / "test").iterdir()), [])
+
+    def test_changed_file_invalidates_integrity_cache_even_with_same_mtime(self):
+        with patch.object(lora.urllib.request, "urlopen", return_value=io.BytesIO(self.payload)):
+            folder = lora.ensure_adapter("test", self.root)
+        target = folder / "adapter_model.safetensors"
+        lora.ensure_adapter("test", self.root)
+        old = target.stat()
+        target.write_bytes(b"x" * len(self.payload))
+        os.utime(target, ns=(old.st_atime_ns, old.st_mtime_ns))
+        with self.assertRaisesRegex(ValueError, "checksum mismatch"):
+            lora.ensure_adapter("test", self.root)
 
     def test_existing_corrupt_file_is_preserved_and_rejected(self):
         folder = self.root / "test"

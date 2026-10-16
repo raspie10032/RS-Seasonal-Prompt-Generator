@@ -1,0 +1,42 @@
+{
+  "prompt": {
+    "1": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "your-reference.png"
+      }
+    },
+    "2": {
+      "class_type": "GemmaPromptExpandNative",
+      "inputs": {
+        "prompt": "이미지에 보이는 인물, 의상, 배경을 참고해서 태그를 작성해줘.",
+        "image": [
+          "1",
+          0
+        ],
+        "tag_length": "long",
+        "max_tokens": 512,
+        "temperature": 0.5,
+        "repetition_penalty": 1.15,
+        "ban_tags": "masterpiece, best quality, year 2025, year 2026",
+        "seed": 42,
+        "output_format": "tags",
+        "tipo_lora_scope": "tags_only",
+        "model_source": "heretic_ara_q4",
+        "tipo_lora": "image-30k",
+        "gguf_path": "",
+        "mmproj_path": "",
+        "tokenizer_path": ""
+      }
+    },
+    "3": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "2",
+          0
+        ]
+      }
+    }
+  }
+}

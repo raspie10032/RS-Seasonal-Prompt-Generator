@@ -9,13 +9,17 @@
 태그, 특징 벡터, 추천 결과, 모델 가중치는 포함하지 않습니다. 각자 원하는 자료로
 기억을 구성하며, 작가·캐릭터·작품명은 핵심 정보로 보존합니다.
 
+**새 배포: [TIPO Image 30K](TIPO_IMAGE_30K.md)** — `tipo_lora=image-30k`로 이미지 태그를 보강합니다.
+**고사양 GPU 권장(16GB NVIDIA 검증), 출력이 취향·이미지·지시와 다를 수 있습니다.**
+한국어 수정·이름·외형 보존에는 오류가 남습니다. [설치·자원 부담·실제 평가](TIPO_IMAGE_30K.md)를 먼저 읽어주세요.
+
 ## 원하는 기능부터 선택하기
 
 | 원하는 작업 | 사용할 기능 | 필요한 것 |
 | --- | --- | --- |
 | 계절·의상·배경 무작위 조합 | Seasonal Fashion Prompt Generator | ComfyUI. 모델·추가 패키지 불필요 |
-| 텍스트·이미지 맥락을 태그형·자연어 지시문형으로 확장 | **[Gemma Prompt Expander Native](PROMPT_EXPANSION.md)** | 네이티브 Gemma 4 CLIP. 개인 태그 사전은 선택 입력 |
-| ComfyUI PyTorch로 텍스트·이미지 태그 확장 | **Gemma TIPO Native** | Gemma 4 지원 ComfyUI + 네이티브 safetensors. 추가 패키지 없음 |
+| 텍스트·이미지 맥락을 태그형·자연어 지시문형으로 확장 | **[Gemma Prompt Expander Native](PROMPT_EXPANSION.md)** | 내부 Q4 자동 다운로드 또는 Gemma 4 CLIP 연결. 개인 태그 사전은 선택 입력 |
+| ComfyUI PyTorch로 텍스트·이미지 태그 확장 | **Gemma TIPO Native** | Gemma 4 지원 ComfyUI + 내부 Q4 GGUF 또는 네이티브 safetensors |
 | 한국어 요청으로 영문 태그·문장 작성 | RS AI Prompt Writer | ComfyUI + 별도 Qwen Writer. Gemma TIPO와 다른 모델 |
 | 한국어·영어 설명이나 태그 확장 | Gemma TIPO 텍스트 모드 | ComfyUI + GGUF 실행 환경·모델. GPU 지원 실행 환경과 `gpu_layers=-1`로 GPU 적재 |
 | 참고 이미지에서 프롬프트용 태그 생성 | Gemma TIPO 이미지 모드 | ComfyUI + GGUF·호환 mmproj·llama.cpp 비전 실행 파일 |
@@ -28,7 +32,8 @@ VRS-INT의 목적은 **새로운 프롬프트에 쓸 참고 재료를 가져오�
 경험 구축·불러오기·검색 결과를 네이티브 Gemma Prompt Expander에 연결합니다.
 
 **선택적 TIPO LoRA:** 네이티브 Gemma 노드 안의 `tipo_lora`를 선택하면 처음에만
-약 45.3MiB의 실험 후보를 받습니다. **별도 네이티브 베이스 약 9.57GiB가 필요**합니다.
+약 45.3MiB의 실험 후보를 받습니다. 베이스는 **내부 Q4(텍스트 약 3.22GiB, 이미지 포함
+약 4.14GiB)** 또는 기존 BF16(약 9.57GiB)을 사용합니다. [Q4 설치 안내](GGUF_NATIVE.md).
 기본값은 `none`이고 추가 로더 노드는 없습니다.
 [베이스 설치·다운로드·제약](NATIVE_TIPO.md#built-in-experimental-lora--노드-내부-실험-lora)을 확인하세요.
 
@@ -67,9 +72,12 @@ ComfyUI를 재시작하고 **`prompt`** 분류 또는 노드 이름 검색으로
 
 ### 2. Gemma TIPO Native 준비 (권장)
 
-**추가 pip 설치가 필요 없습니다.** `requirements.txt`와 패키지 기본 의존성은
-비어 있으며, ComfyUI의 PyTorch·토크나이저·GPU 모델 관리를 그대로 사용합니다.
-llama.cpp, C++ 빌드 도구, GGUF용 CUDA 휠이나 별도 mmproj를 설치하지 않습니다.
+**내부 Q4는 ComfyUI의 Python으로 `requirements.txt`를 설치합니다.** 순수 Python
+`gguf` 파서만 추가합니다. `model_source=heretic_ara_q4`를 선택하고 `clip`을 해제하면
+노드가 필요한 모델을 받습니다. [Q4 설치·다운로드·예제](GGUF_NATIVE.md)를 참고하세요.
+llama.cpp, C++ 빌드 도구, CUDA 휠이나 torch 교체는 필요 없습니다.
+
+기존 전체 safetensors는 `model_source=connected_clip`(기본값)으로 다음처럼 연결합니다.
 
 1. Gemma 4와 `CLIP.generate`를 지원하는 ComfyUI를 사용하세요.
 2. **ComfyUI 형식의 Gemma 4 E2B safetensors**를 `ComfyUI/models/text_encoders/`에 넣습니다.
@@ -77,7 +85,7 @@ llama.cpp, C++ 빌드 도구, GGUF용 CUDA 휠이나 별도 mmproj를 설치하�
 4. `CLIP`을 **Gemma TIPO Native**에 연결하고 요청을 입력합니다. 이미지는 선택 입력입니다.
 5. `tags`를 `Preview as Text` 또는 이미지 생성용 텍스트 입력에 연결합니다.
 
-**기존 GGUF + mmproj는 네이티브 노드에 직접 넣을 수 없습니다.** 원래 튜닝된
+**대응하는 Gemma 4 E2B GGUF + mmproj는 [내부 Q4 경로](GGUF_NATIVE.md)로 사용합니다.** 원래 튜닝된
 전체 HF safetensors가 있으면 [변환 도구·모델 준비 안내](NATIVE_TIPO.md)로
 학습된 텍스트·비전 연결부를 함께 보존하세요. 일반 Gemma 원본은 같은 TIPO
 튜닝 모델이 아닙니다. 변환 자체에는 재학습이 필요 없습니다.
