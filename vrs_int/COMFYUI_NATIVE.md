@@ -1,5 +1,10 @@
 # VRS-INT inside ComfyUI / 네이티브 구축·검색·프롬프트 확장
 
+**이미지 폴더와 output을 직접 등록하려면 [VRS 폴더 기억](FOLDERS.md)을 사용하세요.**
+JSONL 준비 없이 메타데이터를 읽고 큐가 빌 때 조금씩 경험을 구축합니다.
+For folder/output ingestion with a latest-completed memory loader, see [VRS Folders](FOLDERS.md).
+The manual JSONL and pinned-snapshot workflow below remains supported.
+
 [한국어 안내](README_KOR.md) · [English overview](README.md) · [두 출력](../PROMPT_EXPANSION.md)
 
 ## 한국어
@@ -16,7 +21,7 @@ llama.cpp, 별도 서버, Transformers, bitsandbytes가 필요 없습니다. Gem
 2. [네이티브 모델 준비](../NATIVE_TIPO.md)에 따라 **ComfyUI 형식의 Gemma 4 E2B safetensors**를
    `ComfyUI/models/text_encoders/`에 둡니다. GGUF/mmproj를 직접 읽지 않습니다.
    VRS 로더는 이 파일에서 `vision_model.*`만 읽습니다. 텍스트·PLE 가중치를 GPU에 올리지 않습니다.
-3. 큐가 끝난 뒤 ComfyUI를 재시작합니다. `prompt/VRS` 아래 노드 4개가 나타납니다.
+3. 큐가 끝난 뒤 ComfyUI를 재시작합니다. `prompt/VRS` 아래 구축·검색 노드가 나타납니다.
    CUDA GPU와 Gemma 4 비전을 지원하는 ComfyUI가 필요합니다. 실패 시 CPU 추론으로 전환하지 않습니다.
 
 ### 처음 경험 만들기 / 묶음 추가
@@ -79,8 +84,10 @@ flowchart LR
   구현, torch/torchvision 버전, 전처리·풀링을 계약에 기록합니다. 모델이나 런타임 변경은 재구축을
   요구할 수 있습니다. 동일 차원이라고 호환되는 것은 아닙니다.
 - 비전은 약 319MiB의 가중치를 별도 관리합니다. ComfyUI가 GPU 적재와 CPU 오프로드를 제어합니다.
-  검색은 제한된 블록만 GPU에 올리지만 **전체 벡터를 순회하는 정확 검색**입니다. 첫 조회는 저장소를
-  검증·읽고 이후 조회용 메타데이터와 벡터를 RAM에 보관합니다. 대규모 지연·RAM 사용은 미검증입니다.
+  검색은 제한된 블록만 GPU에 올리는 **전체 벡터를 순회하는 정확 검색**입니다. 최초 조회는 저장소를
+  검증하고 영구 FP32 검색 배열을 준비하므로 오래 걸릴 수 있습니다. 재시작 후에는 검증된 캐시를
+  다시 열고, 새 판본에서는 추가·수정된 경험만 변환합니다. 이후 조회는 디스크 매핑 배열과
+  상위 이웃의 태그만 읽습니다. 검색 준비·반복 조회의 비용과 캐시 위치는 [검색 자원 안내](SEARCH.md)를 보세요.
 - Gemma 확장 노드의 언어 모델 메모리는 별도이며, 로더 두 개의 비전 텐서를 공유하지 않습니다.
   ComfyUI 전체의 CPU 스레드·GPU 선택을 노드가 임의로 변경하지 않습니다.
 - 같은 픽셀의 원본/재저장 복사본은 자기 검색에서 제외합니다. 자르기·리사이즈·유사 그림까지
@@ -134,8 +141,10 @@ native store. FP16 resident vision weights use ComfyUI's FP32 manual-cast comput
 fingerprint weights/runtime/preprocessing; do not relabel old vectors as compatible. The vision
 loader reads only ~319MiB of vision weights from the full file; the writer's language model is
 additional. ComfyUI manages residency/offload, but the two loaders do not share vision tensors.
-Retrieval streams bounded GPU blocks and caches vector metadata in RAM; it is a full scan, not
-an ANN index. Large-corpus latency/RAM have not been validated. RGB-identical copies are excluded,
+Retrieval uses bounded GPU blocks over a persistent disk-mapped FP32 pool; only winning
+neighbors' voting metadata is loaded. First use verifies and prepares the snapshot. Later opens
+verify and reuse the cache across restarts; new snapshots convert only new/changed entries.
+This remains an exact full scan. See [search resources and cache settings](SEARCH.md). RGB-identical copies are excluded,
 but cropped/resized near-duplicates are not. One RGB image per query is supported.
 
 No personal images, metadata, vectors or weights are distributed. Creative relevance and prompt
@@ -151,4 +160,5 @@ On ComfyUI `15eb748b`, two generations within one node initially reused a stale 
 now calls ComfyUI's prefetch-queue cleanup between calls; the repeated run passed with CUDA graphs
 enabled, without modifying ComfyUI core or global flags. The small off/on comparison does not establish
 better quality or speed: neighbor appearance can leak into the subject, and nonstandard tags remain,
-including when dictionary hints are present. Large memories still need a performance evaluation.
+including when dictionary hints are present. Large stored-vector search measurements are documented
+in [SEARCH.md](SEARCH.md); native large-folder encoding and end-to-end prompt quality need separate evaluation.

@@ -76,6 +76,32 @@ class VersionTests(unittest.TestCase):
             self.store.update(self.base, [op], "missing")
         self.assertEqual(len(list((self.store.root / "snapshots").iterdir())), 1)
 
+    def test_late_update_conflict_preserves_parent_and_closes_staging(self):
+        from vrs_int.store import bucket
+        rows = sorted(self.records, key=lambda row: bucket(row["key"], 32))
+        self.assertNotEqual(bucket(rows[0]["key"], 32), bucket(rows[-1]["key"], 32))
+        operations = []
+        for row in (rows[0], rows[-1]):
+            changed = copy.deepcopy(row)
+            changed["document"]["tags"].append("new scene")
+            operations.append({"op": "upsert", "key": row["key"], "entry": changed,
+                               "expected_revision": revision(row)})
+        operations[-1]["expected_revision"] = "0" * 64
+        self.store.activate(self.base, None)
+        with self.assertRaisesRegex(ValueError, "revision conflict"):
+            self.store.update(self.base, operations, "late conflict")
+        self.assertEqual(self.store.current(), self.base)
+        self.assertEqual(len(list((self.store.root / "snapshots").iterdir())), 1)
+        self.assertEqual({e["key"]: e for e in self.store.entries(self.base)},
+                         {e["key"]: e for e in self.records})
+        self.assertEqual(list(self.store.root.glob(".update-*")), [])
+        # Retry after the failed transaction must work and retain both updates.
+        operations[-1]["expected_revision"] = revision(rows[-1])
+        newer = self.store.update(self.base, operations, "retry")
+        for op in operations:
+            self.assertEqual(self.store.get(newer, op["key"]), op["entry"])
+        self.assertEqual(list(self.store.root.glob(".update-*")), [])
+
     def test_add_delete_restore_and_retained_history(self):
         row = entry(100)
         new = self.store.update(self.base, [
@@ -141,6 +167,27 @@ class VersionTests(unittest.TestCase):
         local = self.store.update(self.base, [fork_op], "local")
         with self.assertRaisesRegex(ValueError, "exact immediate parent"):
             self.store.export(newer, self.root / "bad", local)
+
+    def test_manifest_changed_during_install_does_not_poison_retry(self):
+        package = self.root / "changing-package"
+        self.store.export(self.base, package)
+        receiver = Store(self.root / "receiver")
+        original = Store.read_bucket
+
+        def mutate_manifest(store, manifest, index):
+            rows = original(store, manifest, index)
+            if store.root == package:
+                store.manifest_path(self.base).write_bytes(b"{}")
+            return rows
+
+        with patch.object(Store, "read_bucket", mutate_manifest):
+            with self.assertRaisesRegex(ValueError, "manifest changed"):
+                receiver.install(package)
+        self.assertFalse(receiver.manifest_path(self.base).exists())
+        self.assertIsNone(receiver.current())
+        Store(package).manifest_path(self.base).write_bytes(self.store.manifest_path(self.base).read_bytes())
+        self.assertEqual(receiver.install(package), self.base)
+        self.assertEqual(receiver.verify(self.base)["observations"], len(self.records))
 
     def test_valid_hash_invalid_counts_not_published(self):
         package = self.root / "incorrect-counts"

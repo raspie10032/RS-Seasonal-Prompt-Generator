@@ -55,7 +55,8 @@ class NativeTests(unittest.TestCase):
         first = self.build()
         self.row["tags_general"].append("holding_cup")
         self.manifest.write_text(json.dumps(self.row) + "\n")
-        second = self.build(base=first["snapshot"])
+        with patch.object(Store, "get", side_effect=AssertionError("Avoid per-image bucket lookup")):
+            second = self.build(base=first["snapshot"])
         self.assertNotEqual(first["snapshot"], second["snapshot"])
         memory, _ = VRSNativeMemoryLoader().load(str(self.root / "memory"), second["snapshot"])
         old = next(memory.store.entries(first["snapshot"]))

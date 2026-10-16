@@ -14,7 +14,7 @@ import re
 import sqlite3
 import zlib
 
-from .tipo_evaluation import assert_training_disjoint, digest, read_rows, source_keys
+from .tipo_evaluation import assert_training_disjoint, digest, read_rows, source_keys, _bit_count
 from .tipo_supervision import SCHEMA, freeze_supervision
 from tipo_prompt import VERSION
 from vrs_int.generation_metadata import make_record
@@ -124,7 +124,7 @@ def select_sources(catalog, reserved, previous, quotas, max_per_character=12):
                 stats['missing_image'] += 1
                 continue
             dhash = image_dhash(image)
-            if any((int(dhash, 16) ^ h).bit_count() <= 6 for h in hashes):
+            if any(_bit_count(int(dhash, 16) ^ h) <= 6 for h in hashes):
                 stats['near_duplicate'] += 1
                 continue
             if file_sha(image) != sha:

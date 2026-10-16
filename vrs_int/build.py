@@ -8,7 +8,7 @@ from pathlib import Path
 from .import_snapshot import file_digest
 from .manifest import read_pairs
 from .identity import observation_key
-from .store import Store, revision, validate_entry
+from .store import Store, bucket, revision, validate_entry
 from .tag_policy import POLICY_VERSION, filter_tags, typed_tags
 from .vectors import encode_vector
 
@@ -47,6 +47,24 @@ def local_entries(manifest, images, contract, encode):
         yield entry
 
 
+def upsert_operations(store, base, entries):
+    """Bind incoming observations to an immutable base without repeated decoding.
+
+    Cache only keys and revision hashes for each touched bucket, not source
+    documents or vectors. Store.update still validates each expected revision
+    independently before publishing the new snapshot.
+    """
+    manifest = store.manifest(base)
+    revisions = {}
+    for entry in entries:
+        index = bucket(entry["key"], manifest["bucket_count"])
+        if index not in revisions:
+            revisions[index] = {previous["key"]: revision(previous)
+                                for previous in store.read_bucket(manifest, index)}
+        yield {"op": "upsert", "key": entry["key"], "entry": entry,
+               "expected_revision": revisions[index].get(entry["key"])}
+
+
 def build_personal(manifest, images, encoder_path, destination, *, label="personal-initial",
                    codec="f32le", bucket_count=256, base=None, encoder_factory=None):
     contract = encoder_contract(encoder_path, codec)
@@ -68,12 +86,8 @@ def build_personal(manifest, images, encoder_path, destination, *, label="person
                   "collection": "user-selected-local-images", "automatic_downloads": False}
     try:
         if base:
-            def operations():
-                for entry in entries():
-                    previous = store.get(base, entry["key"])
-                    yield {"op": "upsert", "key": entry["key"], "entry": entry,
-                           "expected_revision": revision(previous) if previous else None}
-            snapshot = store.update(base, operations(), label, contract, provenance)
+            snapshot = store.update(base, upsert_operations(store, base, entries()),
+                                    label, contract, provenance)
         else:
             snapshot = store.build(entries(), contract, label, provenance, bucket_count)
         return store.verify(snapshot)

@@ -199,10 +199,10 @@ class RSPromptWriter:
             if layers != 0:
                 te.require_gpu_offload()
             path = _resolve_model(model)
-            llm = te.load_tipo(path, layers, n_ctx=4096, n_threads=cpu_threads)
-            if llm is None:
-                raise RuntimeError(f"Could not load model: {path}")
-            with te._inference_lock:
+            with te.tipo_inference():
+                llm = te.load_tipo(path, layers, n_ctx=4096, n_threads=cpu_threads)
+                if llm is None:
+                    raise RuntimeError(f"Could not load model: {path}")
                 response = llm.create_chat_completion(
                     messages=messages, max_tokens=LENGTHS[length][1],
                     temperature=float(temperature), top_p=0.8, top_k=20,

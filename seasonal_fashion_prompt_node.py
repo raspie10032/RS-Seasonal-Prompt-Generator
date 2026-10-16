@@ -17,7 +17,7 @@ FILES = {
     'body_directions': 'body_directions.csv',
 }
 
-def load_data_from_csv(file_path, skip_header=True):
+def load_data_from_csv(file_path, skip_header=True, min_columns=1):
     """Load data from CSV file into a dictionary."""
     data = {}
     try:
@@ -26,7 +26,8 @@ def load_data_from_csv(file_path, skip_header=True):
             if skip_header:
                 next(csv_reader, None)  # Skip header row
             for row in csv_reader:
-                if row and row[0].strip() and not row[0].lstrip().startswith('#'):
+                if (len(row) >= min_columns and all(value.strip() for value in row[:min_columns])
+                        and not row[0].lstrip().startswith('#')):
                     key = row[0].strip()
                     if key not in data:
                         data[key] = []
@@ -80,10 +81,10 @@ data_dir = os.path.join(current_dir, DATA_DIR)
 file_paths = {key: os.path.join(data_dir, value) for key, value in FILES.items()}
 
 # Load data from CSV files
-seasonal_fashion = load_data_from_csv(file_paths['seasonal_fashion'])
-seasonal_backgrounds = load_data_from_csv(file_paths['seasonal_backgrounds'])
-seasonal_weather = load_data_from_csv(file_paths['seasonal_weather'])
-seasonal_times = load_data_from_csv(file_paths['seasonal_times'])
+seasonal_fashion = load_data_from_csv(file_paths['seasonal_fashion'], min_columns=3)
+seasonal_backgrounds = load_data_from_csv(file_paths['seasonal_backgrounds'], min_columns=3)
+seasonal_weather = load_data_from_csv(file_paths['seasonal_weather'], min_columns=2)
+seasonal_times = load_data_from_csv(file_paths['seasonal_times'], min_columns=2)
 additional_situations = load_additional_situations(file_paths['additional_situations'])
 general_composition = load_list_from_csv(file_paths['general_composition'])
 gaze_direction = load_list_from_csv(file_paths['gaze_direction'])

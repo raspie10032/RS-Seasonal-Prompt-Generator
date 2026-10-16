@@ -24,6 +24,7 @@ import importlib.util
 import shutil
 import subprocess
 import urllib.request
+from contextlib import contextmanager
 
 # Dependencies are installed on first actual TIPO use only (not at node import),
 # so the base node stays zero-dependency and ComfyUI startup is never blocked.
@@ -33,7 +34,8 @@ _DEPS_ATTEMPTED = False
 _FORMATTER_ATTEMPTED = False
 _deps_lock = threading.Lock()
 _download_lock = threading.Lock()
-_inference_lock = threading.Lock()
+_inference_lock = threading.RLock()
+_inference_state = threading.local()
 _LLAMA_IMPORT_ERROR = ""
 
 
@@ -245,10 +247,10 @@ def _download_file(url, dest):
                     f.write(chunk)
                     done += len(chunk)
                     if pbar is not None:
-                        try:
-                            pbar.update_absolute(done, total)
-                        except Exception:
-                            pbar = None
+                        # ComfyUI's progress hook also raises on cancellation.
+                        # Propagate it so the finally block removes the partial
+                        # file instead of completing a cancelled large download.
+                        pbar.update_absolute(done, total)
                     now = time.time()
                     if total and now - last > 2:
                         last = now
@@ -308,6 +310,28 @@ SORT_CHOICES = ["danbooru", "quality_first", "artist_first",
 
 _model_cache = {}
 _cache_lock = threading.Lock()
+
+
+@contextmanager
+def tipo_inference():
+    """Own cached model acquisition through the last inference using its handle.
+
+    A cached handle is borrowed only until this scope exits. It must not escape
+    the scope. Nested scopes may reuse the same settings, but cannot replace a
+    model still borrowed by the outer scope. Private cache=False handles keep
+    their existing caller-owned lifetime.
+    """
+    with _inference_lock:
+        depth = getattr(_inference_state, "depth", 0)
+        if depth == 0:
+            _inference_state.key = None
+        _inference_state.depth = depth + 1
+        try:
+            yield
+        finally:
+            _inference_state.depth = depth
+            if depth == 0:
+                _inference_state.key = None
 
 
 def _clean_special_tokens(raw):
@@ -480,7 +504,18 @@ def require_gpu_offload():
 
 
 def load_tipo(model_path, gpu_layers=0, n_ctx=2048, n_threads=2, cache=True):
-    """Cache by settings; cache=False gives the caller ownership of close()."""
+    """Borrow one cached model inside tipo_inference(), or own a private model.
+
+    Internal cache=True callers must hold tipo_inference() from this call until
+    generation finishes. A settings change closes the previous cached model
+    before loading its replacement. Bare cached loads are rejected because an
+    escaped raw handle cannot safely participate in eviction. cache=False
+    requires no scope and gives the caller ownership of close().
+    """
+    if cache and not getattr(_inference_state, "depth", 0):
+        raise RuntimeError("Cached load_tipo() requires a tipo_inference() scope "
+                           "covering loading and generation; use cache=False "
+                           "for a caller-owned model and close it explicitly.")
     if not model_path:
         return None
 
@@ -499,15 +534,27 @@ def load_tipo(model_path, gpu_layers=0, n_ctx=2048, n_threads=2, cache=True):
     threads = max(1, int(n_threads))
     key = (model_path, int(gpu_layers), int(n_ctx), threads)
     with _cache_lock:
+        if cache and _inference_state.key not in (None, key):
+            raise RuntimeError("Cannot change cached TIPO settings while a model "
+                               "is borrowed in the current tipo_inference() scope.")
         if cache and key in _model_cache:
+            _inference_state.key = key
             return _model_cache[key]
         from llama_cpp import Llama
 
+        if cache:
+            # All cached users hold the same inference scope, so no earlier
+            # borrower can still be generating. Remove before close(): a
+            # failed close must never leave a possibly invalid cached object.
+            while _model_cache:
+                _, obsolete = _model_cache.popitem()
+                obsolete.close()
         llm = Llama(model_path=model_path, n_gpu_layers=int(gpu_layers), n_ctx=int(n_ctx),
                     n_threads=threads, n_threads_batch=threads,
                     verbose=os.environ.get("RS_TIPO_VERBOSE", "") == "1")
         if cache:
             _model_cache[key] = llm
+            _inference_state.key = key
         return llm
 
 
@@ -575,12 +622,10 @@ def expand_prompt(prompt, gguf_path, tag_length, ban_tags, temperature, seed,
         if not _ensure_deps():
             print("[TIPO] dependencies unavailable; using original prompt")
             return prompt
-        resolved = _resolve_model_path(gguf_path)
         layers = 0 if os.environ.get("RS_TIPO_FORCE_CPU", "").lower() in ("1", "true", "yes", "on") else int(gpu_layers)
-        llm = load_tipo(resolved, layers)
-        if llm is None:
-            print(f"[TIPO] model not loaded (path: {resolved!r}); using original prompt")
-            return prompt
+        if layers != 0:
+            require_gpu_offload()
+        resolved = _resolve_model_path(gguf_path)
 
         target = _TARGET_TAGS.get(tag_length, 45)
         # This is a TIPO tag model: the "Partial tags:" framing yields far
@@ -594,8 +639,12 @@ def expand_prompt(prompt, gguf_path, tag_length, ban_tags, temperature, seed,
             + _avoid_hint(ban_tags)
         )
 
-        # llama-cpp contexts are mutable and must not serve overlapping calls.
-        with _inference_lock:
+        # Borrow under the same ownership used to evict/replace cached models.
+        with tipo_inference():
+            llm = load_tipo(resolved, layers)
+            if llm is None:
+                print(f"[TIPO] model not loaded (path: {resolved!r}); using original prompt")
+                return prompt
             resp = llm.create_chat_completion(
                 messages=[
                     {"role": "system", "content": SYSTEM_TIPO},

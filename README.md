@@ -128,6 +128,8 @@ When both separates and a one-piece are available, one outfit type is selected.
 
 Edit UTF-8 files in [`data/`](data/), preserve headers/columns, and restart
 ComfyUI to reload cached data. Back up personal changes before updating code.
+Rows missing required values are skipped: clothing/backgrounds need three
+columns, weather/time need two. Single-column pose and composition lists remain valid.
 
 | Files | Contents |
 | --- | --- |
@@ -252,6 +254,8 @@ Inputs:
 - *(optional, both modes)* `gpu_layers`: **`0` = CPU** (default and saved
   workflow compatibility), **`-1` = GPU auto/all layers**, positive values =
   layer count. Text mode requires a GPU-enabled `llama-cpp-python` build.
+  If GPU offload is unavailable, text mode logs the error and returns the original
+  prompt before downloading a model; it does not silently run the request on CPU.
   Vision retries on CPU if GPU initialization or inference fails.
   `RS_TIPO_FORCE_CPU=1` forces CPU in both modes; `LLAMA_MTMD_CLI` selects a
   local binary. CPU mode also disables vision-projector offload.
@@ -350,7 +354,9 @@ FFN computation replay is not part of this checkpoint.
 The state connection is available through the CLI and [native VRS nodes](vrs_int/COMFYUI_NATIVE.md).
 Negation and scene constraints still need
 output review. Vision TIPO exits its process after each call; legacy text TIPO
-caches its model. Both use two CPU helper threads by default.
+caches one model shared with the legacy Prompt Writer. Changing its model or
+execution settings releases the previous model after generation finishes and
+before loading the replacement. Both use two CPU helper threads by default.
 
 ## Troubleshooting
 
@@ -408,3 +414,12 @@ terms; the code license does not relicense them.
 Originally created with ChatGPT, then developed with Claude Code and Codex.
 
 VRS inside ComfyUI / VRS 네이티브 구축·검색: [설치·연결·API 예제](vrs_int/COMFYUI_NATIVE.md)
+
+**Folder ingestion:** [VRS Folders](vrs_int/FOLDERS.md) registers image folders and ComfyUI
+output, preserves embedded prompts and indexes new files in small batches when the
+generation queue is idle. Includes start/stop/resume and a latest-search-ready memory node.
+Originals stay unchanged; missing metadata is counted, not automatically tagged.
+
+Search data persists across restarts and reuses unchanged experiences when snapshots advance.
+Folder ingestion prepares search on idle CPU time and retains the previous ready snapshot meanwhile.
+See [cache location, capacity, recovery and measurements](vrs_int/SEARCH.md).

@@ -73,6 +73,13 @@ class EvaluationTests(unittest.TestCase):
         train['source'].update(image_sha256='3'*64, intent_sha256='4'*64, family_id='f2', dhash64='0000000000000001')
         with self.assertRaisesRegex(ValueError, 'near-duplicate'):
             assert_training_disjoint([train], [first])
+        # Preserve the six-bit boundary on both Python 3.9's fallback and the
+        # native popcount in newer runtimes.
+        train['source']['dhash64'] = '000000000000003f'
+        with self.assertRaisesRegex(ValueError, 'near-duplicate'):
+            assert_training_disjoint([train], [first])
+        train['source']['dhash64'] = '000000000000007f'
+        assert_training_disjoint([train], [first])
         train['source']['dhash64'] = 'f'*16
         assert_training_disjoint([train], [first])
         del train['source']['dhash64']

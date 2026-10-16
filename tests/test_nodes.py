@@ -189,7 +189,8 @@ class TagTests(unittest.TestCase):
     def test_text_generation_keeps_input_tags_and_passes_sampling(self):
         llm = Mock()
         llm.create_chat_completion.return_value = {'choices': [{'message': {'content': '3girls, blue_hair, outdoors'}}]}
-        with patch.object(te, '_ensure_deps', return_value=True), patch.object(te, 'load_tipo', return_value=llm) as load:
+        with patch.object(te, '_ensure_deps', return_value=True), patch.object(te, 'require_gpu_offload'), \
+                patch.object(te, 'load_tipo', return_value=llm) as load:
             result = te.expand_prompt('2girls', '/model.gguf', 'short', 'blue hair', 0.7, 42, gpu_layers=7)
         self.assertEqual(result, '2girls, outdoors')
         load.assert_called_once_with('/model.gguf', 7)
@@ -222,22 +223,32 @@ class TagTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'model.gguf'
             path.write_bytes(b'test')
-            llama = Mock(side_effect=lambda **kwargs: SimpleNamespace(**kwargs))
+            llama = Mock(side_effect=lambda **kwargs: SimpleNamespace(close=Mock(), **kwargs))
             with patch.dict(sys.modules, {'llama_cpp': SimpleNamespace(Llama=llama)}), patch.object(te, '_model_cache', {}):
-                cpu = te.load_tipo(str(path), 0)
-                gpu = te.load_tipo(str(path), 8)
-                longer = te.load_tipo(str(path), 0, n_ctx=4096)
-                self.assertIs(cpu, te.load_tipo(str(path), 0))
+                with te.tipo_inference():
+                    cpu = te.load_tipo(str(path), 0)
+                with te.tipo_inference():
+                    self.assertIs(cpu, te.load_tipo(str(path), 0))
+                with te.tipo_inference():
+                    gpu = te.load_tipo(str(path), 8)
+                with te.tipo_inference():
+                    longer = te.load_tipo(str(path), 0, n_ctx=4096)
                 self.assertIsNot(cpu, gpu)
                 self.assertIsNot(cpu, longer)
+                cpu.close.assert_called_once()
+                gpu.close.assert_called_once()
                 self.assertEqual(longer.n_ctx, 4096)
                 self.assertEqual(gpu.n_gpu_layers, 8)
                 self.assertEqual(gpu.n_threads, 2)
                 self.assertEqual(gpu.n_threads_batch, 2)
                 self.assertEqual(llama.call_count, 3)
-                more_threads = te.load_tipo(str(path), 8, n_threads=4)
+                with te.tipo_inference():
+                    more_threads = te.load_tipo(str(path), 8, n_threads=4)
                 self.assertIsNot(gpu, more_threads)
                 self.assertEqual(more_threads.n_threads_batch, 4)
+                longer.close.assert_called_once()
+                more_threads.close.assert_not_called()
+                self.assertEqual(list(te._model_cache.values()), [more_threads])
 
     def test_cpu_only_backend_rejects_requested_gpu(self):
         with patch.dict(sys.modules, {'llama_cpp': SimpleNamespace(llama_supports_gpu_offload=lambda: False)}):
@@ -447,7 +458,7 @@ spec = importlib.util.spec_from_file_location('rs_nodes', root / '__init__.py', 
 module = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = module
 spec.loader.exec_module(module)
-assert set(module.NODE_CLASS_MAPPINGS) == {'SeasonalFashionPromptNode', 'GemmaTipoNode', 'GemmaTipoNative', 'GemmaPromptExpandNative', 'RSPromptWriter', 'VRSNativeVisionLoader', 'VRSNativeMemoryLoader', 'VRSNativeBuild', 'VRSNativeRecall'}
+assert set(module.NODE_CLASS_MAPPINGS) == {'SeasonalFashionPromptNode', 'GemmaTipoNode', 'GemmaTipoNative', 'GemmaPromptExpandNative', 'RSPromptWriter', 'VRSNativeVisionLoader', 'VRSNativeMemoryLoader', 'VRSNativeBuild', 'VRSNativeRecall', 'VRSFolderMemory', 'VRSFolderImportBatch'}
 assert all(name not in sys.modules for name in ('torch', 'numpy', 'PIL', 'llama_cpp', 'kgen'))
 assert ('version = "' + module.__version__ + '"') in (root / 'pyproject.toml').read_text()
 '''

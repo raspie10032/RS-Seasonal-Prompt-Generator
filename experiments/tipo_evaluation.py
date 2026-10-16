@@ -16,6 +16,8 @@ from vrs_int.tag_policy import canonical, filter_recommendation_tags
 VERSION = "tipo-evaluation/1"
 TASKS = ("partial_tags", "korean", "edit", "image", "vrs")
 HASH = re.compile(r"[a-f0-9]{64}\Z")
+# int.bit_count was introduced in Python 3.10; offline CI also supports 3.9.
+_bit_count = getattr(int, "bit_count", lambda value: bin(value).count("1"))
 
 
 def digest(value):
@@ -86,7 +88,7 @@ def assert_training_disjoint(training, reserved):
             raise ValueError("Training row lacks source and duplicate-screening provenance")
         if source_keys(row) & blocked:
             raise ValueError("Training source overlaps reserved evaluation")
-        if any((int(source["dhash64"], 16) ^ int(h, 16)).bit_count() <= 6 for h in hashes):
+        if any(_bit_count(int(source["dhash64"], 16) ^ int(h, 16)) <= 6 for h in hashes):
             raise ValueError("Possible near-duplicate of reserved image; review required")
 
 
@@ -149,7 +151,7 @@ def freeze(rows, output):
     for i, left in enumerate(sources):
         for right in sources[i + 1:]:
             a, b = left["source"].get("dhash64"), right["source"].get("dhash64")
-            if a and b and left["split"] != right["split"] and (int(a, 16) ^ int(b, 16)).bit_count() <= 6:
+            if a and b and left["split"] != right["split"] and _bit_count(int(a, 16) ^ int(b, 16)) <= 6:
                 raise ValueError("Possible near-duplicate crosses evaluation splits")
     output = Path(output)
     output.mkdir(parents=True, exist_ok=False)

@@ -1,14 +1,16 @@
 """Personal collections preserve identities and can be extended in batches."""
 import copy
+from collections import Counter
 import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 
 from vrs_int.build import build_personal
-from vrs_int.store import Store
+from vrs_int.store import Store, revision
 
 
 class FakeEncoder:
@@ -81,6 +83,39 @@ class PersonalBuildTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Incompatible"):
             self.run_build([self.row], base=base)
         self.assertEqual(len(list((self.store.root / "snapshots").iterdir())), 1)
+
+    def test_increment_reads_base_buckets_per_bucket_not_per_image(self):
+        rows = [dict(self.row, id=i) for i in range(1, 41)]
+        base = self.run_build(rows, bucket_count=2)["snapshot"]
+        changed = [dict(row, tags=[*row["tags"], "outdoors"]) for row in rows]
+        changed.append(dict(self.row, id=100))
+        reads = Counter()
+        original = Store.read_bucket
+
+        def read_bucket(store, manifest, index):
+            if manifest["parent"] is None:
+                reads[index] += 1
+            return original(store, manifest, index)
+
+        with patch.object(Store, "read_bucket", read_bucket):
+            report = self.run_build(changed, base=base)
+        # One revision lookup and one independent update validation per bucket.
+        self.assertEqual(reads, {0: 2, 1: 2})
+        self.assertEqual(report["observations"], 41)
+        self.assertEqual(self.store.verify(base)["observations"], 40)
+        self.assertNotIn("outdoors", self.store.get(base, "danbooru:1")["document"]["tags"])
+        self.assertIn("outdoors", self.store.get(report["snapshot"], "danbooru:1")["document"]["tags"])
+
+    def test_increment_can_restore_tombstone_using_its_revision(self):
+        base = self.run_build([self.row])["snapshot"]
+        previous = self.store.get(base, "danbooru:123")
+        deleted = self.store.update(base, [{"op": "delete", "key": previous["key"],
+            "expected_revision": revision(previous), "reason": "synthetic removal"}], "deleted")
+        restored = self.run_build([self.row], base=deleted)
+        self.assertEqual(restored["observations"], 1)
+        self.assertEqual(restored["tombstones"], 0)
+        self.assertTrue(self.store.get(deleted, "danbooru:123")["deleted"])
+        self.assertEqual(self.store.get(restored["snapshot"], "danbooru:123"), previous)
 
     def test_invalid_inputs_never_publish(self):
         variants = [dict(self.row, image="../outside.png"), dict(self.row, rating="x"),

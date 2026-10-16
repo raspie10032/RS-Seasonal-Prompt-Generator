@@ -323,45 +323,58 @@ class Store:
         old = self.manifest(parent)
         if contract is not None and contract != old["contract"]:
             raise ValueError("Incompatible update; re-encode into a separate base")
-        groups, touched = {}, set()
         counts = dict(old["counts"])
         format = old["format"]
-        for op in operations:
-            key = op["key"]
-            if key in touched or "expected_revision" not in op:
-                raise ValueError("Duplicate operation or missing expected revision")
-            touched.add(key)
-            index = bucket(key, old["bucket_count"])
-            if index not in groups:
-                groups[index] = {e["key"]: e for e in self.read_bucket(old, index)}
-            previous = groups[index].get(key)
-            if op["expected_revision"] != (revision(previous) if previous else None):
-                raise ValueError("Observation revision conflict: " + key)
-            if op["op"] == "upsert":
-                entry = op["entry"]
-                if entry["key"] != key or entry.get("deleted"):
-                    raise ValueError("Invalid upsert")
-            elif op["op"] == "delete" and previous and not previous.get("deleted"):
-                entry = {"key": key, "deleted": True, "previous_revision": revision(previous),
-                         "reason": op["reason"]}
-            else:
-                raise ValueError("Invalid operation or deletion target")
-            validate_entry(entry, old["contract"])
-            if key.startswith("generated:"):
-                format = GENERATED_FORMAT
-            for value, sign in ((previous, -1), (entry, 1)):
-                if value is None:
-                    continue
-                if value.get("deleted"):
-                    counts["tombstones"] += sign
-                else:
-                    counts["observations"] += sign
-                    counts["vectors"] += sign * (value["vector"] is not None)
-                    counts["source_records"] += sign * len(value["audit"])
-            groups[index][key] = entry
         objects = dict(old["objects"])
-        for index, rows in sorted(groups.items()):
-            objects[str(index)] = self.put_object(list(rows.values()))
+        # Spool operations rather than retaining every touched bucket in RAM.
+        # A late conflict may leave unused immutable objects, but never publishes
+        # a snapshot or changes its parent. Spool files close before removal.
+        with tempfile.TemporaryDirectory(prefix=".update-", dir=self.root) as staging:
+            with closing(sqlite3.connect(str(Path(staging) / "operations.sqlite3"))) as db, db:
+                db.execute("CREATE TABLE operations (key TEXT PRIMARY KEY, bucket INTEGER, value BLOB)")
+                for op in operations:
+                    key = op["key"]
+                    if "expected_revision" not in op:
+                        raise ValueError("Duplicate operation or missing expected revision")
+                    try:
+                        db.execute("INSERT INTO operations VALUES (?,?,?)", (
+                            key, bucket(key, old["bucket_count"]), canonical(op)))
+                    except sqlite3.IntegrityError as exc:
+                        raise ValueError("Duplicate operation or missing expected revision") from exc
+                db.execute("CREATE INDEX by_bucket ON operations(bucket)")
+                db.commit()
+                for index, in db.execute("SELECT DISTINCT bucket FROM operations ORDER BY bucket"):
+                    rows = {e["key"]: e for e in self.read_bucket(old, index)}
+                    for raw, in db.execute("SELECT value FROM operations WHERE bucket=?", (index,)):
+                        op = json.loads(raw)
+                        key = op["key"]
+                        previous = rows.get(key)
+                        if op["expected_revision"] != (revision(previous) if previous else None):
+                            raise ValueError("Observation revision conflict: " + key)
+                        if op["op"] == "upsert":
+                            entry = op["entry"]
+                            if entry["key"] != key or entry.get("deleted"):
+                                raise ValueError("Invalid upsert")
+                        elif op["op"] == "delete" and previous and not previous.get("deleted"):
+                            entry = {"key": key, "deleted": True, "previous_revision": revision(previous),
+                                     "reason": op["reason"]}
+                        else:
+                            raise ValueError("Invalid operation or deletion target")
+                        validate_entry(entry, old["contract"])
+                        if key.startswith("generated:"):
+                            format = GENERATED_FORMAT
+                        for value, sign in ((previous, -1), (entry, 1)):
+                            if value is None:
+                                continue
+                            if value.get("deleted"):
+                                counts["tombstones"] += sign
+                            else:
+                                counts["observations"] += sign
+                                counts["vectors"] += sign * (value["vector"] is not None)
+                                counts["source_records"] += sign * len(value["audit"])
+                        rows[key] = entry
+                    objects[str(index)] = self.put_object(list(rows.values()))
+                    del rows
         if objects == old["objects"]:
             return parent  # Idempotent content, no artificial new version.
         return self._publish(old["contract"], old["bucket_count"], objects, parent, label, counts,
@@ -427,7 +440,10 @@ class Store:
             if digest(raw) != object_id:
                 raise ValueError("Transfer changed during installation")
             write_once(self.object_path(object_id), raw)
-        write_once(self.manifest_path(snapshot), incoming.manifest_path(snapshot).read_bytes())
+        raw = _bounded_read(incoming.manifest_path(snapshot), MAX_MANIFEST_BYTES)
+        if digest(raw) != snapshot:
+            raise ValueError("Transfer manifest changed during installation")
+        write_once(self.manifest_path(snapshot), raw)
         self.verify(snapshot)
         return snapshot  # Installation never changes the active pointer.
 

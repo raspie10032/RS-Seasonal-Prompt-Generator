@@ -51,3 +51,30 @@ class PackedMathTests(unittest.TestCase):
         weight = PackedWeight(self.torch.zeros(16, dtype=self.torch.uint8), -1, (1, 32))
         with self.assertRaisesRegex(ValueError, "CPU fallback is disabled"):
             unpack(weight, "cpu", self.torch.float32)
+
+    def test_k_quantizations_match_independent_full_and_selected_row_decoder(self):
+        import numpy as np
+        from tipo_gguf_ops import PackedWeight, unpack
+
+        torch, gguf = self.torch, self.gguf
+        rng = np.random.default_rng(31415)
+        rows = torch.tensor([[6, 0, 6], [3, 2, 0]])
+        for name in ("Q4_K", "Q5_K", "Q6_K"):
+            with self.subTest(quantization=name):
+                kind = getattr(gguf.GGMLQuantizationType, name)
+                block, size = gguf.GGML_QUANT_SIZES[kind]
+                packed = rng.integers(0, 256, size=(14, size), dtype=np.uint8)
+                # Finite, distinct scale factors; all quantized payload bits vary.
+                scales = (np.arange(1, 15, dtype=np.float32) / 32).astype('<f2')
+                offset = size - 2 if name == "Q6_K" else 0
+                packed[:, offset:offset + 2] = scales.view(np.uint8).reshape(-1, 2)
+                if name != "Q6_K":
+                    packed[:, 2:4] = (scales / 2).astype('<f2').view(np.uint8).reshape(-1, 2)
+                packed = packed.reshape(7, 2 * size)
+                reference = torch.from_numpy(gguf.quants.dequantize(packed, kind))
+                weight = PackedWeight(torch.from_numpy(packed), kind, (7, 2 * block))
+                with patch.object(gguf.quants, "dequantize", side_effect=AssertionError("No NumPy inference")):
+                    full = unpack(weight, "cpu", torch.float32)
+                    selected = unpack(weight, "cpu", torch.float32, rows=rows)
+                torch.testing.assert_close(full, reference, rtol=0, atol=0)
+                torch.testing.assert_close(selected, reference[rows], rtol=0, atol=0)

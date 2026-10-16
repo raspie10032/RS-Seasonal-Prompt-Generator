@@ -121,8 +121,26 @@ class MetadataTests(unittest.TestCase):
         self.assertEqual(entry, before)
         self.assertIs(result["audit"], entry["audit"])
         self.assertIs(result["vector"], entry["vector"])
+        # Native pixel provenance is supplemental, not a second prompt source.
+        entry["audit"].append({"native_pixel_sha256": "b" * 64})
+        native_result = recommendation_view(entry)
+        self.assertEqual(native_result["document"]["tags"], result["document"]["tags"])
+        self.assertIs(native_result["audit"], entry["audit"])
+        self.assertIs(native_result["vector"], entry["vector"])
+        entry["audit"].append({"source_record": source})
+        self.assertIs(recommendation_view(entry), entry)  # Ambiguous source history.
+        entry["audit"].pop()
         source["caption_source"] = "pixai-visual-tag-prediction"
         self.assertIs(recommendation_view(entry), entry)
+
+    def test_recommendation_view_retains_legacy_json_audit(self):
+        from vrs_int.generation_metadata import recommendation_view
+        entry = {"document": {"tags": ["example artist"]},
+                 "vector": {"sentinel": "unchanged"},
+                 "categories": {"example artist": ["artist"]},
+                 "audit": [{"source_record": '{"id":1,"tags_artist":["example_artist"]}'}]}
+        self.assertIs(recommendation_view(entry), entry)
+        self.assertIsInstance(entry["audit"][0]["source_record"], str)
 
     def test_renamed_comfy_outputs_share_only_common_prompts(self):
         graph = {

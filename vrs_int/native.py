@@ -7,7 +7,7 @@ Native FP16 vectors have a different contract from historical PIL/NF4 vectors.
 import hashlib
 from pathlib import Path
 
-from .store import Store, canonical, digest, revision
+from .store import Store, canonical, digest
 from .tag_policy import POLICY_VERSION
 
 
@@ -113,7 +113,7 @@ class NativeVision:
 
 
 def build_native(encoder, manifest, images, destination, *, base=None, codec="f32le", label="native-personal"):
-    from .build import local_entries
+    from .build import local_entries, upsert_operations
     from .import_snapshot import file_digest
     import comfy.model_management as mm
     contract = encoder.contract(codec)
@@ -137,12 +137,8 @@ def build_native(encoder, manifest, images, destination, *, base=None, codec="f3
     provenance = {"input_manifest_sha256": manifest_sha, "images_included": False,
                   "collection": "comfyui-user-selected-local-images", "automatic_downloads": False}
     if base:
-        def operations():
-            for entry in entries():
-                previous = store.get(base, entry["key"])
-                yield {"op": "upsert", "key": entry["key"], "entry": entry,
-                       "expected_revision": revision(previous) if previous else None}
-        snapshot = store.update(base, operations(), label, contract, provenance)
+        snapshot = store.update(base, upsert_operations(store, base, entries()),
+                                label, contract, provenance)
     else:
         snapshot = store.build(entries(), contract, label, provenance, 256)
     return store.verify(snapshot)

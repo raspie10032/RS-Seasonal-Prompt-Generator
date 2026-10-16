@@ -280,10 +280,14 @@ def recommendation_view(entry):
     """
     from .tag_policy import filter_tags, typed_tags
     audit = entry.get("audit", [])
-    if len(audit) != 1:
+    sources = [row["source_record"] for row in audit
+               if isinstance(row, dict) and "source_record" in row]
+    if len(sources) != 1:
         return entry
-    source = audit[0].get("source_record", {})
-    if (source.get("source") != "generated"
+    source = sources[0]
+    # Legacy Danbooru imports retain the original JSON text in their audit.
+    # Only structured generated-prompt records participate in this tag view.
+    if (not isinstance(source, dict) or source.get("source") != "generated"
             or source.get("caption_source") != "embedded-generation-positive-prompt"
             or source.get("metadata_parser") == VERSION):
         return entry

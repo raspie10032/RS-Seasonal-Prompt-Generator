@@ -12,7 +12,7 @@ import re
 
 from .gemma4_tuning_data import validate_splits
 from .tipo_evaluation import (assert_training_disjoint, read_rows, score,
-                              source_keys, validate)
+                              source_keys, validate, _bit_count)
 from tipo_prompt import VERSION
 
 SCHEMA = "tipo-authored-supervision/1"
@@ -74,7 +74,7 @@ def validate_supervision(train, evaluation, reserved, *, allow_images=False):
         raise ValueError("Training/validation source leakage")
     a = {r['source']['dhash64'] for r in train}
     b = {r['source']['dhash64'] for r in evaluation}
-    if any((int(x, 16) ^ int(y, 16)).bit_count() <= 6 for x in a for y in b):
+    if any(_bit_count(int(x, 16) ^ int(y, 16)) <= 6 for x in a for y in b):
         raise ValueError("Possible training/validation near-duplicate")
     return {'examples': len(rows), 'splits': {'train': len(train), 'eval': len(evaluation)},
             'sources': len({r['source']['image_sha256'] for r in rows}),
