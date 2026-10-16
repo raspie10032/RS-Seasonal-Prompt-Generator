@@ -174,7 +174,8 @@ class MetadataTests(unittest.TestCase):
             result = fallback(catalog, output, root, tagger_factory=FakeWD)
             self.assertEqual(result["unique_records"], 1)
             self.assertEqual(fallback(catalog, output, root, tagger_factory=FakeWD)["processed_this_run"], 0)
-            with sqlite3.connect(output) as db:
+            from contextlib import closing
+            with closing(sqlite3.connect(output)) as db:
                 row = expand(db.execute("SELECT record FROM records").fetchone()[0])
             self.assertEqual(row["tags"], ["red hair"])
             self.assertEqual(row["tags_artist"], [])

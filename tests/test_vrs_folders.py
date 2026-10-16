@@ -236,7 +236,7 @@ class FolderTests(unittest.TestCase):
         nested = self.images / "output"
         nested.mkdir()
         catalog = FolderCatalog.create(self.root / "collections", [self.images, nested], "gemma.safetensors")
-        self.assertEqual(catalog.config["roots"], [str(self.images)])
+        self.assertEqual(catalog.config["roots"], [str(self.images.resolve())])
         with self.assertRaises(ValueError):
             collection_path(self.root, "../escape")
         with self.assertRaises(ValueError):

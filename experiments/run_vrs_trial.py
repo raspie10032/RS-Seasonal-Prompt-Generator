@@ -6,11 +6,21 @@ import argparse
 import json
 import os
 from pathlib import Path
-import resource
 import shutil
 import subprocess
+import sys
 import threading
 import time
+
+
+def peak_rss_mib():
+    """Return peak resident MiB, or None when OS accounting is unavailable."""
+    try:
+        import resource
+    except ImportError:
+        return None
+    divisor = 1024 ** 2 if sys.platform == "darwin" else 1024
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / divisor
 
 
 class Monitor:
@@ -187,7 +197,7 @@ def trial(args):
     report["resources"] = {"gpu": torch.cuda.get_device_name(), "cpu_threads": torch.get_num_threads(),
                            "cpu_affinity": sorted(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else None,
                            "wall_seconds": time.perf_counter() - start, "cpu_seconds": time.process_time() - cpu_start,
-                           "max_rss_mib": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024,
+                           "max_rss_mib": peak_rss_mib(),
                            "torch_peak_allocated_mib": torch.cuda.max_memory_allocated() / 2**20,
                            "torch_peak_reserved_mib": torch.cuda.max_memory_reserved() / 2**20,
                            "sampled_process_peak_mib": max((s["mib"] for s in monitor.samples), default=None),

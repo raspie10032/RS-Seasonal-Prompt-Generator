@@ -1,5 +1,6 @@
 """Core identities and immutable full-corpus ingestion, without GPU initialization."""
 import json
+from contextlib import closing
 from pathlib import Path
 import sqlite3
 import tempfile
@@ -75,7 +76,7 @@ class FullIngestTests(unittest.TestCase):
         self.assertEqual(docs[0]["split"], "train")
         self.assertEqual(hints["rare artist"], ["artist"])
         self.assertEqual(report["duplicate_image_records"], 1)
-        with sqlite3.connect(self.out / "observations.sqlite3") as db:
+        with closing(sqlite3.connect(self.out / "observations.sqlite3")) as db:
             raw = db.execute("SELECT source_record,removed_tags FROM observations WHERE id=1").fetchone()
             self.assertEqual(json.loads(raw[0]), rows[0])
             self.assertIn("highres", json.loads(raw[1]))

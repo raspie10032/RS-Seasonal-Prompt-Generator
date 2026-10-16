@@ -60,18 +60,52 @@ def _check_file(path, expected):
     size, digest = expected
     if path.is_symlink() or not path.is_file() or path.stat().st_size != size:
         raise ValueError(f"TIPO model/adapter file has wrong size/type: {path}. Move it aside and retry, or install the published file offline.")
-    _check_digest(str(path.resolve()), digest, _file_stat(path))
+    signature = _file_stat(path)
+    # If the filesystem cannot provide a change timestamp, do a full check
+    # instead of trusting size/mtime alone (both can survive an in-place edit).
+    verify = _check_digest if signature[-1] is not None else _check_digest.__wrapped__
+    verify(str(path.resolve()), digest, signature)
+
+
+def _windows_change_time(path):
+    """Use Windows ChangeTime; Python st_ctime is creation time there.
+
+    https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_basic_info
+    Return None for unsupported filesystems/APIs so verification cannot be cached.
+    """
+    import ctypes
+    from ctypes import wintypes
+    import msvcrt
+
+    class FileBasicInfo(ctypes.Structure):
+        _fields_ = [(name, ctypes.c_longlong) for name in
+                    ("CreationTime", "LastAccessTime", "LastWriteTime", "ChangeTime")]
+        _fields_.append(("FileAttributes", wintypes.DWORD))
+
+    try:
+        query = ctypes.WinDLL("kernel32", use_last_error=True).GetFileInformationByHandleEx
+        query.argtypes = (wintypes.HANDLE, ctypes.c_int, wintypes.LPVOID, wintypes.DWORD)
+        query.restype = wintypes.BOOL
+        info = FileBasicInfo()
+        with Path(path).open("rb") as stream:
+            handle = msvcrt.get_osfhandle(stream.fileno())
+            if query(handle, 0, ctypes.byref(info), ctypes.sizeof(info)):
+                return info.ChangeTime or None
+    except (AttributeError, OSError):
+        pass
+    return None
 
 
 def _file_stat(path):
     stat = Path(path).stat()
-    return stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns
+    changed = _windows_change_time(path) if os.name == "nt" else stat.st_ctime_ns
+    return stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, changed
 
 
 @lru_cache(maxsize=32)
 def _check_digest(filename, digest, signature):
     # Multi-GiB bases should be hashed once per unchanged local file, not once
-    # per generation. ctime/inode invalidate edits even if mtime is restored.
+    # per generation. Change time/inode invalidate edits even if mtime is restored.
     path = Path(filename)
     hasher = hashlib.sha256()
     with path.open("rb") as stream:

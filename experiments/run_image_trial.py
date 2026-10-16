@@ -10,10 +10,9 @@ import importlib.metadata
 import json
 import os
 from pathlib import Path
-import resource
 import time
 
-from experiments.run_vrs_trial import Monitor, setup_gpu
+from experiments.run_vrs_trial import Monitor, peak_rss_mib, setup_gpu
 from experiments.vrs_full import write_json
 from experiments.vrs_memory import contained, digest_file
 
@@ -145,7 +144,7 @@ def run(args):
                                 "torch_peak_allocated_mib": torch.cuda.max_memory_allocated() / 2**20,
                                 "torch_peak_reserved_mib": torch.cuda.max_memory_reserved() / 2**20,
                                 "process_gpu_peak_sampled_mib": max((r["mib"] for r in monitor.samples), default=None),
-                                "host_peak_rss_mib": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024},
+                                "host_peak_rss_mib": peak_rss_mib()},
                   "versions": {name: importlib.metadata.version(name) for name in
                                ("torch", "transformers", "bitsandbytes", "accelerate", "Pillow")},
                   "code_sha256": {str(p): digest_file(p) for p in

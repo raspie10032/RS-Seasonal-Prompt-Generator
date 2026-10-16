@@ -44,7 +44,7 @@ class SourceTests(unittest.TestCase):
                 self.assertIsNone(load.call_args.args[2])
                 q4.resolve_clip(None, "heretic_ara_q4", image=object(), gguf_path=str(paths[0]),
                     tokenizer_path=str(paths[1]), mmproj_path=str(paths[2]))
-                self.assertEqual(load.call_args.args[2][0], str(paths[2]))
+                self.assertEqual(load.call_args.args[2][0], str(paths[2].resolve()))
 
     def test_new_nodes_do_not_download_on_empty_input(self):
         with patch.object(q4, "ensure_files", side_effect=AssertionError):

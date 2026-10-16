@@ -62,6 +62,30 @@ class DownloadTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "checksum mismatch"):
             lora.ensure_adapter("test", self.root)
 
+    def test_unchanged_local_file_reuses_checksum_verification(self):
+        target = self.root / "adapter.safetensors"
+        target.write_bytes(self.payload)
+        expected = self.entry["files"]["adapter_model.safetensors"]
+        # Exercise the real change timestamp, including the Windows API in CI.
+        self.assertIsNotNone(lora._file_stat(target)[-1])
+        lora._check_file(target, expected)
+        before = lora._check_digest.cache_info()
+        lora._check_file(target, expected)
+        after = lora._check_digest.cache_info()
+        self.assertEqual(after.hits, before.hits + 1)
+        self.assertEqual(after.misses, before.misses)
+
+    def test_unavailable_change_timestamp_never_reuses_checksum(self):
+        target = self.root / "adapter.safetensors"
+        target.write_bytes(self.payload)
+        expected = self.entry["files"]["adapter_model.safetensors"]
+        signature = (0, 0, len(self.payload), 0, None)
+        with patch.object(lora, "_file_stat", return_value=signature):
+            lora._check_file(target, expected)
+            target.write_bytes(b"x" * len(self.payload))
+            with self.assertRaisesRegex(ValueError, "checksum mismatch"):
+                lora._check_file(target, expected)
+
     def test_existing_corrupt_file_is_preserved_and_rejected(self):
         folder = self.root / "test"
         folder.mkdir()

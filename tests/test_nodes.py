@@ -193,7 +193,7 @@ class TagTests(unittest.TestCase):
                 patch.object(te, 'load_tipo', return_value=llm) as load:
             result = te.expand_prompt('2girls', '/model.gguf', 'short', 'blue hair', 0.7, 42, gpu_layers=7)
         self.assertEqual(result, '2girls, outdoors')
-        load.assert_called_once_with('/model.gguf', 7)
+        load.assert_called_once_with(str(Path('/model.gguf').resolve()), 7)
         self.assertEqual(llm.create_chat_completion.call_args.kwargs['seed'], 42)
         self.assertEqual(llm.create_chat_completion.call_args.kwargs['temperature'], 0.7)
 

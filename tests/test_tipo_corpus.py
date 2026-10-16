@@ -1,5 +1,6 @@
 """Data selection, action supervision, and recipe splitting regressions."""
 from copy import deepcopy
+from contextlib import closing
 import csv
 import json
 import hashlib
@@ -46,7 +47,7 @@ class CorpusTests(unittest.TestCase):
                    'positive': ['1girl, artist:a, character:c, copyright:s, -1::photo::']}
             record = make_record(gen, str(image), sha)
             db = p/'catalog.sqlite3'
-            with sqlite3.connect(db) as con:
+            with closing(sqlite3.connect(db)) as con, con:
                 con.execute('CREATE TABLE records (sha TEXT, path TEXT, record BLOB)')
                 con.execute('INSERT INTO records VALUES (?, ?, ?)',
                             (sha, str(image), zlib.compress(json.dumps(record).encode())))

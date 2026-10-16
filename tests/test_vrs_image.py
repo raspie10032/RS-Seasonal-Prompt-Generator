@@ -1,11 +1,24 @@
 """Evaluation leakage boundaries; no encoder load or CUDA initialization."""
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from experiments.run_image_trial import score, select_tests, selection_key
+from experiments.run_vrs_trial import peak_rss_mib
 from experiments.vrs_image import eligible_indices
 
 
 class ImageBoundaryTests(unittest.TestCase):
+    def test_peak_memory_units_and_unavailable_accounting(self):
+        with patch.dict("sys.modules", {"resource": None}):
+            self.assertIsNone(peak_rss_mib())
+        resource = SimpleNamespace(RUSAGE_SELF=0,
+            getrusage=lambda _: SimpleNamespace(ru_maxrss=1024 ** 2))
+        with patch.dict("sys.modules", {"resource": resource}):
+            for platform, expected in (("darwin", 1), ("linux", 1024)):
+                with self.subTest(platform=platform), patch("sys.platform", platform):
+                    self.assertEqual(peak_rss_mib(), expected)
+
     def test_train_only_and_exact_duplicate_exclusion(self):
         rows = [
             {"split": "train", "image_sha256": "same", "rating": "g"},
