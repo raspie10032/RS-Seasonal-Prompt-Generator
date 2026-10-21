@@ -5,6 +5,7 @@ workflow execution, image edits, or verified artist attribution/rating labels.
 """
 import argparse
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import nullcontext
 import csv
 from itertools import islice
 import json
@@ -68,7 +69,7 @@ class LocalPixAI:
     """Use the installed, pinned PixAI code and its exact image processor."""
     CODE_SHA256 = "3431279fdfff234f62664999fc1fe6bb20f1e8756f7435d0e165ebd4456f7fcd"
 
-    def __init__(self, directory, workers=4):
+    def __init__(self, directory, workers=4, device="cuda"):
         from transformers import AutoImageProcessor, AutoModel
         directory = Path(directory)
         if file_digest(directory / "tagger_pipeline.py") != self.CODE_SHA256:
@@ -88,10 +89,12 @@ class LocalPixAI:
         if len(self.labels) != config["num_classes"] or len(self.labels) != len(config["tags"]):
             raise ValueError("PixAI category/vocabulary mismatch")
         self.processor = AutoImageProcessor.from_pretrained(str(directory), trust_remote_code=True, local_files_only=True)
-        self.model = AutoModel.from_pretrained(str(directory), trust_remote_code=True, local_files_only=True).eval().to("cuda")
+        self.device = device
+        self.model = AutoModel.from_pretrained(str(directory), trust_remote_code=True, local_files_only=True).eval().to(device)
         self.workers = workers
 
-    def score(self, paths):
+    def prepare_batch(self, paths, pool=None):
+        """CPU-only preprocessing, also usable ahead of GPU inference."""
         import torch
         from PIL import Image
         def prepare(path):
@@ -99,13 +102,29 @@ class LocalPixAI:
                 # Preserve alpha: the official processor composites it on white.
                 pixels = source.copy()
             return self.processor(images=pixels, return_tensors="pt")["pixel_values"]
-        with ThreadPoolExecutor(max_workers=self.workers) as pool:
-            batch = torch.cat(list(pool.map(prepare, paths))).to("cuda")
-        with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
+        if pool is not None:
+            return torch.cat(list(pool.map(prepare, paths)))
+        with ThreadPoolExecutor(max_workers=self.workers) as temporary:
+            return torch.cat(list(temporary.map(prepare, paths)))
+
+    def score_prepared(self, batch):
+        """Same PixAI forward pass; returns an array to avoid huge Python lists."""
+        import torch
+        size = len(batch)
+        device = torch.device(self.device)
+        self.provenance["precision"] = ("fp32-weights-bf16-autocast-fp32-sigmoid"
+                                        if device.type == "cuda" else "fp32-weights-fp32-sigmoid")
+        batch = batch.to(device, non_blocking=batch.is_pinned())
+        autocast = (torch.autocast(device.type, dtype=torch.bfloat16)
+                    if device.type == "cuda" else nullcontext())
+        with torch.inference_mode(), autocast:
             scores = self.model(batch).float().sigmoid()
-        if scores.shape != (len(paths), len(self.labels)) or not torch.isfinite(scores).all():
+        if scores.shape != (size, len(self.labels)) or not torch.isfinite(scores).all():
             raise ValueError("Invalid PixAI scores")
-        return scores.cpu().tolist()
+        return scores.cpu().numpy()
+
+    def score(self, paths):
+        return self.score_prepared(self.prepare_batch(paths)).tolist()
 
 
 def prediction_record(image, sha, labels, scores, provenance, general=.35, character=.85):

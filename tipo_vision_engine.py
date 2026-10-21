@@ -6,9 +6,9 @@ the binary (llama-cpp-python's high-level API doesn't
 drive gemma-4 vision), then run the SAME post-processing as the text
 TIPO node (kgen sort / dedup / drop-redundant / count-conflict).
 
-GPU auto-detection is enabled with gpu_layers=-1 (0 keeps CPU): the CUDA prebuilt
-(Windows/NVIDIA, plus the matching cudart runtime) or the Vulkan prebuilt
-(Linux/NVIDIA) is fetched and all layers are offloaded; macOS uses the
+GPU auto-detection is enabled with gpu_layers=-1 (0 keeps CPU): Vulkan is
+preferred on Windows/Linux to avoid a separate CUDA runtime; Windows can use
+CUDA when Vulkan is unavailable. macOS uses the
 Metal-enabled build; otherwise the CPU build is used. A GPU run that
 fails transparently falls back to CPU. Set RS_TIPO_FORCE_CPU=1 to force
 CPU, or LLAMA_MTMD_CLI to a binary you built yourself.
@@ -75,16 +75,42 @@ _GPU_BACKEND = "?"
 def _gpu_backend():
     """Best GPU llama.cpp prebuilt for this machine, or None for CPU.
 
-    Windows+NVIDIA -> CUDA (13.1 if supported, else 12.4 if supported);
-    Linux+NVIDIA   -> Vulkan (no CUDA prebuilt is published for Linux);
+    Windows/Linux -> prefer Vulkan, Windows CUDA if Vulkan is unavailable;
     macOS          -> Metal (the standard macOS build is Metal-enabled).
     RS_TIPO_FORCE_CPU=1 or any detection failure -> None (CPU)."""
     global _GPU_BACKEND
     if _force_cpu():
         return None
+    requested = os.environ.get("RS_TIPO_VISION_BACKEND", "auto").strip().lower()
+    if requested not in ("auto", "vulkan", "cuda", "metal", "cpu"):
+        raise ValueError("RS_TIPO_VISION_BACKEND must be auto, vulkan, cuda, metal or cpu")
+    if requested == "cpu":
+        return None
+    if requested != "auto":
+        return _requested_backend(requested)
     if _GPU_BACKEND == "?":
         _GPU_BACKEND = _detect_gpu_backend()
     return _GPU_BACKEND
+
+
+def _requested_backend(requested):
+    """An explicit backend never silently selects a different runtime."""
+    mach = platform.machine().lower()
+    x64 = mach in ("x86_64", "amd64", "x64")
+    if requested == "vulkan":
+        supported = ((sys.platform.startswith("win") and x64) or
+                     (sys.platform.startswith("linux") and (x64 or mach in ("arm64", "aarch64"))))
+        if supported and _vulkan_available():
+            return ("vulkan", None)
+    elif requested == "metal":
+        if sys.platform == "darwin" and (x64 or mach in ("arm64", "aarch64")):
+            return ("metal", None)
+    elif requested == "cuda" and sys.platform.startswith("win") and x64:
+        version = _nvidia_max_cuda()
+        if version is not None and version >= (12, 4):
+            return ("cuda", "13.1" if version >= (13, 1) else "12.4")
+    raise RuntimeError(f"Requested legacy vision backend {requested!r} is unavailable on this "
+                       "OS/architecture or its driver/runtime is missing. Use auto or native TIPO.")
 
 
 def _force_cpu():
@@ -121,20 +147,19 @@ def _detect_gpu_backend():
         return ("vulkan", None) if _vulkan_available() else None
     if mach not in ("x86_64", "amd64", "x64"):
         return None
-    cuda = _nvidia_max_cuda()
+    # Check the portable GPU backend before probing NVIDIA/CUDA.
+    if _vulkan_available():
+        return ("vulkan", None)
     if sys.platform.startswith("win"):
+        cuda = _nvidia_max_cuda()
         if cuda is not None:                 # NVIDIA -> CUDA (fastest path)
             if cuda >= (13, 1):
                 return ("cuda", "13.1")
             if cuda >= (12, 4):
                 return ("cuda", "12.4")
-        if _vulkan_available():              # AMD / Intel / non-NVIDIA GPU
-            return ("vulkan", None)
         return None
     if sys.platform.startswith("linux"):
-        # no CUDA prebuilt is published for Linux; Vulkan covers NVIDIA too
-        if cuda is not None or _vulkan_available():
-            return ("vulkan", None)
+        # Do not infer Vulkan availability from an NVIDIA driver alone.
         return None
     return None
 

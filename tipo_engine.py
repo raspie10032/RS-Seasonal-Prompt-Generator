@@ -7,8 +7,8 @@ Gemma-4-E2B GGUF can be used as-is.
 Post-processing: kgen.formatter (pure-Python, lightweight) — only the
 light formatter is imported, never kgen.executor / kgen.models.
 
-Dependencies (llama-cpp-python, tipo-kgen) are auto-installed on first
-TIPO use only. All heavy imports are lazy and every failure path falls
+Optional packages must be installed explicitly in ComfyUI's Python.
+Inference never installs or upgrades packages. All heavy imports are lazy and every failure path falls
 back to the original prompt so the node never hard-fails.
 """
 
@@ -20,19 +20,12 @@ import tempfile
 import threading
 import importlib
 import importlib.metadata
-import importlib.util
-import shutil
-import subprocess
 import urllib.request
 from contextlib import contextmanager
 
-# Dependencies are installed on first actual TIPO use only (not at node import),
-# so the base node stays zero-dependency and ComfyUI startup is never blocked.
+# Dependencies are checked on use, never installed into a running ComfyUI.
 # llama-cpp-python below this version cannot load the gemma4 architecture.
 _MIN_LLAMA = (0, 3, 23)
-_DEPS_ATTEMPTED = False
-_FORMATTER_ATTEMPTED = False
-_deps_lock = threading.Lock()
 _download_lock = threading.Lock()
 _inference_lock = threading.RLock()
 _inference_state = threading.local()
@@ -72,32 +65,15 @@ def _installed_llama_version():
 
 
 def _pip_install(args):
-    print(f"[TIPO] auto-installing: {' '.join(args)}")
-    if importlib.util.find_spec("pip") is not None:
-        cmd = [sys.executable, "-m", "pip", "install"]
-    elif shutil.which("uv"):
-        cmd = [shutil.which("uv"), "pip", "install", "--python", sys.executable]
-    else:
-        raise RuntimeError("Neither pip nor uv is available for this Python environment")
-    subprocess.check_call([*cmd, *args])
+    # Keep the old internal entry point fail-closed for integrations importing it.
+    raise RuntimeError("Runtime package installation is disabled. Use Gemma TIPO Native "
+                       "to avoid llama.cpp wheels, or install optional packages explicitly "
+                       "using ComfyUI's Python and restart.")
 
 
 def _ensure_formatter():
     """Vision only needs the formatter, never the Python inference backend."""
-    global _FORMATTER_ATTEMPTED
-    if _have("kgen.formatter"):
-        return True
-    with _deps_lock:
-        if not _FORMATTER_ATTEMPTED:
-            _FORMATTER_ATTEMPTED = True
-            try:
-                # The formatter uses only the standard library. Installing
-                # the full executor dependencies can download torch/CUDA.
-                _pip_install(["tipo-kgen", "--no-deps"])
-                importlib.invalidate_caches()
-            except Exception as e:
-                print(f"[TIPO] formatter install failed ({type(e).__name__}: {e})")
-        return _have("kgen.formatter")
+    return _have("kgen.formatter")
 
 
 def _restart_needed():
@@ -110,50 +86,18 @@ def _restart_needed():
 
 
 def _ensure_deps():
-    """On first text TIPO use: install a gemma4-capable
-    llama-cpp-python (>= %s). Existing too-old llama-cpp-python is upgraded.
-    """ % ".".join(map(str, _MIN_LLAMA))
-    global _DEPS_ATTEMPTED
-
-    def _ok():
-        iv = _imported_llama_version()
-        return iv is not None and iv >= _MIN_LLAMA
-
-    if _ok():
+    """Check the existing optional backend without changing installed packages."""
+    iv = _imported_llama_version()
+    if iv is not None and iv >= _MIN_LLAMA:
         return True
-    with _deps_lock:
-        if _ok():
-            return True
-        if _DEPS_ATTEMPTED:
-            if _restart_needed():
-                print("[TIPO] llama-cpp-python was upgraded; RESTART ComfyUI "
-                      "to load the gemma4-capable build, then run again.")
-            return False
-        _DEPS_ATTEMPTED = True
-        try:
-            ins = _installed_llama_version()
-            if ins is None or ins < _MIN_LLAMA:
-                # prebuilt CPU wheel index -> no native build required
-                _pip_install([
-                    "llama-cpp-python>=%s" % ".".join(map(str, _MIN_LLAMA)),
-                    "--upgrade",
-                    "--extra-index-url",
-                    "https://abetlen.github.io/llama-cpp-python/whl/cpu",
-                    "--only-binary=llama-cpp-python",
-                ])
-        except Exception as e:
-            print(f"[TIPO] auto-install failed ({type(e).__name__}: {e})")
-        importlib.invalidate_caches()
-        if _restart_needed():
-            print("[TIPO] llama-cpp-python upgraded to a gemma4-capable "
-                  "version; RESTART ComfyUI, then run again.")
-            return False
-        ready = _ok()
-        if not ready and _LLAMA_IMPORT_ERROR:
-            print(f"[TIPO] llama-cpp-python cannot load: {_LLAMA_IMPORT_ERROR}. "
-                  "Install its matching GPU runtime or a compatible CPU wheel "
-                  "in the Python environment running ComfyUI.")
-        return ready
+    if _restart_needed():
+        print("[TIPO] RESTART ComfyUI to use the installed llama-cpp-python version.")
+    detail = _LLAMA_IMPORT_ERROR or f"loaded version {iv}; need >= {_MIN_LLAMA}"
+    print(f"[TIPO] Optional llama-cpp-python unavailable: {detail}. "
+          "No packages were installed or upgraded. Use Gemma TIPO Native / "
+          "Gemma Prompt Expander Native for ComfyUI PyTorch without llama.cpp "
+          "or install a compatible optional backend using ComfyUI's Python and restart.")
+    return False
 
 # Default model auto-downloaded from HuggingFace when no local path is given.
 HF_REPO = "raspie/gemma4-tipo-ko-gguf"

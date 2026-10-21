@@ -259,24 +259,36 @@ class TagTests(unittest.TestCase):
 class DependencyTests(unittest.TestCase):
     def test_installed_version_does_not_require_pip_or_importing_native_code(self):
         with patch.object(te.importlib.metadata, 'version', return_value='0.3.35'), \
-                patch.object(te.subprocess, 'check_output') as command:
+                patch('subprocess.check_output') as command:
             self.assertEqual(te._installed_llama_version(), (0, 3, 35))
             command.assert_not_called()
 
-    def test_uv_installs_into_the_running_python_when_pip_is_absent(self):
-        with patch.object(te.importlib.util, 'find_spec', return_value=None), \
-                patch.object(te.shutil, 'which', return_value='/bin/uv'), \
-                patch.object(te.subprocess, 'check_call') as command:
-            te._pip_install(['tipo-kgen', '--no-deps'])
-        command.assert_called_once_with([
-            '/bin/uv', 'pip', 'install', '--python', sys.executable,
-            'tipo-kgen', '--no-deps'])
+    def test_runtime_installer_is_disabled_even_if_called_directly(self):
+        with patch('subprocess.check_call') as command:
+            with self.assertRaisesRegex(RuntimeError, 'installation is disabled'):
+                te._pip_install(['tipo-kgen', '--no-deps'])
+        command.assert_not_called()
+
+    def test_absent_or_old_backend_never_installs_or_upgrades(self):
+        for version in (None, (0, 3, 1)):
+            with self.subTest(version=version), \
+                    patch.object(te, '_imported_llama_version', return_value=version), \
+                    patch.object(te, '_restart_needed', return_value=False), \
+                    patch.object(te, '_pip_install', side_effect=AssertionError('No installs')), \
+                    patch('urllib.request.urlopen', side_effect=AssertionError('No network')):
+                self.assertFalse(te._ensure_deps())
+
+    def test_optional_sorter_absent_keeps_cleanup_without_installing(self):
+        with patch.object(te, '_have', return_value=False), \
+                patch.object(te, '_pip_install', side_effect=AssertionError('No installs')):
+            self.assertFalse(te._ensure_formatter())
+            self.assertEqual(te._postprocess('1girl, outdoors, outdoors', '', te.DEFAULT_SORT),
+                             '1girl, outdoors')
 
     def test_broken_installed_gpu_wheel_is_reported_without_reinstallation(self):
         with patch.object(te, '_installed_llama_version', return_value=(0, 3, 35)), \
                 patch.object(te, '_imported_llama_version', return_value=None), \
                 patch.object(te, '_restart_needed', return_value=False), \
-                patch.object(te, '_DEPS_ATTEMPTED', False), \
                 patch.object(te, '_LLAMA_IMPORT_ERROR', 'libcudart.so.13 is missing'), \
                 patch.object(te, '_pip_install') as install, \
                 contextlib.redirect_stdout(io.StringIO()) as log:
@@ -351,6 +363,31 @@ class DownloadTests(unittest.TestCase):
 
 
 class VisionTests(unittest.TestCase):
+    def test_vulkan_auto_preferred_without_cuda_probe(self):
+        for os_name in ('win32', 'linux'):
+            with self.subTest(platform=os_name), patch.object(ve.sys, 'platform', os_name), \
+                    patch.object(ve.platform, 'machine', return_value='AMD64'), \
+                    patch.object(ve, '_vulkan_available', return_value=True), \
+                    patch.object(ve, '_nvidia_max_cuda', side_effect=AssertionError('No CUDA probe')), \
+                    patch.dict(os.environ, {'RS_TIPO_FORCE_CPU': ''}):
+                self.assertEqual(ve._detect_gpu_backend(), ('vulkan', None))
+
+    def test_backend_override_and_invalid_values_are_not_hidden_by_cache(self):
+        with patch.object(ve, '_GPU_BACKEND', ('cuda', '12.4')), \
+                patch.object(ve.sys, 'platform', 'linux'), \
+                patch.object(ve.platform, 'machine', return_value='x86_64'), \
+                patch.object(ve, '_vulkan_available', return_value=True), \
+                patch.dict(os.environ, {'RS_TIPO_FORCE_CPU': '', 'RS_TIPO_VISION_BACKEND': 'vulkan'}):
+            self.assertEqual(ve._gpu_backend(), ('vulkan', None))
+            os.environ['RS_TIPO_VISION_BACKEND'] = 'cuda'
+            with self.assertRaisesRegex(RuntimeError, 'unavailable'):
+                ve._gpu_backend()
+            os.environ['RS_TIPO_VISION_BACKEND'] = 'bogus'
+            with self.assertRaises(ValueError):
+                ve._gpu_backend()
+            os.environ['RS_TIPO_FORCE_CPU'] = '1'
+            self.assertIsNone(ve._gpu_backend())
+
     def test_cpu_fallback_disables_model_and_projector_offload(self):
         with patch.object(ve, '_resolve_mtmd_cli', return_value='/tmp/mtmd'), patch.object(ve.subprocess, 'run', return_value=SimpleNamespace(returncode=0, stdout='1girl', stderr='')) as run:
             ve._run_cli(None, '/m', '/p', '/image', 'tags', 25, .5, 42, 5)
@@ -458,7 +495,7 @@ spec = importlib.util.spec_from_file_location('rs_nodes', root / '__init__.py', 
 module = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = module
 spec.loader.exec_module(module)
-assert set(module.NODE_CLASS_MAPPINGS) == {'SeasonalFashionPromptNode', 'GemmaTipoNode', 'GemmaTipoNative', 'GemmaPromptExpandNative', 'RSPromptWriter', 'VRSNativeVisionLoader', 'VRSNativeMemoryLoader', 'VRSNativeBuild', 'VRSNativeRecall', 'VRSFolderMemory', 'VRSFolderImportBatch'}
+assert set(module.NODE_CLASS_MAPPINGS) == {'SeasonalFashionPromptNode', 'GemmaTipoNode', 'GemmaTipoNative', 'GemmaPromptExpandNative', 'RSPromptWriter', 'VRSNativeVisionLoader', 'VRSNativeMemoryLoader', 'VRSNativeBuild', 'VRSNativeRecall', 'VRSFolderMemory', 'VRSFolderImportBatch', 'VRSSaveImage'}
 assert all(name not in sys.modules for name in ('torch', 'numpy', 'PIL', 'llama_cpp', 'kgen'))
 assert ('version = "' + module.__version__ + '"') in (root / 'pyproject.toml').read_text()
 '''

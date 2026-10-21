@@ -1,0 +1,4 @@
+# Optional VRS folder fallback only. Install with ComfyUI's Python, then restart.
+# Do not replace ComfyUI's PyTorch. Core VRS/TIPO do not need these packages.
+transformers>=4.57,<6
+timm>=1.0.22,<2

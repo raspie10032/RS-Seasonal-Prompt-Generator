@@ -49,6 +49,15 @@ class PublicationTests(unittest.TestCase):
             git("add", "examples")
             self.assertNotEqual(check().returncode, 0)
 
+    def test_catalogues_cache_vectors_and_sqlite_journals_are_not_code(self):
+        from scripts.check_code_only import check_blob
+        for path in ("custom/vectors.f32", "custom/catalog.sqlite3-wal", "custom/catalog.db-journal",
+                     "rs_vrs_folders/collection/notes.txt", "persistent-v1/manifest.txt",
+                     "RS_VRS_FOLDERS/collection/notes.txt", "vrs-int-generated/receipt.txt",
+                     "custom/image.avif", "custom/image.TIFF"):
+            with self.subTest(path=path):
+                self.assertIsNotNone(check_blob(path, "100644", b"fictional placeholder"))
+
 
 if __name__ == "__main__":
     unittest.main()

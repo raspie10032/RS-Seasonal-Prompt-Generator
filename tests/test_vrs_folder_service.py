@@ -80,9 +80,32 @@ class FolderServiceTests(unittest.TestCase):
         def load(path):
             service.server.prompt_queue.put((1, "user"))
             return encoder
-        with patch("vrs_folder_service.NativeVision", side_effect=load):
+        with patch("vrs_folder_service.resolve_vision_path", return_value="gemma.safetensors"), \
+                patch("vrs_folder_service.NativeVision", side_effect=load):
             self.assertEqual(service.execute("import")["state"], "yielded")
         encoder.encode_tensor.assert_not_called()
+        self.assertEqual(self.catalog.status()["records"], {"pending": 1})
+
+    def test_new_generation_interrupts_auto_download_without_losing_pending(self):
+        from vrs_int.vision_assets import AUTO_VISION
+        from vrs_folder_service import SearchPreparationYield
+        self.image()
+        self.scan()
+        service = self.service()
+        service.catalog.config["model_name"] = AUTO_VISION
+        service.encoder = None
+        service.ticket = "import"
+        def prepare(name, interrupt):
+            self.assertEqual(name, AUTO_VISION)
+            service.server.prompt_queue.put((1, "user"))
+            interrupt()
+            raise AssertionError("Should yield")
+        with patch("vrs_folder_service.resolve_vision_path", side_effect=prepare), \
+                patch("vrs_folder_service.NativeVision", side_effect=AssertionError("No model load")):
+            self.assertEqual(service.execute("import"), {"state": "yielded", "added": 0})
+        self.assertIsNone(service.error)
+        self.assertFalse(service.stopped.is_set())
+        self.assertIsNone(service.ticket)
         self.assertEqual(self.catalog.status()["records"], {"pending": 1})
 
     def test_interruption_keeps_previously_encoded_image(self):

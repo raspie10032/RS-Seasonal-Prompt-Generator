@@ -32,6 +32,30 @@ class DownloadTests(unittest.TestCase):
         with patch.object(lora.urllib.request, "urlopen", side_effect=AssertionError("offline")):
             self.assertEqual(lora.ensure_adapter("test", self.root), folder)
 
+    def test_offline_setting_blocks_only_missing_downloads(self):
+        with patch.dict(os.environ, {"RS_MODELS_OFFLINE": "1"}), \
+                patch.object(lora.urllib.request, "urlopen", side_effect=AssertionError("No network")):
+            with self.assertRaisesRegex(RuntimeError, "Offline mode"):
+                lora.ensure_adapter("test", self.root)
+            (self.root / "test" / "adapter_model.safetensors").write_bytes(self.payload)
+            self.assertEqual(lora.ensure_adapter("test", self.root), self.root / "test")
+
+    def test_existing_broken_asset_rejected_before_missing_asset_download(self):
+        entry = dict(self.entry, files={"large.gguf": (900000, "f" * 64),
+                                      "broken.json": (8, "a" * 64)})
+        (self.root / "broken.json").write_bytes(b"bad")
+        with patch.object(lora.urllib.request, "urlopen", side_effect=AssertionError("No network")):
+            with self.assertRaisesRegex(ValueError, "wrong size"):
+                lora.ensure_files(entry, self.root)
+
+    def test_cancellation_before_network_and_low_space_preflight(self):
+        with patch.object(lora.urllib.request, "urlopen", side_effect=AssertionError("No network")):
+            with self.assertRaises(InterruptedError):
+                lora.ensure_adapter("test", self.root, Mock(side_effect=InterruptedError))
+            with patch.object(lora.shutil, "disk_usage", return_value=Mock(free=0)):
+                with self.assertRaisesRegex(OSError, "disk space"):
+                    lora.ensure_adapter("test", self.root)
+
     def test_bad_download_never_becomes_a_cached_model(self):
         for content in (b"short", b"x" * len(self.payload), self.payload * 2):
             with self.subTest(content=content), patch.object(lora.urllib.request, "urlopen", return_value=io.BytesIO(content)):

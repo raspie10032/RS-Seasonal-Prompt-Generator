@@ -3,7 +3,7 @@
 [English](README.md) | 한국어
 
 계절별 CSV, 자연어 설명, 개인 이미지·태그 자료에서 이미지 생성용 프롬프트 재료를
-만듭니다. **ComfyUI 노드 9개**와 독립 실행 도구 **VRS-INT**를 제공합니다.
+만듭니다. **사용자용 ComfyUI 노드 11개**(폴더 수집 내부 노드 1개 별도)와 독립 실행 도구 **VRS-INT**를 제공합니다.
 
 **VRS-INT는 코드·문서·가상 예제만 공개합니다.** 초기 기억, 수집한 단보루 이미지와
 태그, 특징 벡터, 추천 결과, 모델 가중치는 포함하지 않습니다. 각자 원하는 자료로
@@ -15,6 +15,13 @@
 
 ## 원하는 기능부터 선택하기
 
+**네이티브 실행 조건:** Gemma 4 생성·비전을 지원하는 ComfyUI, 필요한 모델 파일,
+지원되는 PyTorch 연산과 충분한 RAM·VRAM이 필요합니다. 네이티브 TIPO·VRS는
+ComfyUI의 PyTorch를 사용하며 별도 llama.cpp CUDA 휠이나 C++ 컴파일러를 요구하지 않습니다.
+ComfyUI가 켜지는 것만으로 전체 모델 호환성이 보장되지는 않습니다. NVIDIA 추론과
+VRS CPU 인코딩은 확인했으며 AMD·Intel·Apple GPU 전체 모델 실행은 미검증입니다.
+VRS CPU 추론은 `use_cpu`를 선택해 명시적으로 동의해야 합니다.
+
 | 원하는 작업 | 사용할 기능 | 필요한 것 |
 | --- | --- | --- |
 | 계절·의상·배경 무작위 조합 | Seasonal Fashion Prompt Generator | ComfyUI. 모델·추가 패키지 불필요 |
@@ -23,7 +30,7 @@
 | 한국어 요청으로 영문 태그·문장 작성 | RS AI Prompt Writer | ComfyUI + 별도 Qwen Writer. Gemma TIPO와 다른 모델 |
 | 한국어·영어 설명이나 태그 확장 | Gemma TIPO 텍스트 모드 | ComfyUI + GGUF 실행 환경·모델. GPU 지원 실행 환경과 `gpu_layers=-1`로 GPU 적재 |
 | 참고 이미지에서 프롬프트용 태그 생성 | Gemma TIPO 이미지 모드 | ComfyUI + GGUF·호환 mmproj·llama.cpp 비전 실행 파일 |
-| 개인 자료에서 비슷한 그림의 태그·이름 회수 | VRS-INT | Python 3.11 이상, NVIDIA CUDA 환경, 별도 비전 인코더, 개인 이미지·태그 쌍 |
+| 개인 자료에서 비슷한 그림의 태그·이름 회수 | VRS-INT | 네이티브: ComfyUI PyTorch 가속기 + Gemma 비전 지원; CLI: Python 3.11 이상 / CUDA. 개인 이미지·태그 쌍 필요. |
 
 VRS-INT의 목적은 **새로운 프롬프트에 쓸 참고 재료를 가져오는 것**입니다. 인코더를
 재학습하거나 원작자를 확정하는 기능은 아니며, 완성된 자연어 프롬프트를 작성하지는
@@ -95,9 +102,16 @@ llama.cpp, C++ 빌드 도구, CUDA 휠이나 torch 교체는 필요 없습니다
 
 기존 **Gemma TIPO** GGUF 노드와 **RS AI Prompt Writer**는 별도 선택 기능입니다.
 그 경로에만 `requirements-legacy.txt`가 필요합니다. GPU를 쓰려면 환경에 맞는
-llama-cpp-python CUDA 빌드를 먼저 선택하세요. 단순 pip 설치는 CPU 빌드를
+llama-cpp-python GPU 빌드를 먼저 선택하세요. 단순 pip 설치는 CPU 빌드를
 설치하거나 소스 빌드를 시작할 수 있습니다. 정렬기만 원하면 ComfyUI의 Python으로
 `python -m pip install --no-deps tipo-kgen`을 사용하세요. VRS-INT 설치는 별도입니다.
+
+레거시 비전은 Windows/Linux에서 Vulkan을 우선 사용해 별도 CUDA 런타임을 줄입니다.
+`RS_TIPO_VISION_BACKEND=auto|vulkan|cuda|metal|cpu`로 명시할 수 있습니다.
+`cuda` 프리빌트 선택은 지원되는 Windows x64에 한합니다. Vulkan에도 GPU 드라이버와
+Vulkan 로더가 필요하며, 설치 여부 확인은 전체 모델 실행 성공을 보장하지 않습니다.
+이 설정은 레거시 이미지 노드에만 적용됩니다. 네이티브 TIPO와 VRS는 ComfyUI의 장치 설정을 따릅니다.
+`gpu_layers=0`과 `RS_TIPO_FORCE_CPU=1`은 기존대로 CPU를 선택합니다.
 
 ## 계절별 프롬프트 생성기
 
@@ -257,8 +271,8 @@ GPU 요청 시 CPU 전용 빌드는 모델 다운로드 전에 거부합니다. 
 - `seed`: 변형을 위해 확장을 바꿉니다.
 - *(선택)* `image`: ComfyUI IMAGE를 연결하면 **비전 모드**(이미지
   → 태그)로 전환됩니다. **완전 자동** — 최초 비전 사용 시 OS/아키텍처와
-  GPU에 맞는 프리빌트 llama.cpp mtmd 바이너리(Windows/NVIDIA → CUDA +
-  cudart; Linux/NVIDIA·AMD/Intel → Vulkan; macOS → Metal; 그 외 CPU,
+  GPU에 맞는 프리빌트 llama.cpp mtmd 바이너리(Windows/Linux → Vulkan 우선,
+  Windows는 Vulkan이 없으면 호환 CUDA + cudart; macOS → Metal; 그 외 CPU,
   빌드 불필요)와 트레인된 비전 모델 + mmproj를 자동 다운로드합니다.
   수동으로 설치하거나 설정할 것이 없습니다.
 - *(선택, 비전 전용)* `mmproj_path`: **비워 두세요** — 트레인된 비전
@@ -297,24 +311,23 @@ GPU 요청 시 CPU 전용 빌드는 모델 다운로드 전에 거부합니다. 
 | --- | --- |
 | **OS** | Windows / Linux / macOS — ComfyUI가 동작하고 `llama-cpp-python` 휠이 존재하는 모든 환경(x86-64, Apple Silicon/arm64) |
 | **노드 1 (Seasonal)** | 모든 ComfyUI 설치. 의존성 없음, 모델 없음. |
-| **노드 2 (Gemma TIPO)** | 비전: `gpu_layers=-1`에서 GPU 자동 선택(CUDA / Vulkan / Metal), CPU 폴백. 텍스트: 기본 CPU(GPU는 CUDA `llama-cpp-python` 빌드로). |
+| **노드 2 (Gemma TIPO)** | 비전: `gpu_layers=-1`에서 GPU 자동 선택(Vulkan 우선 / Windows CUDA / macOS Metal), CPU 폴백. 텍스트: 직접 설치한 `llama-cpp-python` 백엔드 사용(GPU는 호환 GPU 빌드 필요). |
 | **RAM** | 최소 ~8 GB (4-bit 모델에 ≈5 GB 사용) · 16 GB 이상 권장 |
 | **디스크** | 텍스트 ~4 GB(3.2 GB GGUF + 의존성); 비전은 추가로 ~3.2 GB 비전 GGUF + ~1 GB mmproj + GPU 프리빌트(최초 비전 사용 시 1회) |
-| **속도** | **비전**은 `gpu_layers=-1`에서 GPU 사용 가능; 속도는 하드웨어에 따라 다름. **텍스트**는 `llama-cpp-python` in-process(기본 CPU 휠이라 느림; 속도는 GPU 빌드 설치). |
-| **Python** | ComfyUI 내장 환경; `llama-cpp-python >= 0.3.23`(자동 설치/업그레이드, 1회 재시작 안내) |
+| **속도** | **비전**은 `gpu_layers=-1`에서 GPU 사용 가능; 속도는 하드웨어에 따라 다름. **텍스트**는 직접 설치한 `llama-cpp-python`으로 실행하며 GPU 가속에는 호환 GPU 빌드가 필요. |
+| **Python** | ComfyUI 내장 환경; `llama-cpp-python >= 0.3.23`(레거시 텍스트 전용, 사용자가 명시적으로 설치) |
 
 ### 설치 (노드 2 전용)
 
-**수동 설치가 필요 없습니다.** 노드 2를 실제로 처음 실행할 때
-필요한 의존성을 활성 환경에 자동 설치합니다: 정렬용 `tipo-kgen`,
-**텍스트 모드에서만** `llama-cpp-python` **>= 0.3.23** 프리빌트 휠.
-자동 설치는 llama-cpp-python 소스 빌드를 시작하지 않으며, 맞는 휠이
-없으면 설치 안내와 함께 원래 프롬프트로 폴백합니다. 너무 오래된 빌드는 gemma4 아키텍처를 로드할 수 없어
-기존의 너무 오래된 `llama-cpp-python` 은 자동 업그레이드됩니다 — 세션
-중간에 그렇게 되면 ComfyUI가 **1회 재시작**을 요청합니다(C 확장은
-핫 리로드 불가). 노드 1은 아무것도 설치하지 않습니다.
+**실행 중 패키지를 자동 설치하거나 업그레이드하지 않습니다.** 별도 CUDA 휠 없이
+사용하려면 [Gemma TIPO Native / 네이티브 Q4](GGUF_NATIVE.md)를 권장합니다.
+기존 텍스트 노드와 Qwen Writer만 호환되는 `llama-cpp-python >= 0.3.23`이 필요합니다.
+없거나 로드하지 못하면 안내를 표시합니다. 기존 텍스트 TIPO는 원문을 반환하고,
+Writer는 오류를 표시합니다. `tipo-kgen` 없이도 기본 태그 정리는 동작하고 분류 정렬만 생략합니다.
+정렬기를 수동 설치하려면 ComfyUI의 Python으로 `python -m pip install --no-deps tipo-kgen`을 사용합니다.
 
-대신 미리 수동 설치하려면(선택):
+레거시 추론을 유지할 때만 ComfyUI의 Python으로 설치하세요. GPU용 패키지는
+환경에 맞는 빌드를 명시적으로 선택해야 하며, 아래 일반 명령은 CPU 빌드나 소스 빌드를 선택할 수 있습니다.
 
 ```
 pip install -r requirements-legacy.txt
@@ -328,6 +341,9 @@ pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-c
 ```
 
 ## VRS-INT: 개인 참고 기억
+
+**본인 PC에서 로컬 처리하며 개인 자료를 외부 저장소로 업로드·동기화하지 않습니다.**
+모델 다운로드와 자료 처리의 차이, Git 제외 보호 범위는 [로컬 자료 안내](LOCAL_DATA.md)를 참고하세요.
 
 ```text
 개인 이미지 + 분류된 태그 → 기존 비전 인코더 → 판본이 있는 개인 기억
@@ -424,8 +440,17 @@ VRS inside ComfyUI / VRS 네이티브 구축·검색: [설치·연결·API 예�
 **폴더에서 바로 경험 만들기:** [VRS 폴더 기억](vrs_int/FOLDERS.md)에서 이미지 폴더와
 ComfyUI output을 등록하면 내장 프롬프트를 보존하고 생성 큐가 빌 때 새 이미지를
 소량씩 추가합니다. 시작·중지·재개와 최신 검색 준비 완료 판본 조회를 지원합니다.
-원본은 수정하지 않으며 메타데이터가 없는 파일은 집계만 합니다.
+원본은 수정하지 않으며 메타데이터 없는 이미지는 선택적으로 PixAI로 로컬 보완 태깅합니다.
+`VRS Save Image`로 실제 최종 프롬프트를 남기고, 연결된 VRS → TIPO 워크플로를 추가할 수 있습니다.
+서버 재시작 후 자동 재개는 선택 사항입니다. 의존성과 모델 비용은 폴더 안내를 참고하세요.
 
 검색 자료는 재시작 후에도 재사용하고, 새 판본에서는 추가·수정된 경험만 변환합니다.
 폴더 수집은 큐가 비면 CPU에서 검색을 미리 준비하며, 준비 중에는 이전 검색 판본을 유지합니다.
 [캐시 위치·용량·복구·실측 안내](vrs_int/SEARCH.md)를 참고하세요.
+
+VRS 비전은 [공개 비전 저장소](https://huggingface.co/raspie/vrs-int-gemma4-vision-fp16)에서
+**분리된 FP16 비전 약 319.3MiB만 자동 준비**합니다. 전체 언어모델·GGUF 파서가 필요 없으며,
+TIPO의 정상 mmproj와 GGUF 파서가 이미 있으면 이를 재사용할 수도 있습니다. Recall의 `request`·`image`·
+`vrs_state` 출력을 Expander에 연결하면 입력을 중복 작성하지 않아도 됩니다.
+[자동 준비·호환성 안내](vrs_int/COMFYUI_NATIVE.md)를 참고하세요.
+`RS_MODELS_OFFLINE=1`이면 네이티브 모델·LoRA·비전의 새 다운로드를 막습니다.

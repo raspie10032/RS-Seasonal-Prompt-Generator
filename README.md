@@ -3,7 +3,8 @@
 English | [한국어](README_KOR.md)
 
 Create image-generation prompt ideas from seasonal CSVs, descriptions, or your
-own reference images and tags. This repository contains nine **ComfyUI nodes**
+own reference images and tags. This repository contains eleven user-facing **ComfyUI nodes**
+(plus an internal folder-import node)
 and the standalone **VRS-INT** command-line tool.
 
 **VRS-INT ships code, documentation, and fictional examples only.** No starter
@@ -17,6 +18,13 @@ Korean edits, names and appearance remain unreliable. Read the [setup, resource 
 
 ## Choose a starting point
 
+**Native runtime requirements:** ComfyUI must support Gemma 4 generation/vision, with
+the required model files, supported PyTorch operations and sufficient RAM/VRAM.
+Native TIPO/VRS need no separate llama.cpp CUDA wheel or C++ compiler; they reuse
+ComfyUI's PyTorch. Starting ComfyUI alone does not guarantee model compatibility.
+NVIDIA inference and VRS CPU encoding have been checked; AMD/Intel/Apple full-model
+execution is unverified. VRS CPU inference requires explicit `use_cpu` consent.
+
 | What you want | Use | Requirements |
 | --- | --- | --- |
 | Random seasonal clothing and scene prompts | Seasonal Fashion Prompt Generator | ComfyUI; no model or extra packages |
@@ -25,7 +33,7 @@ Korean edits, names and appearance remain unreliable. Read the [setup, resource 
 | Write English tags or prose from Korean/English requests | RS AI Prompt Writer | ComfyUI + a separate Qwen Writer, distinct from Gemma TIPO |
 | Expand Korean/English descriptions or tags | Gemma TIPO, text mode | ComfyUI + GGUF runtime/model; GPU-capable runtime plus `gpu_layers=-1` enables GPU offload |
 | Generate prompt tags inspired by an image | Gemma TIPO, image mode | ComfyUI + GGUF + matching mmproj + llama.cpp vision runtime |
-| Retrieve tags and names from your own reference collection | VRS-INT | Python 3.11+, NVIDIA CUDA environment, separate vision encoder, personal image/tag pairs |
+| Retrieve tags and names from your own reference collection | VRS-INT | Native: ComfyUI PyTorch accelerator + Gemma vision support; CLI: Python 3.11+ / CUDA. Personal image/tag pairs required. |
 
 VRS-INT retrieves creative reference material. It does not train the encoder,
 reliably identify an image's author, or write a finished natural-language prompt.
@@ -97,9 +105,16 @@ Gemma is not the existing TIPO fine-tune. Repackaging does not require training.
 
 The legacy **Gemma TIPO** GGUF node and **RS AI Prompt Writer** remain optional.
 Only those paths use `requirements-legacy.txt`. Select a matching llama-cpp-python
-CUDA build first for GPU inference: a plain pip install can select CPU wheels or
+GPU build first for GPU inference: a plain pip install can select CPU wheels or
 start a source build. To install only the category formatter, use ComfyUI's
 Python: `python -m pip install --no-deps tipo-kgen`. VRS-INT setup is separate.
+
+Legacy vision prefers Vulkan on Windows/Linux to reduce separate CUDA runtime downloads.
+Set `RS_TIPO_VISION_BACKEND=auto|vulkan|cuda|metal|cpu` to select a backend explicitly.
+The CUDA prebuilt selector supports Windows x64 only. Vulkan still needs a compatible
+GPU driver and loader; loader detection does not prove full model compatibility.
+This setting affects legacy image TIPO only. Native TIPO and VRS follow ComfyUI's device settings.
+`gpu_layers=0` and `RS_TIPO_FORCE_CPU=1` retain their existing CPU meaning.
 
 ## Seasonal Fashion Prompt Generator
 
@@ -245,8 +260,8 @@ Inputs:
 - *(optional)* `image`: connect a ComfyUI IMAGE to switch to **vision
   mode** (image → tags). **Fully automatic** — first vision use
   auto-downloads the prebuilt llama.cpp mtmd binary for your OS/arch and
-  GPU (Windows/NVIDIA → CUDA + cudart; Linux/NVIDIA and AMD/Intel →
-  Vulkan; macOS → Metal; otherwise CPU — no build) **and** the trained
+  GPU (Windows/Linux → Vulkan preferred; Windows without Vulkan →
+  compatible CUDA + cudart; macOS → Metal; otherwise CPU — no build) **and** the trained
   vision model + mmproj. Nothing to install or configure by hand.
 - *(optional, vision only)* `mmproj_path`: **leave empty** — the trained
   vision mmproj is auto-downloaded (paired with the vision model). Only
@@ -288,23 +303,22 @@ Notes:
 | **Node 2 (Gemma TIPO)** | Vision: optional GPU auto-selection (`gpu_layers=-1`, CUDA / Vulkan / Metal) with CPU fallback. Text: CPU by default (GPU via a CUDA `llama-cpp-python` build). |
 | **RAM** | min ~8 GB (≈5 GB used for the 4-bit model) · 16 GB+ recommended |
 | **Disk** | text ~4 GB (3.2 GB GGUF + deps); vision adds ~3.2 GB vision GGUF + ~1 GB mmproj + the GPU prebuilt (fetched once on first vision use) |
-| **Speed** | **Vision** can offload to GPU with `gpu_layers=-1`; speed depends on hardware. **Text** runs in-process via `llama-cpp-python` (CPU wheel by default, so slow; install a GPU build for speed). |
-| **Python** | ComfyUI's embedded env; `llama-cpp-python >= 0.3.23` (auto-installed/upgraded, one restart prompt) |
+| **Speed** | **Vision** can offload to GPU with `gpu_layers=-1`; speed depends on hardware. **Text** runs in-process via the explicitly installed `llama-cpp-python` backend; GPU acceleration requires a compatible GPU build. |
+| **Python** | ComfyUI's embedded env; `llama-cpp-python >= 0.3.23` (legacy text only, explicitly installed by the user) |
 
 ### Install (Node 2 only)
 
-**No manual install is required.** The first time you actually run Node 2,
-its dependencies are auto-installed into the active environment as needed:
-`tipo-kgen` for sorting; **text mode only** also installs `llama-cpp-python`
-**>= 0.3.23** from prebuilt wheels. Automatic installation never starts a
-llama-cpp-python source build; if no matching wheel exists, the original
-prompt is returned with an installation message. Older builds cannot
-load the gemma4 architecture, so an existing too-old `llama-cpp-python` is
-upgraded automatically — if that happens mid-session ComfyUI will ask you to
-**restart once** (a C-extension can't be hot-reloaded). Node 1 never installs
-anything.
+**Generation never installs or upgrades Python packages.** Prefer
+[Gemma TIPO Native / native Q4](GGUF_NATIVE.md) to avoid separate CUDA inference wheels.
+Only legacy text TIPO and Qwen Writer need an explicitly installed compatible
+`llama-cpp-python >= 0.3.23`. Missing or broken backends produce guidance;
+legacy text TIPO preserves its input and Writer raises an error.
+Without `tipo-kgen`, basic tag cleanup still works; category sorting is skipped.
+For optional sorting, use ComfyUI's Python: `python -m pip install --no-deps tipo-kgen`.
 
-To pre-install manually instead (optional):
+Install only if retaining legacy inference. Use ComfyUI's Python and explicitly
+select a matching GPU build when needed; the generic command below can select
+a CPU build or start a source build.
 
 ```
 pip install -r requirements-legacy.txt
@@ -318,6 +332,9 @@ pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-c
 ```
 
 ## VRS-INT: personal reference memory
+
+**Run locally on your own PC: personal data is never uploaded or synced to an external repository by this extension.**
+See [local data and privacy](LOCAL_DATA.md) for download behaviour and the scope of Git exclusion guards.
 
 ```text
 Your images + categorized tags → existing vision encoder → versioned personal memory
@@ -418,8 +435,17 @@ VRS inside ComfyUI / VRS 네이티브 구축·검색: [설치·연결·API 예�
 **Folder ingestion:** [VRS Folders](vrs_int/FOLDERS.md) registers image folders and ComfyUI
 output, preserves embedded prompts and indexes new files in small batches when the
 generation queue is idle. Includes start/stop/resume and a latest-search-ready memory node.
-Originals stay unchanged; missing metadata is counted, not automatically tagged.
+Originals stay unchanged. Optional PixAI fallback tags images without usable metadata locally;
+`VRS Save Image` preserves final runtime prompts. The panel can add a connected VRS → TIPO workflow
+and optionally resume collection after restart. See the folder guide for dependencies and model costs.
 
 Search data persists across restarts and reuses unchanged experiences when snapshots advance.
 Folder ingestion prepares search on idle CPU time and retains the previous ready snapshot meanwhile.
 See [cache location, capacity, recovery and measurements](vrs_int/SEARCH.md).
+
+VRS vision defaults to **automatic standalone FP16 vision preparation (319.3 MiB)** from
+the [public vision repository](https://huggingface.co/raspie/vrs-int-gemma4-vision-fp16).
+No full language base or GGUF parser is needed for this file; a verified cached TIPO mmproj can still be reused.
+Recall's `request` and `image` outputs connect directly to the Expander, alongside
+`vrs_state`. See [automatic setup and compatibility](vrs_int/COMFYUI_NATIVE.md).
+Use `RS_MODELS_OFFLINE=1` to forbid missing native model/LoRA/vision downloads.

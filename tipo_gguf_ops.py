@@ -1,4 +1,4 @@
-"""Packed GGUF weights with ComfyUI patching and PyTorch CUDA operations.
+"""Packed GGUF weights with ComfyUI patching and device-local PyTorch operations.
 
 Tensor metadata and delayed LoRA handling adapted from City96/ComfyUI-GGUF
 (Apache-2.0); see vendor/gguf_torch/NOTICE.md. No llama.cpp runtime.

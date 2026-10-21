@@ -201,7 +201,7 @@ class SeasonalFashionPromptNode:
                 prompt_parts.append(additional_situation)
                 
         elif background_toggle == "simple":
-            background_prompt = f"simple background, {get_random_element(['white background', 'grey background', 'black background'], rng)}, standing cut"
+            background_prompt = f"simple background, {get_random_element(['white background', 'grey background', 'black background'], rng)}"
             prompt_parts.append(background_prompt)
 
         # Join all prompt parts, filtering out any empty strings

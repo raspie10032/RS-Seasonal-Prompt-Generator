@@ -12,17 +12,26 @@ The manual JSONL and pinned-snapshot workflow below remains supported.
 VRS도 **ComfyUI의 PyTorch와 모델 관리**로 실행합니다. 이미지 특징 추출·경험 구축·검색에
 llama.cpp, 별도 서버, Transformers, bitsandbytes가 필요 없습니다. Gemma는 참고 자료를
 이용해 장면을 확장하고 **단보루 태그 / 영어 자연어 지시문**으로 다듬습니다. 추가 학습은 하지 않습니다.
-개인 경험·이미지·모델은 배포하지 않습니다.
+개인 경험·이미지는 배포하지 않습니다. 공개 비전 가중치만 별도로 받습니다.
 
 ### 설치
 
-1. 저장소를 `ComfyUI/custom_nodes/RS-Seasonal-Prompt-Generator`에 둡니다. 네이티브 경로는
-   추가 pip 설치 없이 현재 ComfyUI 환경을 사용합니다. torch를 교체하지 마세요.
-2. [네이티브 모델 준비](../NATIVE_TIPO.md)에 따라 **ComfyUI 형식의 Gemma 4 E2B safetensors**를
-   `ComfyUI/models/text_encoders/`에 둡니다. GGUF/mmproj를 직접 읽지 않습니다.
+1. 저장소를 `ComfyUI/custom_nodes/RS-Seasonal-Prompt-Generator`에 두고 ComfyUI의 Python으로
+   `python -m pip install -r requirements.txt`를 실행합니다. torch를 교체하지 마세요.
+2. 비전 로더에서 **`(auto: Gemma FP16 vision)`**을 선택하면 첫 실행 때 분리된
+   **FP16 비전 약 319.3MiB**만 자동 다운로드합니다.
+   [공개 비전 저장소](https://huggingface.co/raspie/vrs-int-gemma4-vision-fp16)의 고정 리비전·크기·SHA-256을 검사합니다.
+   이 경로에는 **GGUF 파서·llama.cpp·전체 언어모델이 필요 없습니다.** ComfyUI 가속기의 기본 PyTorch 연산·Gemma 4 지원을 다운로드 전에 검사합니다.
+   수동 설치는 `vrs-gemma4-e2b-vision-fp16.safetensors`를
+   `ComfyUI/models/text_encoders/rs_vrs_vision/`에 둡니다.
+   TIPO의 정상 FP16 mmproj가 이미 있고 GGUF 파서가 설치돼 있으면 이를 검증해 재사용하므로 추가 다운로드도 없습니다.
+   기존 모델은 [네이티브 모델 준비](../NATIVE_TIPO.md)에 따라 **ComfyUI 형식 Gemma safetensors**를
+   `ComfyUI/models/text_encoders/`에 둡니다. 이 수동 선택 역시 GGUF 파서 없이도 사용 가능합니다.
    VRS 로더는 이 파일에서 `vision_model.*`만 읽습니다. 텍스트·PLE 가중치를 GPU에 올리지 않습니다.
+   **`python -m vrs_int.prepare_encoder`는 레거시 CLI용 추출기입니다.** 그 출력은
+   네이티브 키 변환 전 형식이므로 파일을 복사하는 것만으로 이 로더에서 사용할 수 없습니다.
 3. 큐가 끝난 뒤 ComfyUI를 재시작합니다. `prompt/VRS` 아래 구축·검색 노드가 나타납니다.
-   CUDA GPU와 Gemma 4 비전을 지원하는 ComfyUI가 필요합니다. 실패 시 CPU 추론으로 전환하지 않습니다.
+   PyTorch 가속기와 Gemma 4 비전을 지원하는 ComfyUI가 필요합니다. 실패 시 CPU 추론으로 전환하지 않습니다.
 
 ### 처음 경험 만들기 / 묶음 추가
 
@@ -30,7 +39,7 @@ llama.cpp, 별도 서버, Transformers, bitsandbytes가 필요 없습니다. Gem
 `image`는 `images_root` 아래 상대 경로입니다. 생성 이미지라면 `source=generated`,
 `id=image_sha256`, `rating=u`도 사용할 수 있습니다. 원래 생성 프롬프트는 이미지의 정답이 아닙니다.
 
-1. **VRS Native Vision Loader**에서 Gemma 파일을 선택합니다.
+1. **VRS Native Vision Loader**에서 자동 준비 또는 기존 네이티브 Gemma 파일을 선택합니다.
 2. `encoder` → **VRS Native Build**의 `encoder`에 연결합니다.
 3. `manifest_path`, `images_root`, **새** `store_path`의 절대 경로를 넣습니다.
    처음에는 `base_snapshot`을 비웁니다. `label`은 자유로운 설명입니다.
@@ -51,15 +60,17 @@ flowchart LR
     M[VRS Native Memory Loader] --> R
     I[Load Image] --> R
     R -->|vrs_state| G[Gemma Prompt Expander Native]
-    I --> G
-    C[Load CLIP - Gemma] --> G
+    R -->|request + image| G
+    C[Gemma Q4 auto or existing CLIP] --> G
     G --> T[단보루 태그]
     G --> N[영어 자연어 지시문]
 ```
 
 - **Memory Loader:** `store_path`와 정확한 `snapshot` 해시를 지정합니다. `CURRENT`가 바뀌었다고
   자동으로 다른 경험을 쓰지 않습니다. 새 판본은 해시를 직접 바꿔 선택합니다.
-- **Recall:** 같은 이미지와 요청을 Expander에도 연결합니다. `keep_tags`에는 사용자가 선택한
+- **Recall:** `request` 출력을 Expander의 `prompt`에, `image` 출력을 `image`에 연결하면
+  한 곳에서 입력할 수 있습니다. prompt 위젯을 입력으로 변환해서 연결하세요. 기존처럼
+  같은 이미지와 요청을 각각 연결하는 방식도 지원합니다. `keep_tags`에는 사용자가 선택한
   이름·외형, `target_tags`에는 바꿀 조건, `exclude_tags`에는 제외할 요소를 쉼표로 구분해 넣습니다.
   한국어 요청 자체는 그대로 전달합니다. 비교 실험에서 영문 정답을 한쪽에만 추가하지 마세요.
 - `ratings`는 검색 허용 등급입니다. `u`는 생성 자료의 미분류입니다. 등급은 시각 분류기가 판정하지
@@ -115,10 +126,20 @@ ComfyUI `15eb748b`에서는 한 노드의 두 번째 생성 호출이 이전 CUD
 
 ## English
 
-Install this repository under ComfyUI custom nodes, prepare the native **Gemma 4 E2B safetensors**
-described in [Native TIPO](../NATIVE_TIPO.md), and restart after your queue is idle. No additional
-pip dependencies, GGUF, llama.cpp, Transformers, bitsandbytes, or external retrieval server are used.
-CUDA and ComfyUI's Gemma 4 vision implementation are required; CPU inference fallback is disabled.
+Install requirements.txt with ComfyUI's Python and restart after the queue finishes. Select
+**`(auto: Gemma FP16 vision)`** in the vision loader: first execution downloads only the
+**319.3 MiB standalone FP16 safetensors** from the [public vision repository](https://huggingface.co/raspie/vrs-int-gemma4-vision-fp16),
+checking a pinned revision, size and SHA-256. No GGUF parser, language model,
+llama.cpp, Transformers, bitsandbytes or retrieval server is needed for this path.
+Manual location: `ComfyUI/models/text_encoders/rs_vrs_vision/vrs-gemma4-e2b-vision-fp16.safetensors`.
+A verified local TIPO mmproj is reused instead when the optional GGUF parser is installed.
+Basic operations on the ComfyUI-selected accelerator and native Gemma vision support are checked before downloading. Existing native **Gemma 4 E2B safetensors** prepared using
+[Native TIPO](../NATIVE_TIPO.md) remain supported without the GGUF parser.
+ComfyUI's Gemma 4 vision implementation is required. Use a PyTorch accelerator by default, or explicitly opt in to CPU with `use_cpu=true`; automatic CPU fallback is disabled.
+
+`python -m vrs_int.prepare_encoder` extracts weights for the legacy CLI. Its output does not
+have the converted native keys expected here; copying that file alone into `text_encoders`
+does not make it compatible with this loader. Use automatic vision preparation or native conversion.
 
 Use **VRS Native Vision Loader → VRS Native Build** in a dedicated build workflow. Supply a local
 [image/tag JSONL](../examples/vrs-int/README.md), image root, a new memory directory and an empty
@@ -127,8 +148,10 @@ base hash; original files and earlier versions remain unchanged. Builds run on e
 Interrupted builds do not publish a completed snapshot, though unreferenced objects can remain.
 
 For inference, connect Vision Loader, **VRS Native Memory Loader** (directory + exact hash), and
-Load Image to **VRS Native Recall**. Connect its `vrs_state`, the **same** image and request, and a
-Gemma CLIPLoader to **Gemma Prompt Expander Native**. `both` produces prose first, then tags from
+Load Image to **VRS Native Recall**. Connect its `vrs_state`, **`request` → `prompt`**, and
+**`image` → `image`** outputs to **Gemma Prompt Expander Native**. Convert its prompt widget
+to an input to connect the request. Select `model_source=heretic_ara_q4` for automatic writer
+preparation (disconnect CLIP), or keep an existing native Gemma CLIPLoader. `both` produces prose first, then tags from
 that scene. `keep_tags/target_tags/exclude_tags` are explicit user controls; unselected candidate
 names remain in the report but are not passed to the writer. The optional multilingual dictionary
 uses `tag_knowledge_path`. Connected states and `vrs_state_path` are mutually exclusive.
@@ -139,7 +162,7 @@ their placeholder paths/model/snapshot/image. Retrieval alone works without a la
 **Legacy PIL/NF4 vectors are incompatible.** Re-encode selected original images into a separate
 native store. FP16 resident vision weights use ComfyUI's FP32 manual-cast computation. Contracts
 fingerprint weights/runtime/preprocessing; do not relabel old vectors as compatible. The vision
-loader reads only ~319MiB of vision weights from the full file; the writer's language model is
+loader reads only ~319MiB of vision weights from the standalone file, a shared FP16 mmproj or native file; the writer's language model is
 additional. ComfyUI manages residency/offload, but the two loaders do not share vision tensors.
 Retrieval uses bounded GPU blocks over a persistent disk-mapped FP32 pool; only winning
 neighbors' voting metadata is loaded. First use verifies and prepares the snapshot. Later opens
@@ -162,3 +185,36 @@ enabled, without modifying ComfyUI core or global flags. The small off/on compar
 better quality or speed: neighbor appearance can leak into the subject, and nonstandard tags remain,
 including when dictionary hints are present. Large stored-vector search measurements are documented
 in [SEARCH.md](SEARCH.md); native large-folder encoding and end-to-end prompt quality need separate evaluation.
+
+## 장치 호환 범위 / Device compatibility
+
+네이티브 VRS와 선택 PixAI는 ComfyUI가 선택한 PyTorch 가속기를 사용합니다.
+별도 CUDA Toolkit·llama.cpp CUDA 휠·bitsandbytes를 설치하지 않습니다.
+장치 이름이 `cuda`가 아니라는 이유만으로 차단하지 않습니다. 시작 전에 작은 FP16 저장·FP32
+선형/정규화/어텐션 연산을 검사합니다. CPU 자동 전환이나 장치 설정 변경은 없습니다.
+**이 검사는 전체 비전 모델·PixAI의 지원 보증이 아닙니다.** NVIDIA에서 검증된 실행 경로와
+MPS/XPU 등 추가 하드웨어의 실측 여부를 구분해야 합니다. 후자는 아직 전체 모델 미검증입니다.
+
+Native VRS and optional PixAI use ComfyUI's selected PyTorch accelerator. No separate CUDA
+Toolkit, llama.cpp CUDA wheel or bitsandbytes is installed. A tiny operation probe replaces
+CUDA-name restrictions. It does not prove full-model compatibility on MPS/XPU/other hardware;
+these remain unverified. No automatic CPU retry or global device changes are added. Explicit CPU opt-in is described below.
+Legacy CLI NF4/WD paths keep their existing CUDA requirements; this change concerns native nodes.
+
+## CPU 실행 동의 / Explicit CPU opt-in
+
+`VRS Native Vision Loader`의 **use_cpu**는 기본 `false`입니다. 사용자가 `true`로
+설정하면 GPU 상태와 무관하게 VRS 비전을 CPU로 실행합니다. 폴더 패널의 **CPU 추론에 동의**도
+기본 해제이며, 켜면 해당 수집의 비전과 선택 PixAI에 적용됩니다. 설정은 그 수집에 저장되며,
+자동 재개를 별도로 켠 경우에만 재시작 후에도 수집을 재개합니다. GPU 오류로 자동 전환하지 않습니다.
+TIPO의 실행 장치는 바꾸지 않습니다. CPU 추론은 느릴 수 있고 다른 프로그램에 부하가 생길 수
+있습니다. PyTorch의 전역 스레드 수를 임의로 바꾸지 않습니다.
+CPU·다른 가속기의 벡터가 CUDA와 동등하다는 검증 전에는 서로 다른 인코더 규격을 사용합니다.
+이미 경험을 인코딩한 수집의 CPU/GPU 설정을 바꾸려면 새 수집을 만드세요. 기존 자료를 덮어쓰지 않습니다.
+
+`use_cpu=false` is the default. Enabling it explicitly selects CPU for VRS vision, even when a GPU
+is available. The folder panel applies the same saved choice to vision and optional PixAI for that
+collection. No GPU failure triggers CPU inference. TIPO's device is unchanged. CPU work may be slow
+and affect other applications; global PyTorch thread settings are not modified. CPU and additional
+accelerator contracts stay separate from CUDA until equivalence is verified. Create a new collection
+to change the execution device after any experience has been encoded.

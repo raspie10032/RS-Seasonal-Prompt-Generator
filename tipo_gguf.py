@@ -5,9 +5,9 @@ from functools import lru_cache
 import threading
 
 try:
-    from .tipo_native_lora import ensure_files
+    from .tipo_native_lora import ensure_files, _file_stat
 except ImportError:
-    from tipo_native_lora import ensure_files
+    from tipo_native_lora import ensure_files, _file_stat
 
 SOURCES = ("connected_clip", "heretic_ara_q4")
 TEXT = {"repo": "mradermacher/gemma-4-E2B-it-heretic-ara-GGUF",
@@ -28,12 +28,45 @@ WARNING = (
 _LOCK = threading.Lock()
 
 
+def check_native_runtime(has_image=False):
+    """Reject missing ComfyUI features before fetching multi-GiB assets.
+
+    This is an API check, not a full-model or device compatibility claim.
+    It does not install packages, select a device or retry on CPU.
+    """
+    try:
+        import comfy.sd as sd
+        import comfy.ops as ops
+        import comfy.model_patcher as patcher
+        from comfy.text_encoders import gemma4
+    except ImportError as exc:
+        raise RuntimeError("Native Q4 requires ComfyUI with Gemma 4 support and its dependencies. "
+                           "Update ComfyUI using its own Python and restart. No packages were installed.") from exc
+    missing = []
+    for owner, name in ((sd, "CLIP"), (ops, "manual_cast"), (patcher, "ModelPatcher")):
+        if not callable(getattr(owner, name, None)):
+            missing.append(name)
+    for name in ("tokenize", "generate", "decode"):
+        if not callable(getattr(getattr(sd, "CLIP", None), name, None)):
+            missing.append("CLIP." + name)
+    names = ["Gemma4Base", "Gemma4_E2B", "Gemma4_E2B_Config", "Gemma4Transformer", "gemma4_te"]
+    if has_image:
+        names.extend(("Gemma4MultiModalProjector", "Gemma4VisionEncoder"))
+    missing.extend(name for name in names if not callable(getattr(gemma4, name, None)))
+    if not hasattr(getattr(gemma4, "Gemma4_E2B", None), "tokenizer"):
+        missing.append("Gemma4_E2B.tokenizer")
+    if missing:
+        raise RuntimeError("Update ComfyUI for native Gemma 4 Q4 support, then restart. Missing: "
+                           + ", ".join(missing) + ". No model downloads or package installs were attempted.")
+
+
 def _signature(path):
     path = Path(path).expanduser().resolve(strict=True)
-    stat = path.stat()
     if not path.is_file():
         raise ValueError(f"Expected a model file: {path}")
-    return str(path), stat.st_size, stat.st_mtime_ns
+    # ChangeTime also detects in-place edits with restored size/mtime.
+    signature = _file_stat(path)
+    return str(path), signature, object() if signature[-1] is None else None
 
 
 @lru_cache(maxsize=1)
@@ -54,10 +87,16 @@ def resolve_clip(clip, source="connected_clip", image=None, gguf_path="", mmproj
         return clip
     if clip is not None:
         raise ValueError("Disconnect CLIP for heretic_ara_q4, or choose connected_clip")
+    # A missing manually specified tokenizer/projector must fail before fetching
+    # the default multi-GiB text model. Unused image paths remain ignored.
+    for local in (gguf_path, tokenizer_path, mmproj_path if image is not None else ""):
+        if local.strip():
+            _signature(local)
     try:
         import gguf  # noqa: F401 -- fail before large downloads
     except ImportError as exc:
         raise RuntimeError("Q4 requires Python 3.10+ and requirements.txt installed using ComfyUI's Python (gguf>=0.19.0,<0.20). No llama.cpp needed.") from exc
+    check_native_runtime(has_image=image is not None)
     import folder_paths
     import comfy.utils
     root = Path(folder_paths.models_dir) / "text_encoders" / "rs_gemma_q4"

@@ -2,6 +2,11 @@
 import json
 
 try:
+    from .tipo_status import node_status, report_status
+except ImportError:
+    from tipo_status import node_status, report_status
+
+try:
     from .gemma_tipo_native_node import GemmaTipoNative, validate_input, validate_repetition_penalty, generate_text, clean_tags, apply_tipo_lora, REQUIREMENTS, resolve_clip
     from .prompt_expansion import VERSION, OUTPUT_FORMATS, assemble_instruction, clean_natural_language
     from .tag_knowledge import load_knowledge, append_vocabulary
@@ -54,10 +59,11 @@ class GemmaPromptExpandNative:
         "The VRS Recall node performs image lookup; no training is required. " + REQUIREMENTS
     )
 
+    @node_status
     def run(self, clip=None, prompt="", tag_length="long", max_tokens=512, temperature=0.5, ban_tags="", seed=0,
             output_format="both", image=None, tag_set="danbooru", tag_knowledge_path="", vrs_state_path="", vrs_state=None, tipo_lora="none",
             model_source="connected_clip", gguf_path="", mmproj_path="", tokenizer_path="", tipo_lora_scope="both",
-            repetition_penalty=1.05):
+            repetition_penalty=1.05, unique_id=None):
         validate_repetition_penalty(repetition_penalty)
         if output_format not in OUTPUT_FORMATS:
             raise ValueError("Unknown output_format")
@@ -89,6 +95,7 @@ class GemmaPromptExpandNative:
         if knowledge and tag_set not in knowledge.provenance["sources"]:
             raise ValueError("Tag knowledge has no entries for the selected tag_set")
         vocab = knowledge.vocabulary(prompt, tag_set) if knowledge else None
+        report_status(unique_id, "preparing-models")
         clip = resolve_clip(clip, model_source, image, gguf_path, mmproj_path, tokenizer_path)
         # Keep the base handle: ComfyUI switches shared weights through each
         # CLIP's patcher. Do not attach a tag-only adapter to the prose call.
@@ -110,10 +117,12 @@ class GemmaPromptExpandNative:
         tags = natural = ""
         raw_tags = raw_natural = None
         if output_format in ("both", "natural_language"):
+            report_status(unique_id, "generating-prose")
             raw_natural = generate_text(prose_clip, instruction("natural_language"),
                 image, max_tokens, temperature, seed)
             natural = clean_natural_language(raw_natural)
         if output_format in ("both", "tags"):
+            report_status(unique_id, "generating-tags")
             # The second pass renders the chosen scene, rather than encoding the
             # image again and independently inventing a second scene.
             tag_image = image if output_format == "tags" else None

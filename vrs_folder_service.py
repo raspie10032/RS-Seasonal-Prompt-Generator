@@ -1,7 +1,8 @@
 """Folder discovery on CPU; bounded GPU batches on the normal ComfyUI queue.
 
-No GPU background thread, queue worker patch, server restart or auto-download.
-The service starts only after an explicit UI/API action, and pauses on restart.
+No GPU background thread, queue worker patch or server restart.
+An explicitly selected auto encoder prepares model files inside the queue job.
+The service starts after an explicit UI/API action or an opted-in saved restart.
 """
 import asyncio
 from itertools import islice
@@ -19,6 +20,7 @@ try:
     from .vrs_int.native import NativeVision, load_image, pixel_digest
     from .vrs_int.store import Store
     from .vrs_int.vectors import encode_vector
+    from .vrs_int.vision_assets import AUTO_VISION, local_vision_path, resolve_vision_path, vision_choices
 except ImportError:
     from vrs_int.folders import FolderCatalog, collection_path
     from vrs_int.generated import entry_from_record
@@ -26,6 +28,7 @@ except ImportError:
     from vrs_int.native import NativeVision, load_image, pixel_digest
     from vrs_int.store import Store
     from vrs_int.vectors import encode_vector
+    from vrs_int.vision_assets import AUTO_VISION, local_vision_path, resolve_vision_path, vision_choices
 
 
 def _queue_view(queue):
@@ -67,6 +70,7 @@ class FolderService:
         self.ticket = None
         self.encoder = None
         self.encoder_name = None
+        self.tagger = None
         self.scan_count = 0
         self.guard = threading.RLock()
         self.prepared_snapshot = None
@@ -100,20 +104,24 @@ class FolderService:
         import folder_paths
         if config.get("collection_id"):
             catalog = self.open(config["collection_id"])
+            catalog.configure(tagger=config.get("tagger"), resume_on_start=config.get("resume_on_start"), use_cpu=config.get("use_cpu"))
         else:
             roots = config.get("roots", [])
             if not isinstance(roots, list) or any(not isinstance(p, str) for p in roots):
                 raise ValueError("roots must be a list of server-side folder paths")
             roots = list(roots)
             if config.get("include_output", False):
-                roots.append(folder_paths.get_output_directory())
-            model_name = config.get("model_name", "")
-            model = folder_paths.get_full_path_or_raise("text_encoders", model_name)
-            if Path(model).suffix != ".safetensors":
-                raise ValueError("Select native Gemma safetensors for VRS vision")
+                output = Path(folder_paths.get_output_directory())
+                output.mkdir(parents=True, exist_ok=True)
+                roots.append(str(output))
+            model_name = config.get("model_name", AUTO_VISION)
+            if model_name != AUTO_VISION:
+                local_vision_path(model_name)
             catalog = FolderCatalog.create(self.root, roots, model_name,
-                label=config.get("label", "Personal images"), batch_size=config.get("batch_size", 4))
-        folder_paths.get_full_path_or_raise("text_encoders", catalog.config["model_name"])
+                label=config.get("label", "Personal images"), batch_size=config.get("batch_size", 4),
+                tagger=config.get("tagger", "none"), resume_on_start=config.get("resume_on_start", False), use_cpu=config.get("use_cpu", False))
+        if catalog.config["model_name"] != AUTO_VISION:
+            local_vision_path(catalog.config["model_name"])
         catalog.retry()
         self.catalog = catalog
         self.error = None
@@ -123,10 +131,41 @@ class FolderService:
         self.scan_count = 0
         self.stopped.clear()
         self.state = "scanning"
+        marker = self.root / "resume.json"
+        if catalog.config.get("resume_on_start"):
+            try:
+                from .vrs_int.privacy import private_directory
+            except ImportError:
+                from vrs_int.privacy import private_directory
+            private_directory(self.root)
+            temporary = self.root / ("resume-" + uuid.uuid4().hex + ".tmp")
+            try:
+                temporary.write_text(json.dumps({"collection_id": catalog.config["id"]}), encoding="utf-8")
+                temporary.replace(marker)
+            finally:
+                temporary.unlink(missing_ok=True)
+        else:
+            marker.unlink(missing_ok=True)
         self.task = asyncio.create_task(self.run())
         return self.status()
 
+    def resume_saved(self):
+        marker = self.root / "resume.json"
+        if marker.is_file() and not marker.is_symlink():
+            try:
+                value = json.loads(marker.read_text("utf-8"))
+                catalog = self.open(value["collection_id"])
+                if catalog.config.get("resume_on_start"):
+                    return self.start({"collection_id": catalog.config["id"]})
+            except (OSError, ValueError, KeyError, TypeError):
+                logging.exception("VRS auto-resume failed; collection preserved for manual resume")
+
     def stop(self):
+        (self.root / "resume.json").unlink(missing_ok=True)
+        return self.shutdown()
+
+    def shutdown(self):
+        """Server shutdown preserves explicit auto-resume selection."""
         self.stopped.set()
         with self.guard:
             ticket = self.ticket
@@ -263,13 +302,63 @@ class FolderService:
                 return {"state": "stopped", "added": 0}
             if generation_waiting(self.server.prompt_queue, ticket):
                 return {"state": "yielded", "added": 0}
+            def checkpoint():
+                if self.stopped.is_set() or generation_waiting(self.server.prompt_queue, ticket):
+                    raise SearchPreparationYield()
+            # Tag separately, durably checkpointing each prediction. Models use
+            # ComfyUI's allocator and never occupy an independent CUDA worker.
+            jobs = self.catalog.tag_pending(self.catalog.config["batch_size"])
+            if jobs:
+                try:
+                    self.state = "preparing-tagger"
+                    if self.tagger is None or getattr(self, "tagger_use_cpu", False) != self.catalog.config.get("use_cpu", False):
+                        try:
+                            from .vrs_int.folder_tagger import FolderTagger, resolve_tagger
+                        except ImportError:
+                            from vrs_int.folder_tagger import FolderTagger, resolve_tagger
+                        use_cpu = self.catalog.config.get("use_cpu", False)
+                        if use_cpu:
+                            self.tagger = FolderTagger(resolve_tagger(checkpoint, use_cpu=True), use_cpu=True)
+                        else:
+                            self.tagger = FolderTagger(resolve_tagger(checkpoint))
+                        self.tagger_use_cpu = use_cpu
+                    for sha, path in jobs:
+                        checkpoint()
+                        self.state = "tagging"
+                        try:
+                            if path.is_symlink() or file_digest(path) != sha:
+                                raise ValueError("Source changed since scan; waiting for rescan")
+                            row = self.tagger.predict(path, sha)
+                            if path.is_symlink() or file_digest(path) != sha:
+                                raise ValueError("Source changed during tagging")
+                        except (OSError, ValueError) as exc:
+                            self.catalog.tag_result(sha, error=exc)
+                        else:
+                            self.catalog.tag_result(sha, row)
+                    checkpoint()
+                except SearchPreparationYield:
+                    return {"state": "yielded", "added": 0}
+            if not self.catalog.pending(1):
+                self.catalog.publish(force=not self.catalog.has_pending())
+                return dict(state="complete", added=0, snapshot=self.catalog.snapshot())
             self.state = "encoding"
             import folder_paths
             import comfy.model_management as mm
             name = self.catalog.config["model_name"]
-            if self.encoder is None or self.encoder_name != name:
-                self.encoder = NativeVision(folder_paths.get_full_path_or_raise("text_encoders", name))
+            if (self.encoder is None or self.encoder_name != name or
+                    getattr(self, "encoder_use_cpu", False) != self.catalog.config.get("use_cpu", False)):
+                self.state = "preparing-vision"
+                def interrupt_preparation():
+                    if self.stopped.is_set() or generation_waiting(self.server.prompt_queue, ticket):
+                        raise SearchPreparationYield("Vision preparation yielded to stop/generation; resume to retry")
+                try:
+                    path = resolve_vision_path(name, interrupt_preparation, use_cpu=True) if self.catalog.config.get("use_cpu", False) else resolve_vision_path(name, interrupt_preparation)
+                except SearchPreparationYield:
+                    return {"state": "yielded", "added": 0}
+                self.encoder = NativeVision(path, use_cpu=True) if self.catalog.config.get("use_cpu", False) else NativeVision(path)
+                self.encoder_use_cpu = self.catalog.config.get("use_cpu", False)
                 self.encoder_name = name
+                self.state = "encoding"
             # Loading/hash validation is synchronous, but a new user prompt
             # admitted during it must not wait for an additional image.
             if self.stopped.is_set() or generation_waiting(self.server.prompt_queue, ticket):
@@ -288,7 +377,7 @@ class FolderService:
                     break
                 mm.throw_exception_if_processing_interrupted()
                 try:
-                    if file_digest(path) != sha:
+                    if path.is_symlink() or file_digest(path) != sha:
                         raise ValueError("Source changed since scan; waiting for rescan")
                     image = load_image(path)
                 except (OSError, ValueError) as exc:
@@ -343,11 +432,29 @@ def register_routes():
     from aiohttp import web
     server._rs_vrs_folders_routes = True
 
+    async def resume(app):
+        get_service().resume_saved()
+
+    async def shutdown(app):
+        if _service is not None:
+            _service.shutdown()
+            if _service.task is not None:
+                await _service.task
+
+    server.app.on_startup.append(resume)
+    server.app.on_shutdown.append(shutdown)
+
     @server.routes.get("/rs-vrs/folders")
     async def status(request):
         import folder_paths
         value = await asyncio.to_thread(get_service().status)
-        value["models"] = [n for n in folder_paths.get_filename_list("text_encoders") if n.endswith(".safetensors")]
+        selected = request.query.get("collection_id")
+        if selected:
+            try:
+                value["selected_collection"] = await asyncio.to_thread(get_service().open(selected).status)
+            except (OSError, ValueError, KeyError) as exc:
+                return web.json_response({"error": str(exc)}, status=400)
+        value["models"] = vision_choices()
         value["output_directory"] = folder_paths.get_output_directory()
         return web.json_response(value)
 
@@ -383,6 +490,7 @@ class VRSFolderImportBatch:
     FUNCTION = "run"
     CATEGORY = "prompt/VRS/internal"
     OUTPUT_NODE = True
+    DEPRECATED = True  # Keep old graphs valid; hide internal work from normal search.
     DESCRIPTION = "Internal folder import batch. Start it from the VRS Folders panel."
 
     @classmethod

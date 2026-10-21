@@ -27,6 +27,9 @@ See the linked guide for hardware, setup, measured results and known failures.
    Q4 경로는 Python 3.10 이상이 필요합니다. 추가 패키지는 순수 Python GGUF 파서
    `gguf>=0.19.0,<0.20`입니다. torch를 교체하거나
    CUDA 휠·llama.cpp·Transformers·bitsandbytes를 설치하지 않습니다.
+   Gemma 4 생성·비전을 지원하는 ComfyUI와 충분한 RAM·VRAM, 해당 장치의 PyTorch
+   연산 지원은 필요합니다. 필요한 ComfyUI API가 없으면 모델 다운로드 전에 오류로
+   안내합니다. 이 사전 검사는 전체 모델 실행·성능 보장이 아닙니다.
 2. 큐를 마친 뒤 ComfyUI를 재시작합니다.
 3. `Gemma Prompt Expander Native` 또는 `Gemma TIPO Native`를 추가합니다.
 4. `clip` 연결을 해제하고 **`model_source=heretic_ara_q4`**를 선택합니다.
@@ -56,6 +59,11 @@ See the linked guide for hardware, setup, measured results and known failures.
 모델의 `tokenizer.json`을 지정합니다. 이미지가 있으면 `mmproj_path`도 지정합니다.
 세 경로를 모두 지정하면 모델 다운로드가 없습니다. 이미지가 없으면 mmproj는 읽지 않습니다.
 빈 경로는 해당 공개 파일을 다운로드하므로 완전 오프라인에서는 필요한 경로를 모두 채우세요.
+`RS_MODELS_OFFLINE=1` 또는 `HF_HUB_OFFLINE=1`을 서버 환경에 설정하면, 빈 경로라도
+이미 다운로드하고 검증한 파일은 재사용하고 없는 파일은 네트워크 요청 없이 오류를 냅니다.
+네이티브 Q4·LoRA·VRS 자동 비전에 적용되며 다른 확장이나 레거시 llama.cpp의 네트워크까지
+차단하는 설정은 아닙니다. 모델 다운로드 전 가용 디스크를 확인하고, 취소 시 임시 파일을 정리합니다.
+
 이름만 바꾼 safetensors, 다른 크기의 Gemma, 다른 모델용 mmproj는 지원하지 않습니다.
 
 공개 기본 파일은 아래 출처·revision으로 고정되어 있습니다. 전체 SHA-256과 크기는
@@ -101,6 +109,9 @@ Q4 requires Python 3.10 or later. Install `requirements.txt` with **ComfyUI's ow
 finishes. The added dependency is the pure Python `gguf` parser, not a CUDA wheel or a
 replacement torch. The Windows portable command is shown above. No package installation
 happens during generation. ComfyUI must already support Gemma 4 and `CLIP.generate`.
+Required ComfyUI APIs are checked before downloading model assets. This preflight
+does not guarantee full-model/device compatibility: supported PyTorch operations
+and sufficient RAM/VRAM are still required. AMD/Intel/Apple GPU execution is unverified.
 
 Text downloads total approximately **3.22GiB**, including the matching tokenizer.
 An image adds the **0.92GiB FP16 mmproj**, for approximately **4.14GiB** total. Each
@@ -112,6 +123,10 @@ Files live in `models/text_encoders/rs_gemma_q4`. For offline use, supply matchi
 `gguf_path`, `tokenizer_path`, and, only when using an image, `mmproj_path`. An empty
 required path requests its pinned public asset. Existing invalid files are rejected
 without overwrite; interrupted transfers are discarded and restarted on the next run.
+Set `RS_MODELS_OFFLINE=1` or `HF_HUB_OFFLINE=1` in the server environment to forbid
+missing native Q4/LoRA/VRS-vision downloads while reusing verified cached files.
+This does not restrict legacy llama.cpp downloaders or other extensions. Disk space is
+checked before transfer, and cancellation removes partial files.
 The exact upstream revisions are listed above; hashes are in `tipo_gguf.py`.
 
 Packed language weights stay compressed between operations. PLE gathers only requested

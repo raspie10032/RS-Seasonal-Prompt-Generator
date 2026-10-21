@@ -9,6 +9,13 @@ training/
 /vrs-int-data/
 /vrs-int-models/
 /vrs-int-generated/
+# Generated folder catalogues and persistent search caches, at any depth.
+rs_vrs_folders/
+rs-vrs-int/
+persistent-v1/
+*.f32
+*.sqlite*-*
+*.db-*
 # Corpus records, compressed memory, vectors, model weights and private outputs.
 *.jsonl
 !/examples/vrs-int/batch-01.jsonl
@@ -37,6 +44,12 @@ training/
 *.jpeg
 *.webp
 *.gif
+*.bmp
+*.tif
+*.tiff
+*.avif
+*.heic
+*.heif
 *.mp4
 *.webm
 .venv*/

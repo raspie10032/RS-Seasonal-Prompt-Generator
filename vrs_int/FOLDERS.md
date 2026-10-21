@@ -6,21 +6,27 @@ ComfyUI 화면의 **VRS 폴더 / VRS Folders** 버튼에서 폴더를 등록하�
 생성 메타데이터가 있는 이미지를 읽고 개인 검색 기억에 추가합니다.
 JSONL 파일이나 별도 실행기는 필요하지 않습니다. 이 기능은 수집·검색용이며 모델을 학습시키지 않습니다.
 
+개인 자료를 외부 저장소로 업로드·동기화하지 않습니다. 본인 PC의 ComfyUI를 사용하세요.
+원격 서버와 다운로드·Git 제외 보호의 범위는 [로컬 자료 안내](../LOCAL_DATA.md)를 참고하세요.
+
 ### 시작하기
 
 1. [네이티브 VRS 설치 안내](COMFYUI_NATIVE.md)에 따라 의존성을 ComfyUI Python에 설치합니다.
    생성 큐를 마친 뒤 서버를 재시작하고 브라우저를 새로고침합니다.
-2. `models/text_encoders`에 **네이티브 Gemma 4 E2B safetensors**를 준비합니다.
-   현재 VRS는 `vision_model.*`이 있는 비양자화 네이티브 파일을 사용합니다.
-   TIPO용 Q4 GGUF·mmproj와는 별도입니다. **비전 가중치만 FP16으로 읽으며 언어모델은
-   적재하지 않습니다.** 이 패널에서는 모델을 자동 다운로드하지 않습니다.
+2. 기본 모델 **`(auto: Gemma FP16 vision)`**은 첫 큐 작업에서 분리된 FP16 비전 약 **319.3MiB**를
+   자동 다운로드합니다. TIPO가 받은 정상 mmproj와 GGUF 파서가 이미 있으면 재사용합니다. 비전 가중치 약 **319MiB**만
+   읽고 언어·오디오는 적재하지 않습니다. 기존 `vision_model.*` 네이티브 Gemma safetensors도
+   선택할 수 있습니다. 새 비전 파일에는 GGUF 파서·llama.cpp·언어모델이 필요 없습니다.
 3. 왼쪽 아래 **VRS 폴더**를 엽니다. 새 기억 이름과 **서버 측 절대 폴더 경로**를
    한 줄에 하나씩 넣습니다. 원격 ComfyUI라면 브라우저 PC의 경로가 아닙니다.
 4. **ComfyUI output 폴더도 포함**을 선택하면 서버의 실제 output 경로도 등록합니다.
    `--output-directory` 설정을 반영하며 하위 폴더도 포함합니다. 중첩된 경로는 정리합니다.
-5. 올바른 Gemma 모델을 선택하고 **시작 / 재개**를 누릅니다. 기본 묶음은 4장입니다.
+5. 올바른 Gemma 모델을 선택합니다. 메타데이터 없는 이미지도 넣으려면 **PixAI 보완 태깅**을 선택하고
+   ComfyUI의 Python으로 `requirements-tagger.txt`를 설치한 뒤 서버를 재시작하세요.
+   선택적으로 **서버 재시작 후 자동 재개**를 켜고 **시작 / 재개**를 누릅니다. 기본 묶음은 4장입니다.
    새 기억 생성 시 큐 작업 하나의 최대 이미지 수를 1~32장으로 선택할 수 있습니다.
-6. 첫 묶음 완료 후 **조회 노드 추가**를 누르고 아래처럼 연결합니다.
+6. 첫 묶음 완료 후 **VRS → TIPO 연결 추가**를 누르면 기억·비전·조회·확장 노드가 연결된 상태로 추가됩니다.
+   Load Image를 Recall의 image에 연결하고 Recall에 요청을 입력하세요. **조회 노드 추가**는 기억 노드만 추가합니다.
 
 ```text
 VRS Folder Memory.memory ────────────────┐
@@ -46,8 +52,10 @@ Recall의 허용 등급 `ratings`에 **`u`**를 포함하세요. Recall과 Expan
   기다릴 수 있습니다. 계속 생성하면 경험 갱신은 기다립니다. 자동 Run/재큐잉 기능은 필요에 맞게 끄세요.
 - **중지**는 대기 중인 구축만 취소합니다. 실행 중이면 현재 이미지와 저장을 마친 뒤 멈춥니다.
   사용자의 생성에 전역 interrupt를 보내지 않습니다.
-- 오류·구축 큐 항목 삭제·서버 재시작 뒤에는 같은 기억을 선택해 **시작 / 재개**를 누르세요.
-  자동 재개하지 않으며 이미 완성한 경험과 체크포인트에 저장한 벡터는 재추출하지 않습니다.
+- 오류·구축 큐 항목 삭제 뒤에는 같은 기억을 선택해 **시작 / 재개**를 누르세요.
+  서버 재시작 후에는 새 기억에서 **자동 재개**를 선택했던 마지막 활성 수집만 재개합니다. 기본은 수동입니다.
+  **중지**는 자동 재개 예약도 해제합니다. 서버 종료는 예약을 보존합니다.
+  이미 완성한 경험과 체크포인트의 벡터·PixAI 예측은 재계산하지 않습니다.
 - 한 번에 한 기억을 수집합니다. 한 기억에는 여러 폴더를 넣을 수 있습니다.
   기존 기억의 경로·모델·묶음 크기를 바꾸려면 새 기억을 만듭니다.
 
@@ -78,8 +86,8 @@ ComfyUI 그래프에 실행 후 생성된 문장이 저장되지 않은 경우(T
   최근 5초 안에 수정된 파일은 기다리고 인코딩 전후 해시를 확인합니다.
 - 같은 경로의 내용이 바뀌면 새 경험으로 추가합니다. 원본 삭제는 경험 삭제로 동기화하지 않습니다.
   파일·디렉터리 심볼릭 링크는 따라가지 않습니다.
-- **메타데이터가 없는 파일은 집계만 합니다. PixAI 자동 태깅은 이 패널에 포함하지 않습니다.**
-  기존 [선택적 태깅 CLI](GENERATED_IMAGES.md)는 별도 경로입니다.
+- 메타데이터 없는 파일은 기본으로 집계만 하며, 새 기억에서 **PixAI 보완 태깅**을 선택하면 로컬 예측 태그로 경험을 만듭니다.
+  원본 프롬프트와 구분하고 원본 이미지는 수정하지 않습니다. [기존 CLI](GENERATED_IMAGES.md)도 사용할 수 있습니다.
 - 이름을 추측해 분류하지 않습니다. 명시적 작가 표기는 추출하고 분류를 모르는 캐릭터·작품명도
   원래 캡션·태그에 남깁니다. 이름 분류 사전의 화면 연결은 아직 없습니다.
 - 등급은 `u`(미확인)입니다. 일반 등급 판정이 아닙니다.
@@ -100,13 +108,17 @@ ComfyUI 그래프에 실행 후 생성된 문장이 저장되지 않은 경우(T
 ## English
 
 Open **VRS Folders** at the bottom left of ComfyUI. Register absolute folders on the
-**server**, optionally include its configured output directory, select a native Gemma
-4 E2B safetensors file and click **Start / Resume**. Subdirectories are included.
+**server**, optionally include its configured output directory, select **`(auto: Gemma FP16 vision)`**
+or an existing native Gemma 4 E2B safetensors file, then click **Start / Resume**. Subdirectories are included.
 See [native setup](COMFYUI_NATIVE.md) for dependencies; restart after your queue finishes.
-The panel does not download models. Its encoder needs unquantized `vision_model.*`
-weights; TIPO's Q4 GGUF/mmproj is separate. Only vision tensors are loaded, in FP16.
+Auto downloads a pinned **319.3 MiB FP16 vision safetensors** inside the first queue job.
+Only **~319 MiB vision tensors** are loaded; no language/audio weights are loaded.
+No GGUF parser or llama.cpp is needed for the standalone file. A verified cached TIPO mmproj
+is reused when the optional GGUF parser is available. Manual native files need
+`vision_model.*` keys. Unrelated models and legacy extracted encoders are filtered out.
 
-After the first completed batch, **Add memory node** creates **VRS Folder Memory**.
+After the first completed batch, **Add VRS → TIPO workflow** adds connected memory, vision, recall and expansion nodes.
+**Add memory node** creates only **VRS Folder Memory**.
 Connect its `memory` to **VRS Native Recall** with the same vision encoder and a
 reference image. Connect `vrs_state` to **Gemma Prompt Expander**, sharing the image
 and request. Include `u` in allowed ratings. This is retrieval, not model training.
@@ -118,14 +130,15 @@ loading and an already-started save may still delay a new job. Default
 batch size is 4, configurable from 1 to 32 when creating a collection. Stop cancels only
 a queued import or finishes the current image and save; it never globally interrupts
 generation. Continuous generation delays imports. Only one collection is watched at a
-time. Errors, queue removal and server restart require explicit resume. To change a
+time. Errors and queue removal require explicit resume. Restart resumes only the last active collection
+that opted into auto-resume; Stop clears that reservation. The default is manual resume. To change a
 collection's roots, model or batch size, create another collection.
 
 Supported embedded NovelAI, ComfyUI and A1111 metadata is read without executing graphs.
 Runtime-generated text absent from saved metadata (for example some TIPO or wildcard
 workflows) cannot be reconstructed from the graph alone; only resolvable prompts are used.
 Positives, negatives and provenance remain separate. Files missing readable metadata
-are counted; **automatic PixAI tagging is not included**. Unclassified names remain in
+are counted by default; optional **PixAI fallback** creates local predicted-tag experience instead. Unclassified names remain in
 original captions/tags; there is no category dictionary selector yet. Ratings are `u`
 (unknown), not an automatic safe rating. Original files are never modified or deleted.
 Identical bytes deduplicate, unchanged files skip, and recently modified files wait
@@ -180,3 +193,83 @@ documents are reused after restart; only changed/new entries are converted. Init
 without readiness records, evicted caches or changed conversion code may still prepare on demand.
 An exact-hash Native Memory Loader never substitutes a different snapshot.
 See [search resource, quota and recovery details](SEARCH.md).
+
+## Automatic vision download / 자동 비전 준비
+
+Auto uses `models/text_encoders/rs_vrs_vision/vrs-gemma4-e2b-vision-fp16.safetensors`
+from the [public vision-only repository](https://huggingface.co/raspie/vrs-int-gemma4-vision-fp16),
+with pinned revision, size and SHA-256. An already installed standalone file takes priority;
+otherwise a verified cached TIPO `rs_gemma_q4/mmproj-F16.gguf` is reused if GGUF support is installed.
+Only public model files are requested; no image, metadata or experience is sent.
+If a generation arrives during transfer, the current file read yields and the partial
+file is removed. The next idle job retries from the beginning; HTTP range resume is
+not implemented. Stop waits for an in-flight network read (up to the network timeout).
+Set `RS_MODELS_OFFLINE=1` to reuse local verified assets without new downloads.
+
+자동 비전은 분리된 공개 비전 가중치만 받으며 개인 입력을 전송하지 않습니다.
+전송 중 생성 요청이 오면 읽기 경계에서 양보하고 임시 파일을 지웁니다. HTTP 이어받기는
+없으므로 다음 큐에서 처음부터 다시 받습니다. 중지 시 진행 중 네트워크 읽기는 타임아웃
+최대 60초까지 기다릴 수 있습니다. `RS_MODELS_OFFLINE=1`이면 새 다운로드를 거부합니다.
+
+## PixAI fallback and runtime prompt saving / 보완 태깅과 최종 프롬프트 저장
+
+### 한국어
+
+- **PixAI는 선택 기능**입니다. ComfyUI Python으로 `python -m pip install -r requirements-tagger.txt`를 실행하세요.
+  PyTorch를 교체하거나 실행 중 pip를 호출하지 않습니다. 첫 사용은 고정 리비전의 공개 모델 약 **1.81GiB**를 받습니다.
+  기존의 검증 가능한 `models/rs_wd_tagger` 캐시를 재사용하며, 이후 로컬 캐시로 실행합니다.
+  `RS_MODELS_OFFLINE=1`이면 새 다운로드를 막습니다. ComfyUI의 PyTorch 가속기를 사용하며 CPU 태깅은 자동 실행하지 않습니다. 추가 GPU 제품군의 전체 모델 호환성은 미검증입니다.
+- 원래 프롬프트를 읽을 수 있는 이미지는 그 내용을 우선합니다. 읽을 수 없을 때만 PixAI를 호출합니다.
+  예측은 `pixai-visual-tag-prediction` 출처로 구분하고 이미지마다 즉시 체크포인트에 남깁니다.
+  추정 작가명은 스타일 후보이지 실제 작가 확인이 아닙니다. 무확신·오류는 상태에 표시하며 임의 캡션을 만들지 않습니다.
+- 태거와 VRS 비전은 모두 기존 ComfyUI 큐와 메모리 관리자를 사용합니다. 생성 요청이 오면 현재 이미지 뒤에 양보합니다.
+  **시험 1장의 태깅·인코딩 합산 PyTorch 최대 할당량 약 2.25GiB**는 최소 사양이 아닙니다.
+  다른 모델과 더 큰 입력이 있으면 실제 사용량이 늘어납니다.
+- **VRS Save Image (Final Prompts)** 노드에 생성기와 같은 최종 positive/negative 문자열을 연결하세요.
+  TIPO·와일드카드·문자열 합성을 끝낸 실제 텍스트를 PNG에 저장하며, 폴더 수집은 이를 그래프의 기본값보다 우선합니다.
+  일반 Save Image를 자동 수정하지 않습니다. `--disable-metadata`를 사용하면 이 메타데이터도 저장되지 않습니다.
+  프롬프트는 저장 이미지 안에 읽을 수 있는 형태로 남으니 개인 문구가 있다면 공유 전에 제거하세요.
+- TIPO 네이티브 노드는 입력 검사·모델 준비·태그/자연어 생성·완료/빈 입력/실패를 표시합니다.
+  `both`는 순차 생성 2회이며, 오류 상세는 ComfyUI 실행 오류를 확인하세요.
+
+### English
+
+- **PixAI is opt-in.** Install `requirements-tagger.txt` with ComfyUI's Python and restart.
+  No runtime pip or PyTorch replacement. First use downloads ~**1.81 GiB** of fixed-revision public model files.
+  Verified `models/rs_wd_tagger` caches are reusable; `RS_MODELS_OFFLINE=1` prevents new downloads.
+  Uses ComfyUI's PyTorch accelerator; there is no automatic CPU tagging fallback. Full-model compatibility on additional GPU backends is unverified.
+- Readable original prompt metadata takes priority. Predictions are explicitly marked
+  `pixai-visual-tag-prediction` and checkpointed after every image. Artist predictions are style candidates,
+  not authorship identification. Low-confidence results and errors are reported rather than invented.
+- Tagging and vision use ComfyUI's queue and memory manager, yielding after the current image.
+  One synthetic-image probe used **~2.25 GiB peak PyTorch allocation** across tagging and encoding;
+  this is not a minimum VRAM requirement or a bound for other workloads.
+- Connect the generator's exact final positive/negative strings to **VRS Save Image (Final Prompts)**.
+  Runtime TIPO/wildcard/concatenation text is stored in PNG metadata and preferred over graph defaults on import.
+  Standard Save Image is unchanged. `--disable-metadata` disables these fields too.
+  Saved prompts remain readable in the image; strip private metadata before sharing.
+- **Add VRS → TIPO workflow** creates and connects memory, vision, recall, and expansion nodes.
+  Attach Load Image to Recall and enter the request there. TIPO shows validation/preparation/generation/status.
+  `both` makes two sequential calls.
+- Optional **Resume after server restart** restores the last active opted-in collection. Default is manual.
+  Stop clears the resume marker; server shutdown preserves it. Completed embeddings and tag predictions are reused.
+
+기존 기억도 **중지 → PixAI/자동 재개 옵션 변경 → 시작 / 재개**로 바꿀 수 있습니다. 이미 저장한 벡터는 보존하고 이전에 건너뛴 파일만 다시 확인합니다.
+Existing collections support **Stop → change PixAI/auto-resume options → Start / Resume**. Saved embeddings are preserved; previously skipped images are rechecked.
+
+### CPU 선택 / CPU choice
+
+**CPU 추론에 동의**는 기본 해제입니다. 선택하면 이 수집의 비전·PixAI만 CPU로 실행합니다.
+GPU 실패 시 자동 전환하지 않으며, 다른 프로그램이 느려질 수 있습니다. 수집 중에는 변경할 수
+없고 이미 인코딩된 기억의 CPU/GPU를 바꾸려면 새 수집을 만드세요. 저장된 선택은 별도로 동의한
+자동 재개에도 유지됩니다. 자동 생성한 조회 그래프에도 `use_cpu`가 전달됩니다.
+
+CPU inference is opt-in and defaults off. It applies to this collection's vision and PixAI only.
+It may affect other work and is never an automatic fallback. Stop before changing options; after
+encoding, create a new collection to change CPU/GPU. Saved consent also applies to separately enabled
+auto-resume, and the generated recall workflow carries the same `use_cpu` choice.
+
+PixAI를 끄면 이전에 남은 태깅 대기 작업도 실행하지 않습니다. 대기 목록은 보존하며 다시
+선택하면 이어갑니다. CPU/GPU 변경 제한은 아직 공개 snapshot에 합치지 않은 벡터에도 적용합니다.
+Disabling PixAI suspends existing pending tagging jobs without deleting them; re-enabling resumes them.
+The CPU/GPU contract guard also covers checkpointed embeddings not yet published in a snapshot.

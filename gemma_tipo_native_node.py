@@ -8,6 +8,11 @@ import re
 import sys
 
 try:
+    from .tipo_status import node_status, report_status
+except ImportError:
+    from tipo_status import node_status, report_status
+
+try:
     from .tipo_prompt import build_user_prompt
     from .tipo_native_lora import CHOICES, REQUIREMENTS, apply_tipo_lora
     from .tipo_gguf import SOURCES, WARNING, resolve_clip
@@ -36,7 +41,7 @@ def clean_tags(raw, ban_tags, prompt):
     text = re.sub(r"^(?:tags|prompt)\s*:\s*", "", text, flags=re.I)
     text = re.sub(r"^\s*(?:[-*]\s+|\d+[.)]\s+)", "", text, flags=re.M)
     text = re.sub(r"\s*\n\s*", ", ", text)
-    # None skips optional kgen category sorting and its auto-install.
+    # None skips optional kgen category sorting; no runtime package installs.
     # A suffix is not proof of redundancy: a longer generated title can
     # contain an independently valid, user-supplied copyright or artist tag.
     return te._postprocess(text, ban_tags, None, input_prompt=prompt, drop_redundant=False)
@@ -94,6 +99,7 @@ class GemmaTipoNative:
     @classmethod
     def INPUT_TYPES(cls):
         return {
+            "hidden": {"unique_id": "UNIQUE_ID"},
             "required": {
                 "prompt": ("STRING", {"default": "", "multiline": True}),
                 "tag_length": (["very_short", "short", "long", "very_long"], {"default": "long"}),
@@ -124,14 +130,17 @@ class GemmaTipoNative:
         "Built-in Q4 downloads its base on first use; no llama.cpp. " + REQUIREMENTS
     )
 
+    @node_status
     def run(self, clip=None, prompt="", tag_length="long", max_tokens=384, temperature=0.5,
             ban_tags="", seed=0, image=None, tipo_lora="none", model_source="connected_clip",
-            gguf_path="", mmproj_path="", tokenizer_path="", repetition_penalty=1.05):
+            gguf_path="", mmproj_path="", tokenizer_path="", repetition_penalty=1.05, unique_id=None):
         validate_repetition_penalty(repetition_penalty)
         if not validate_input(prompt, tag_length, image):
             return ("", "")
+        report_status(unique_id, "preparing-models")
         clip = resolve_clip(clip, model_source, image, gguf_path, mmproj_path, tokenizer_path)
         clip = apply_tipo_lora(clip, tipo_lora)
+        report_status(unique_id, "generating-tags")
         raw = generate_text(clip, build_prompt(prompt, tag_length, ban_tags, image is not None),
                             image, max_tokens, temperature, seed, repetition_penalty=repetition_penalty)
         tags = clean_tags(raw, ban_tags, prompt)

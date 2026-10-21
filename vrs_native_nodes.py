@@ -7,28 +7,30 @@ try:
     from .vrs_int.recommend import Recommender
     from .vrs_int.generation_state import build_state
     from .vrs_int.store import canonical, digest
+    from .vrs_int.vision_assets import vision_choices, resolve_vision_path, VISION_HELP
 except ImportError:
     from vrs_int.native import NativeVision, build_native, pixel_digest
     from vrs_int.recommend import Recommender
     from vrs_int.generation_state import build_state
     from vrs_int.store import canonical, digest
+    from vrs_int.vision_assets import vision_choices, resolve_vision_path, VISION_HELP
 
 
 class VRSNativeVisionLoader:
     @classmethod
     def INPUT_TYPES(cls):
-        import folder_paths
-        return {"required": {"model_name": (folder_paths.get_filename_list("text_encoders"),)}}
+        return {"required": {"model_name": (vision_choices(), {"tooltip": VISION_HELP})},
+                "optional": {"use_cpu": ("BOOLEAN", {"default": False,
+                    "tooltip": "Explicit consent to CPU inference: slower and may affect other applications. Creates a separate encoder contract from GPU memory. Does not change global PyTorch thread settings."})}}
 
     RETURN_TYPES = ("VRS_ENCODER",)
     FUNCTION = "load"
     CATEGORY = "prompt/VRS"
-    DESCRIPTION = "Load only Gemma 4 E2B vision in FP16 through ComfyUI model management. No language weights or legacy dependencies."
+    DESCRIPTION = VISION_HELP
 
-    def load(self, model_name):
-        import folder_paths
-        path = folder_paths.get_full_path_or_raise("text_encoders", model_name)
-        return (NativeVision(path),)
+    def load(self, model_name, use_cpu=False):
+        path = resolve_vision_path(model_name, use_cpu=use_cpu)
+        return (NativeVision(path, use_cpu=use_cpu),)
 
 
 class VRSNativeMemoryLoader:
@@ -89,11 +91,12 @@ class VRSNativeRecall:
             "neighbors": ("INT", {"default": 32, "min": 1, "max": 256}),
             "limit": ("INT", {"default": 64, "min": 1, "max": 100})}}
 
-    RETURN_TYPES = ("VRS_STATE", "STRING", "STRING")
-    RETURN_NAMES = ("vrs_state", "candidate_tags", "report")
+    # Append only: saved workflows retain their original output slot indices.
+    RETURN_TYPES = ("VRS_STATE", "STRING", "STRING", "STRING", "IMAGE")
+    RETURN_NAMES = ("vrs_state", "candidate_tags", "report", "request", "image")
     FUNCTION = "recall"
     CATEGORY = "prompt/VRS"
-    DESCRIPTION = "Read-only image retrieval. Candidate names are not automatic identity claims; select names in keep_tags. Connect vrs_state to Gemma Prompt Expander Native."
+    DESCRIPTION = "Read-only image retrieval. Candidate names are not automatic identity claims; select names in keep_tags. Connect vrs_state, request and image outputs to Gemma Prompt Expander Native to avoid duplicate/mismatched inputs."
 
     def recall(self, encoder, memory, image, prompt, keep_tags="", target_tags="", exclude_tags="",
                ratings="g,s,q,e,u", neighbors=32, limit=64):
@@ -120,4 +123,4 @@ class VRSNativeRecall:
                   "query_pixel_sha256": sha, "query_file_sha256": None,
                   "self_exclusion": "Decoded RGB pixel hash; excludes native-build copies with identical pixels, not crops/near-duplicates.",
                   "weights_bytes": encoder.weights_bytes}
-        return (state, ", ".join(c["tag"] for c in result["candidates"]), json.dumps(report, ensure_ascii=False))
+        return (state, ", ".join(c["tag"] for c in result["candidates"]), json.dumps(report, ensure_ascii=False), prompt, image)

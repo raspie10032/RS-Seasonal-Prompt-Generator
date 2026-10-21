@@ -16,6 +16,7 @@ import zlib
 
 from .vectors import decode_vector
 from .identity import observation_key
+from .privacy import private_directory
 
 FORMAT = "vrs-int/1"
 GENERATED_FORMAT = "vrs-int/2"
@@ -279,7 +280,7 @@ class Store:
         counts = {"observations": 0, "vectors": 0, "tombstones": 0, "source_records": 0}
         input_bytes = 0
         format = FORMAT
-        self.root.mkdir(parents=True, exist_ok=True)
+        private_directory(self.root)
         # Spool metadata, never original images. Only one bucket is packed in
         # RAM at a time, including at corpus sizes beyond this initial trial.
         with tempfile.TemporaryDirectory(prefix=".build-", dir=self.root) as staging:
@@ -326,6 +327,7 @@ class Store:
         counts = dict(old["counts"])
         format = old["format"]
         objects = dict(old["objects"])
+        private_directory(self.root)
         # Spool operations rather than retaining every touched bucket in RAM.
         # A late conflict may leave unused immutable objects, but never publishes
         # a snapshot or changes its parent. Spool files close before removal.
@@ -389,6 +391,7 @@ class Store:
         needed = sorted(set(manifest["objects"].values()) - known)
         destination = Path(destination)
         destination.mkdir(parents=True, exist_ok=False)
+        private_directory(destination)
         package = Store(destination)
         for object_id in needed:
             write_once(package.object_path(object_id), self.object_path(object_id).read_bytes())
@@ -435,6 +438,7 @@ class Store:
                     counts["source_records"] += len(entry["audit"])
         if counts != manifest["counts"]:
             raise ValueError("Incoming snapshot counts mismatch")
+        private_directory(self.root)
         for object_id in sorted(required):
             raw = _bounded_read(incoming.object_path(object_id))
             if digest(raw) != object_id:
@@ -454,7 +458,7 @@ class Store:
     def activate(self, snapshot, expected_current):
         """Explicit compare-and-swap, also used for rollback to a retained base."""
         self.verify(snapshot)
-        self.root.mkdir(parents=True, exist_ok=True)
+        private_directory(self.root)
         lock = self.root / ".activation.lock"
         fd = os.open(lock, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         try:

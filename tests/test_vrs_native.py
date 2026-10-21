@@ -102,6 +102,21 @@ class NativeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             pixel_digest(image * float("nan"))
 
+    def test_recall_forwards_exact_request_and_image_after_existing_outputs(self):
+        image = load_image(self.root / "one.png")
+        memory = Mock(snapshot="a" * 64, manifest={"contract": deepcopy(self.contract)})
+        memory.recommend.return_value = {"snapshot": memory.snapshot, "candidates": []}
+        self.encoder.encoder_contract = self.contract["encoder"]
+        self.encoder.weights_bytes = 123
+        prompt = "  인물은 유지하고 장면을 바꿔줘  "
+        result = VRSNativeRecall().recall(self.encoder, memory, image, prompt)
+        self.assertEqual(len(result), 5)
+        self.assertEqual(result[0]["request"], prompt.strip())
+        self.assertEqual(json.loads(result[2])["state"], result[0])
+        self.assertEqual(result[3], prompt)
+        self.assertIs(result[4], image)
+        self.assertEqual(VRSNativeRecall.RETURN_NAMES[:3], ("vrs_state", "candidate_tags", "report"))
+
     def test_connected_state_matches_image_and_request_before_gemma(self):
         image = load_image(self.root / "one.png")
         from vrs_int.generation_state import build_state

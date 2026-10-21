@@ -9,6 +9,7 @@ import logging
 import os
 from pathlib import Path
 import re
+import shutil
 import tempfile
 import threading
 import urllib.request
@@ -131,12 +132,34 @@ def ensure_files(entry, directory, progress=None):
     directory = Path(directory)
     with _DOWNLOAD_LOCK:
         directory.mkdir(parents=True, exist_ok=True)
+        missing = []
+        # Validate all existing assets before fetching anything. A broken local
+        # bundle must not trigger a multi-GiB download before reporting it.
+        for name, expected in entry["files"].items():
+            if Path(name).name != name or name in (".", "..") or "\\" in name:
+                raise ValueError("Model asset names must be plain filenames")
+            destination = directory / name
+            if destination.exists() or destination.is_symlink():
+                _check_file(destination, expected)
+            else:
+                missing.append(name)
+        if missing:
+            if any(os.environ.get(key, "").lower() in ("1", "true", "yes", "on")
+                   for key in ("RS_MODELS_OFFLINE", "HF_HUB_OFFLINE")):
+                raise RuntimeError("Offline mode: missing model files: " + ", ".join(missing)
+                                   + f". Install the pinned files in {directory} or disable RS_MODELS_OFFLINE/HF_HUB_OFFLINE.")
+            required = sum(entry["files"][name][0] for name in missing)
+            if shutil.disk_usage(directory).free < required + 64 * 1024 * 1024:
+                raise OSError(f"Not enough disk space for model download ({required} bytes plus 64 MiB reserve): {directory}")
         for name, expected in entry["files"].items():
             destination = directory / name
             if destination.exists() or destination.is_symlink():
                 _check_file(destination, expected)
                 continue
             url = f"https://huggingface.co/{entry['repo']}/resolve/{entry['revision']}/{name}"
+            if progress:
+                progress(0, expected[0])  # allow cancellation before network I/O
+            logging.info("Preparing model asset %s (%s bytes)", name, expected[0])
             fd, tmp = tempfile.mkstemp(prefix=name + ".", suffix=".part", dir=directory)
             temp = Path(tmp)
             try:
@@ -219,8 +242,12 @@ def apply_tipo_lora(clip, choice="none"):
     import torch
     logging.warning("TIPO %s: %s", choice, REQUIREMENTS)
     progress = comfy.utils.ProgressBar(1)
+    def update(current, total):
+        from comfy.model_management import throw_exception_if_processing_interrupted
+        throw_exception_if_processing_interrupted()
+        progress.update_absolute(current, total)
     directory = ensure_adapter(choice, Path(folder_paths.models_dir) / "loras" / "rs_gemma_tipo",
-                               progress=progress.update_absolute)
+                               progress=update)
     config = json.loads((directory / "adapter_config.json").read_text(encoding="utf-8"))
     tensors = comfy.utils.load_torch_file(str(directory / "adapter_model.safetensors"), safe_load=True)
     mapping = adapter_mapping(config, tensors, state)

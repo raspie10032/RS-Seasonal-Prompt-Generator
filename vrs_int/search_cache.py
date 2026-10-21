@@ -20,6 +20,7 @@ import numpy as np
 from .generation_metadata import recommendation_view
 from .store import canonical, digest, revision, _sync_directory
 from .vectors import decode_vector
+from .privacy import private_directory
 
 META = np.dtype([("image", "S64"), ("pixel", "S64"), ("rating", "S1"), ("order", "<i8")])
 FORMAT = "search-cache/1"
@@ -171,7 +172,7 @@ class PersistentCache:
         self.rows = []
         self.stats = dict(converted_entries=0, reused_entries=0, built_objects=0, reused_objects=0)
         root = cache_root() / "persistent-v1"
-        root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        private_directory(root)
         namespace = root / digest(canonical({"format": FORMAT, "rules": rules_digest(),
                                             "contract": manifest["contract"]}))
         lock = FileLock(root / "prepare.lock")

@@ -14,6 +14,7 @@ from .gemma_prompt_expand_node import GemmaPromptExpandNative
 from .prompt_writer_node import RSPromptWriter
 from .vrs_native_nodes import VRSNativeVisionLoader, VRSNativeMemoryLoader, VRSNativeBuild, VRSNativeRecall
 from .vrs_folder_service import VRSFolderMemory, VRSFolderImportBatch, register_routes
+from .vrs_save_node import VRSSaveImage
 
 NODE_CLASS_MAPPINGS = {
     "SeasonalFashionPromptNode": SeasonalFashionPromptNode,
@@ -27,20 +28,22 @@ NODE_CLASS_MAPPINGS = {
     "VRSNativeRecall": VRSNativeRecall,
     "VRSFolderMemory": VRSFolderMemory,
     "VRSFolderImportBatch": VRSFolderImportBatch,
+    "VRSSaveImage": VRSSaveImage,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "SeasonalFashionPromptNode": "Seasonal Fashion Prompt Generator",
-    "GemmaTipoNode": "Gemma TIPO (Prompt / Image → Tags)",
+    "GemmaTipoNode": "Gemma TIPO Legacy (llama.cpp / Tags)",
     "GemmaTipoNative": "Gemma TIPO Native (ComfyUI / Image → Tags)",
     "GemmaPromptExpandNative": "Gemma Prompt Expander Native (Tags / Natural Language)",
-    "RSPromptWriter": "RS AI Prompt Writer (Korean / English → Prompt)",
-    "VRSNativeVisionLoader": "VRS Native Vision Loader (Gemma FP16)",
+    "RSPromptWriter": "RS AI Prompt Writer Legacy (llama.cpp / Qwen)",
+    "VRSNativeVisionLoader": "VRS Native Vision Loader (Auto / Gemma FP16)",
     "VRSNativeMemoryLoader": "VRS Native Memory Loader",
     "VRSNativeBuild": "VRS Native Build / Update Experience",
     "VRSNativeRecall": "VRS Native Image Recall → Generation State",
     "VRSFolderMemory": "VRS Folder Memory (Latest Completed)",
     "VRSFolderImportBatch": "VRS Folder Import (Internal Batch)",
+    "VRSSaveImage": "VRS Save Image (Final Prompts)",
 }
 
 WEB_DIRECTORY = "./web"

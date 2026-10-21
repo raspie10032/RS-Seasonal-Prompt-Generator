@@ -15,8 +15,8 @@ REVIEWED = {
     "examples/gemma-q4-native.api.json": "3d59a96f5f7a0e834f42fac9d3404fc46399a0348c35a22f7fdb26518ff1c772",
     "examples/gemma-prompt-expand-native.api.json": "41a9a4c317e8912be297210f50a08ffcef05dfdd679fc06fbac0cfd46e055e33",
     "examples/gemma-tipo-native.api.json": "a1852ca607e97f6d74fdc8c52252d0664226eda79a3559904c2f5841a31e9e11",
-    "examples/vrs-native-build.api.json": "80e38c6cc608e3fdc40ada0391fbb22c37b74a572f7a2fb257ef36e2691ea56c",
-    "examples/vrs-native-recall.api.json": "fba7db890c6df75572013da64dedde4cc3fb3cae6dc9e59ccce2140d2d48ad31",
+    "examples/vrs-native-build.api.json": "c68aada8b98af8535aa1fe911b19aee2d199394cc57fca95ad64aba44e4e87b5",
+    "examples/vrs-native-recall.api.json": "074ff66218ad7f5b20f438e9a7af899036c1d689742159aabe9453234b76ea8a",
     "examples/vrs-native-state.json": "18ee07175c3d2e9c724e873f22f7d32fd31e73b12c2189d363fc61d0f80bd54b",
     "examples/korean-ai-writer.api.json": "5727b152f343a062452d1a41cd4cef371b70074e61f57d034b1ca09e07da791a",
     "examples/seasonal-prompt.api.json": "bd803209a454c11b941831a5ad7f8b94b3c7a4043dd01fe4f01d10bb9702528b",
@@ -33,8 +33,10 @@ BLOCKED_SUFFIXES = {
     ".jsonl", ".json", ".sqlite", ".sqlite3", ".db", ".npy", ".npz", ".pt", ".pth",
     ".safetensors", ".gguf", ".onnx", ".z", ".zip", ".tar", ".gz", ".zst",
     ".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4", ".webm",
+    ".bmp", ".tif", ".tiff", ".avif", ".heic", ".heif", ".f32",
 }
-BLOCKED_DIRS = {"vrs-int-data", "vrs-int-models", "models", "training", "objects", "snapshots"}
+BLOCKED_DIRS = {"vrs-int-data", "vrs-int-models", "vrs-int-generated", "models", "training",
+                "objects", "snapshots", "rs_vrs_folders", "rs-vrs-int", "persistent-v1"}
 
 
 def check_blob(name, mode, raw):
@@ -45,7 +47,9 @@ def check_blob(name, mode, raw):
             return "reviewed example or screenshot content changed"
         return None
     path = PurePosixPath(name)
-    if BLOCKED_DIRS.intersection(path.parts) or path.suffix.lower() in BLOCKED_SUFFIXES:
+    if (BLOCKED_DIRS.intersection(part.lower() for part in path.parts)
+            or path.suffix.lower() in BLOCKED_SUFFIXES
+            or any(marker in path.name.lower() for marker in (".sqlite-", ".sqlite3-", ".db-"))):
         return "corpus/model/output artifact is not part of code distribution"
     if path.name in ("CURRENT", ".env") or path.name.startswith(".env."):
         return "private local state"

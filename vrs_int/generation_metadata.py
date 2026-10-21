@@ -150,6 +150,13 @@ def comfy_prompts(graph, filename):
 
 def extract(info, filename=""):
     """Return selected generation fields, or None when no reliable prompt exists."""
+    runtime = object_value(info.get("rs_vrs_prompt"))
+    if (type(runtime.get("version")) is int and runtime["version"] == 1
+            and isinstance(runtime.get("positive"), str) and runtime["positive"].strip()
+            and isinstance(runtime.get("negative", ""), str)):
+        return {"format": "comfyui-runtime", "positive": [runtime["positive"]],
+                "negative": unique([runtime.get("negative", "")]), "characters": [],
+                "settings": [], "warnings": [], "runtime_source": "VRS Save Image"}
     comment = object_value(info.get("Comment"))
     if comment and (isinstance(comment.get("prompt"), str) or "v4_prompt" in comment):
         base, characters = caption_parts(comment.get("v4_prompt"))

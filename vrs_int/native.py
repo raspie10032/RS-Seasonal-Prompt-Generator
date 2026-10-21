@@ -1,7 +1,8 @@
 """ComfyUI-managed Gemma vision and immutable personal memory construction.
 
 Imports ComfyUI/PyTorch lazily. No llama.cpp, Transformers, bitsandbytes,
-subprocess, downloads, global device/thread changes, or CPU inference fallback.
+subprocess, global device/thread changes, or CPU inference fallback.
+Model preparation is handled explicitly by the loader, outside this class.
 Native FP16 vectors have a different contract from historical PIL/NF4 vectors.
 """
 import hashlib
@@ -37,7 +38,7 @@ def load_image(path):
 
 class NativeVision:
     """Load only the E2B vision tensors from a native Gemma safetensors file."""
-    def __init__(self, path):
+    def __init__(self, path, *, use_cpu=False):
         import torch
         import torchvision
         from safetensors import safe_open
@@ -45,20 +46,27 @@ class NativeVision:
         import comfy.model_patcher as mp
         import comfy.ops
         from comfy.text_encoders import gemma4
-        self.load_device = mm.get_torch_device()
-        if self.load_device.type != "cuda":
-            raise RuntimeError("VRS native currently requires CUDA; CPU fallback is disabled")
+        from .torch_device import require_accelerator
+        self.load_device = require_accelerator(use_cpu=use_cpu)
         path = Path(path)
-        if path.suffix != ".safetensors":
-            raise ValueError("Select native unquantized Gemma 4 E2B safetensors, not GGUF/mmproj")
         sd = {}
-        with safe_open(str(path), framework="pt", device="cpu") as stream:
-            for key in stream.keys():
-                if key.startswith("vision_model."):
-                    tensor = stream.get_tensor(key)
-                    if tensor.dtype not in (torch.float16, torch.bfloat16, torch.float32):
-                        raise ValueError("VRS vision requires unquantized floating-point tensors")
-                    sd[key.removeprefix("vision_model.")] = tensor.to(torch.float16).contiguous()
+        if path.suffix.lower() == ".gguf":
+            from .vision_assets import gguf_vision_state
+            class SchemaOps(comfy.ops.manual_cast):
+                Linear = torch.nn.Linear
+            schema = gemma4.Gemma4VisionEncoder(gemma4.GEMMA4_VISION_CONFIG,
+                dtype=torch.float16, device="meta", ops=SchemaOps).state_dict()
+            sd = gguf_vision_state(path, schema)
+        elif path.suffix.lower() == ".safetensors":
+            with safe_open(str(path), framework="pt", device="cpu") as stream:
+                for key in stream.keys():
+                    if key.startswith("vision_model."):
+                        tensor = stream.get_tensor(key)
+                        if tensor.dtype not in (torch.float16, torch.bfloat16, torch.float32):
+                            raise ValueError("VRS vision requires unquantized floating-point tensors")
+                        sd[key.removeprefix("vision_model.")] = tensor.to(torch.float16).contiguous()
+        else:
+            raise ValueError("Select native Gemma safetensors or the supported FP16 mmproj GGUF")
         if not sd:
             raise ValueError("No native vision_model weights; use the converted Gemma 4 E2B file")
         # Fingerprint the actual FP16 tensors plus runtime implementation. Never
@@ -73,12 +81,16 @@ class NativeVision:
             "provenance_sha256": h.hexdigest(), "preprocess": "comfy-gemma4-rgb-u8-280-v1",
             "backend": "comfyui-pytorch-fp32-compute", "quantization": "fp16",
             "pooling": "mean-tokens-l2-v1"}
+        if self.load_device.type != "cuda":
+            # CPU/other backends have not been proven equivalent to CUDA vectors.
+            self.encoder_contract["backend"] += "-" + self.load_device.type
+        offload_device = self.load_device if use_cpu else mm.text_encoder_offload_device()
         self.model = gemma4.Gemma4VisionEncoder(
             gemma4.GEMMA4_VISION_CONFIG, dtype=torch.float16,
-            device=mm.text_encoder_offload_device(), ops=comfy.ops.manual_cast).eval()
+            device=offload_device, ops=comfy.ops.manual_cast).eval()
         self.model.load_state_dict(sd, strict=True)
         self.patcher = mp.CoreModelPatcher(self.model, load_device=self.load_device,
-                                          offload_device=mm.text_encoder_offload_device())
+                                          offload_device=offload_device)
         self.weights_bytes = sum(t.numel() * t.element_size() for t in sd.values())
 
     def contract(self, codec="f32le"):

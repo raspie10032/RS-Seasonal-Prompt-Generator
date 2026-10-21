@@ -19,6 +19,11 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Reject personal data before publishing the node package
+        run: python scripts/check_code_only.py
       - name: Publish Custom Node
         uses: Comfy-Org/publish-node-action@v1
         with:
