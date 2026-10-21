@@ -3,6 +3,7 @@ from pathlib import Path
 import os
 from types import SimpleNamespace
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 
@@ -64,6 +65,10 @@ class SourceTests(unittest.TestCase):
             path.write_bytes(b"before")
             stamp = path.stat()
             before = q4._signature(path)
+            if os.name == "nt":
+                # Consecutive writes may share one Windows filesystem clock
+                # tick. Exercise a distinct change time, not clock resolution.
+                time.sleep(0.1)
             path.write_bytes(b"after!")
             os.utime(path, ns=(stamp.st_atime_ns, stamp.st_mtime_ns))
             self.assertNotEqual(q4._signature(path), before)

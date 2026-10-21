@@ -4,6 +4,7 @@ import io
 import os
 from pathlib import Path
 import tempfile
+import time
 import unittest
 from unittest.mock import Mock, patch
 
@@ -81,6 +82,10 @@ class DownloadTests(unittest.TestCase):
         target = folder / "adapter_model.safetensors"
         lora.ensure_adapter("test", self.root)
         old = target.stat()
+        if os.name == "nt":
+            # NTFS timestamps can coincide for writes within one clock tick.
+            # Separate the edits before testing restored-mtime invalidation.
+            time.sleep(0.1)
         target.write_bytes(b"x" * len(self.payload))
         os.utime(target, ns=(old.st_atime_ns, old.st_mtime_ns))
         with self.assertRaisesRegex(ValueError, "checksum mismatch"):
