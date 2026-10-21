@@ -60,7 +60,8 @@ class FolderPreviewTests(unittest.TestCase):
     def test_normalization_matches_creation_and_does_not_create_output(self):
         nested = self.images / "nested"
         nested.mkdir()
-        self.assertEqual(normalize_roots([str(nested), str(self.images), str(self.images)]), [str(self.images)])
+        self.assertEqual(normalize_roots([str(nested), str(self.images), str(self.images)]),
+                         [str(self.images.resolve())])
         missing = self.root / "missing-output"
         with patch.dict(sys.modules, {"folder_paths": SimpleNamespace(get_output_directory=lambda: str(missing))}):
             with self.assertRaises(FileNotFoundError):
@@ -100,7 +101,7 @@ class FolderPreviewTests(unittest.TestCase):
                                               "use_cpu": True, "roots": ["/ignored"]}), {"ok": True})
         config = preview.call_args.args[0]
         self.assertTrue(config["use_cpu"])
-        self.assertEqual(config["roots"], [str(self.images)])
+        self.assertEqual(config["roots"], [str(self.images.resolve())])
         self.assertEqual(config_path.read_bytes(), before)
 
     def test_invalid_options_rejected_before_sampling(self):
