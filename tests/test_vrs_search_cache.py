@@ -1,5 +1,6 @@
 """Persistent exact search: fresh processes, immutable views, recovery and limits."""
 import copy
+from contextlib import closing
 import hashlib
 import json
 import os
@@ -70,7 +71,7 @@ class PersistentSearchTests(unittest.TestCase):
     def test_compressed_documents_preserve_duplicates_empty_and_chunked_order(self):
         index = self.index()
         expected = index.documents(range(index.count))
-        with sqlite3.connect(index.path / "votes.sqlite3") as db:
+        with closing(sqlite3.connect(index.path / "votes.sqlite3")) as db:
             raw, = db.execute("SELECT value FROM records LIMIT 1").fetchone()
         self.assertEqual(json.loads(zlib.decompress(raw))["key"], expected[0]["key"])
         order = [int(i % index.count) for i in range(700, -1, -1)]

@@ -47,7 +47,13 @@ const api = { async fetchApi(url, options = {}) {
     }
     return {ok:true,json:async () => data};
 }};
-const source = fs.readFileSync(new URL("../web/vrs_folders.js", import.meta.url), "utf8").replace(/^import .*;\n/gm, "");
+const rawSource = fs.readFileSync(new URL("../web/vrs_folders.js", import.meta.url), "utf8");
+const stripImports = text => text.replace(/^import .*;\r?\n/gm, "");
+// Git checkouts may use LF or CRLF; the harness must execute either form.
+for (const newline of ["\n", "\r\n"]) {
+    new vm.Script(stripImports(rawSource.replace(/\r?\n/g, newline)));
+}
+const source = stripImports(rawSource);
 vm.runInNewContext(source, {app, api, navigator:{language:"en"}, document:{body,createElement:tag => new Element(tag)},
     setTimeout: callback => { timer = callback; return 1; }, clearTimeout: () => { timer = null; }, LiteGraph:{}, console});
 await app.extension.setup();
