@@ -438,6 +438,9 @@ generation queue is idle. Includes start/stop/resume and a latest-search-ready m
 Originals stay unchanged. Optional PixAI fallback tags images without usable metadata locally;
 `VRS Save Image` preserves final runtime prompts. The panel can add a connected VRS → TIPO workflow
 and optionally resume collection after restart. See the folder guide for dependencies and model costs.
+Use **Check folders & setup** before starting. It samples local metadata and checks setup
+without loading or downloading models; sample counts are not the full folder total.
+The panel shows saved and search-ready experiences separately.
 
 Search data persists across restarts and reuses unchanged experiences when snapshots advance.
 Folder ingestion prepares search on idle CPU time and retains the previous ready snapshot meanwhile.

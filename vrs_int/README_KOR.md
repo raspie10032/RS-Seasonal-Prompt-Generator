@@ -12,6 +12,9 @@
 
 ## 추가 입력과 Gemma 연결
 
+- [ComfyUI 네이티브 설치](COMFYUI_NATIVE.md): ComfyUI의 PyTorch를 사용하고 필요 시 분리된 FP16 비전을 자동 다운로드합니다. CPU 추론은 명시적 동의가 필요합니다.
+- [VRS 폴더 기억](FOLDERS.md): 이미지·output 폴더 등록, 시작 전 확인, 큐가 빌 때 수집, VRS → TIPO 연결 추가를 안내합니다.
+- [무손실 압축](COMPRESSION.md): 검색 문서 압축과 선택적 원본 기억 사본을 지원하며 벡터·원본 기록을 보존합니다.
 - [생성 이미지 경험](GENERATED_IMAGES.md): 원본 생성 메타데이터에서 캡션·태그를 읽고, 필요할 때 로컬 PixAI 태깅을 사용합니다.
 - [한국어 지식풀](TAG_DICTIONARY.md): 별도 개인 CSV로 용어·영문 태그·이름 후보를 연결합니다.
 - [생성 상태](GENERATION_STATE.md): 유지·변경·제외 조건과 참고 재료를 텍스트로 넘깁니다.
@@ -35,6 +38,9 @@
 - [문제 해결](#문제-해결)
 
 ## 준비
+
+아래 명령은 별도의 CUDA CLI 어댑터 기준입니다. 장치·다운로드 조건은
+[ComfyUI 네이티브 경로](COMFYUI_NATIVE.md)와 다릅니다.
 
 ### 1. 코드와 별도 Python 환경
 

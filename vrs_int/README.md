@@ -14,6 +14,9 @@ identification service. A separate writer is needed for natural-language prompts
 
 ## More inputs and Gemma integration
 
+- [ComfyUI native setup](COMFYUI_NATIVE.md): use ComfyUI's PyTorch; standalone FP16 vision downloads automatically when needed. CPU inference requires explicit consent.
+- [VRS Folders](FOLDERS.md): register image/output folders, check setup, collect while the queue is idle, and add a connected VRS → TIPO workflow.
+- [Lossless compression](COMPRESSION.md): compressed search documents and an optional independent source-memory copy; vectors and original records are preserved.
 - [Generated image experience](GENERATED_IMAGES.md): original generation metadata with optional local PixAI tagging.
 - [Korean text knowledge](TAG_DICTIONARY.md): meaning, English tag candidates and names from a separate personal CSV.
 - [Generation state](GENERATION_STATE.md): keep/change/exclude conditions and references passed as text.
@@ -38,6 +41,9 @@ guarantee recognition or instruction following.
 - [Troubleshooting](#troubleshooting)
 
 ## Setup
+
+The commands below describe the separate CUDA CLI adapter. Its device and download
+requirements differ from the [ComfyUI native path](COMFYUI_NATIVE.md).
 
 ### 1. Clone and use a separate Python environment
 

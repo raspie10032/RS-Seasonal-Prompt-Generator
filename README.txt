@@ -9,7 +9,7 @@ Context expansion / 맥락 확장 — tags + natural-language instructions:
   examples/gemma-prompt-expand-native.api.json
   Optional personal Danbooru/e621 vocabulary; Korean augmentation, en/ja/ko fields.
 
-Gemma TIPO Native (no llama.cpp / 추가 pip 설치 없음):
+Gemma TIPO Native (ComfyUI PyTorch; no separate llama.cpp CUDA wheel / 별도 llama.cpp CUDA 휠 불필요):
   NATIVE_TIPO.md
   examples/gemma-tipo-native.api.json (API graph)
 
@@ -30,3 +30,5 @@ Originally created with ChatGPT, then developed with Claude Code and Codex.
 처음 ChatGPT로 작성했고 이후 Claude Code와 Codex로 개발했습니다.
 
 VRS inside ComfyUI / VRS 네이티브 구축·검색: vrs_int/COMFYUI_NATIVE.md
+Folder/output collection / 폴더·output 수집과 시작 전 확인: vrs_int/FOLDERS.md
+Lossless memory compression / 경험 무손실 압축: vrs_int/COMPRESSION.md
