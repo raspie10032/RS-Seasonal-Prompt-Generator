@@ -28,10 +28,13 @@ def main():
     migrate.add_argument("--codec", choices=("f32le", "i8"), default="f32le")
     migrate.add_argument("--label", default="local-initial")
     migrate.add_argument("--buckets", type=int, default=256)
-    for command in ("verify", "inspect", "export", "activate", "update", "recommend"):
+    for command in ("verify", "inspect", "export", "activate", "update", "recommend", "repack"):
         sub = commands.add_parser(command)
         sub.add_argument("--store", type=Path, required=True)
         sub.add_argument("--snapshot", required=True, help="Exact content hash; no moving latest alias")
+        if command == "repack":
+            sub.add_argument("--output", type=Path, required=True,
+                             help="New independent local store; original snapshots remain untouched")
         if command == "export":
             sub.add_argument("--output", type=Path, required=True)
             sub.add_argument("--base", help="Exact immediate parent for a delta package")
@@ -93,6 +96,8 @@ def main():
         result = store.verify(args.snapshot)
     elif args.command == "inspect":
         result = store.manifest(args.snapshot)
+    elif args.command == "repack":
+        result = store.repack(args.snapshot, args.output)
     elif args.command == "export":
         result = store.export(args.snapshot, args.output, args.base)
     elif args.command == "install":

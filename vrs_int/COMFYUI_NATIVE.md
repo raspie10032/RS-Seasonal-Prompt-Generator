@@ -7,6 +7,9 @@ The manual JSONL and pinned-snapshot workflow below remains supported.
 
 [한국어 안내](README_KOR.md) · [English overview](README.md) · [두 출력](../PROMPT_EXPANSION.md)
 
+저장 공간을 줄이려면 [무손실 압축과 Compact Memory 노드](COMPRESSION.md)를 참고하세요.
+For compressed search caches and an optional native lossless copy, see [Compression](COMPRESSION.md).
+
 ## 한국어
 
 VRS도 **ComfyUI의 PyTorch와 모델 관리**로 실행합니다. 이미지 특징 추출·경험 구축·검색에

@@ -447,6 +447,9 @@ ComfyUI output을 등록하면 내장 프롬프트를 보존하고 생성 큐가
 검색 자료는 재시작 후에도 재사용하고, 새 판본에서는 추가·수정된 경험만 변환합니다.
 폴더 수집은 큐가 비면 CPU에서 검색을 미리 준비하며, 준비 중에는 이전 검색 판본을 유지합니다.
 [캐시 위치·용량·복구·실측 안내](vrs_int/SEARCH.md)를 참고하세요.
+추천 문서는 자동 압축합니다. 원본 경험도 줄이고 싶다면 ComfyUI의
+[VRS Native Compact Memory](vrs_int/COMPRESSION.md)로 벡터·원본 기록을 유지한
+별도 사본을 만들 수 있습니다. 새 사본은 이 버전 이상의 코드에서 읽어야 합니다.
 
 VRS 비전은 [공개 비전 저장소](https://huggingface.co/raspie/vrs-int-gemma4-vision-fp16)에서
 **분리된 FP16 비전 약 319.3MiB만 자동 준비**합니다. 전체 언어모델·GGUF 파서가 필요 없으며,

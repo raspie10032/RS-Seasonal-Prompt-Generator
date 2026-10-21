@@ -23,10 +23,37 @@ JSONL 파일이나 별도 실행기는 필요하지 않습니다. 이 기능은 
    `--output-directory` 설정을 반영하며 하위 폴더도 포함합니다. 중첩된 경로는 정리합니다.
 5. 올바른 Gemma 모델을 선택합니다. 메타데이터 없는 이미지도 넣으려면 **PixAI 보완 태깅**을 선택하고
    ComfyUI의 Python으로 `requirements-tagger.txt`를 설치한 뒤 서버를 재시작하세요.
+   **시작 전 확인**을 누르면 경로와 소량의 이미지 메타데이터, 선택 의존성을 먼저 확인합니다.
+   PixAI 패키지가 없으면 설치 안내를 표시하며 화면에서 수집 시작을 막습니다.
    선택적으로 **서버 재시작 후 자동 재개**를 켜고 **시작 / 재개**를 누릅니다. 기본 묶음은 4장입니다.
    새 기억 생성 시 큐 작업 하나의 최대 이미지 수를 1~32장으로 선택할 수 있습니다.
-6. 첫 묶음 완료 후 **VRS → TIPO 연결 추가**를 누르면 기억·비전·조회·확장 노드가 연결된 상태로 추가됩니다.
-   Load Image를 Recall의 image에 연결하고 Recall에 요청을 입력하세요. **조회 노드 추가**는 기억 노드만 추가합니다.
+6. 검색 가능한 경험이 생기면 **VRS → TIPO 연결 추가**와 **조회 노드 추가**가 활성화됩니다.
+   전자는 기억·비전·이미지·조회·확장·미리보기 노드를 연결해서 추가합니다.
+   Load Image에서 참고 이미지를 선택하고 Recall에 요청을 입력하세요. **조회 노드 추가**는 기억 노드만 추가합니다.
+
+### 시작 전 확인과 화면 안내
+
+- **시작 전 확인**은 서버의 로컬 경로를 읽기만 합니다. 수집·모델 적재·다운로드·패키지 설치를 시작하거나
+  원본·기억 설정을 수정하지 않습니다. **시작 / 재개**도 같은 확인을 먼저 실행합니다.
+- 겹치는 폴더를 정리한 후 폴더당 디렉터리 항목 최대 256개·이미지 최대 8장을 확인합니다.
+  전체 폴더 합계 약 2초를 기준으로 작업 사이에 멈춥니다. 느린 디스크·네트워크 마운트의 한 번의
+  파일 읽기를 강제로 중단하는 제한은 아닙니다. 한 번에 확인할 경로는 최대 32개입니다.
+- **이미지 확인 / 사용 가능 메타데이터 / 메타데이터 없음 / 오류**는 확인한 일부 파일의 수입니다.
+  전체 파일 개수나 태그의 정확도를 나타내지 않습니다. 픽셀 디코딩·비전 추론은 하지 않습니다.
+  미지원 메타데이터도 ‘메타데이터 없음’에 포함될 수 있습니다.
+- 수동 비전 파일은 헤더만 확인합니다. 자동 비전의 해시 확인과 필요 시 다운로드는 첫 큐 작업에서
+  진행합니다. 사전 확인만으로 장치 호환성·메모리·실제 추론 성공을 보장하지 않습니다.
+  오프라인 모드도 표시합니다. PixAI를 선택하면 첫 큐 작업에서 별도 모델이 준비됩니다.
+- 진행 막대는 **현재 발견한 경험 중 저장된 수**입니다. 스캔 중 분모가 증가할 수 있으며,
+  중복·메타데이터 없는 파일·확신 태그 없는 파일은 경험 총수에서 제외될 수 있습니다.
+  ‘경험 저장됨’과 ‘검색 준비 완료’ 수는 아래 상세 상태에서 확인합니다.
+- 검색 판본을 가진 기존 기억은 전체 수집이 끝나지 않아도 사용할 수 있습니다.
+  예전 기억의 검색 캐시가 없으면 첫 조회에서 준비할 수 있습니다.
+- 새 기억 입력 중 기존 기억을 선택해도 **새 기억 만들기**로 돌아오면 입력하던 폴더·모델·CPU 동의
+  설정을 복원합니다. 기존 기억의 CPU 동의는 새 기억으로 복사하지 않습니다.
+  이 임시 입력은 관리 창을 닫거나 브라우저를 새로고침하면 사라집니다.
+- 수집 중인 기억과 화면에서 선택한 기억이 다르면 수집 중인 이름을 따로 표시합니다.
+  **중지**는 현재 수집을 멈추며, 선택한 기억의 완성된 경험을 삭제하지 않습니다.
 
 ```text
 VRS Folder Memory.memory ────────────────┐
@@ -117,11 +144,37 @@ No GGUF parser or llama.cpp is needed for the standalone file. A verified cached
 is reused when the optional GGUF parser is available. Manual native files need
 `vision_model.*` keys. Unrelated models and legacy extracted encoders are filtered out.
 
-After the first completed batch, **Add VRS → TIPO workflow** adds connected memory, vision, recall and expansion nodes.
+Click **Check folders & setup** before starting. The Start / Resume button also performs this check.
+The workflow buttons stay disabled until the selected collection has searchable experiences.
+**Add VRS → TIPO workflow** adds connected memory, vision, image, recall, expansion and preview nodes;
+choose a reference in Load Image and enter a request in Recall.
 **Add memory node** creates only **VRS Folder Memory**.
 Connect its `memory` to **VRS Native Recall** with the same vision encoder and a
 reference image. Connect `vrs_state` to **Gemma Prompt Expander**, sharing the image
 and request. Include `u` in allowed ratings. This is retrieval, not model training.
+
+### Setup check and progress
+
+The setup check reads local paths only. It does not start collection, load models, download,
+install packages or change images/catalog settings. Missing PixAI packages block submission
+from the panel and show installation instructions. Check at most 32 non-overlapping roots
+at a time. Each root samples at most 256 directory entries and 8 image headers/metadata,
+with a shared approximate two-second cooperative budget. An individual filesystem call
+on a slow disk or network mount can exceed that budget. No pixel decode/inference is run.
+Sample counts are not corpus totals or tag-accuracy measurements; unsupported metadata
+may be counted as absent. Manual vision files receive a header check only. Automatic vision
+verification/download, PixAI preparation and device/inference checks still run in the first
+queue job, so passing this check does not guarantee enough memory or supported operations.
+The panel also reports offline mode.
+
+The progress bar measures **saved among discovered experiences**. Its denominator may grow
+while scanning; skipped/duplicate/no-confident-tags images need not become experiences.
+Published and search-prepared counts remain separate in the detailed status. Existing
+searchable memory can be used while collection continues; older collections may prepare
+search lazily on first recall. When switching back to **Create new collection**, the panel
+restores your draft rather than copying an existing collection's folders or CPU consent.
+Drafts last only until the dialog closes or the browser reloads. If the selected collection
+differs from the active importer, its name is shown; **Stop** stops that active importer.
 
 CPU scanning checks again 30 seconds after each scan. GPU work uses bounded jobs in
 the **normal ComfyUI queue**, admitted only when idle. New generation jobs take priority

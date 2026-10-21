@@ -21,6 +21,16 @@ def collection_path(root, collection_id):
     return Path(root) / collection_id
 
 
+def normalize_roots(roots):
+    """Resolve and deduplicate server folders without creating or changing them."""
+    if not isinstance(roots, list) or any(not isinstance(p, (str, Path)) for p in roots):
+        raise ValueError("roots must be a list of server-side folder paths")
+    paths = sorted({str(Path(p).expanduser().resolve(strict=True)) for p in roots if str(p).strip()})
+    if not paths or any(not Path(p).is_dir() for p in paths):
+        raise ValueError("Select at least one existing server-side image folder")
+    return [p for p in paths if not any(Path(q) in Path(p).parents for q in paths if q != p)]
+
+
 class FolderCatalog:
     def __init__(self, directory):
         self.directory = Path(directory)
@@ -44,9 +54,7 @@ class FolderCatalog:
 
     @classmethod
     def create(cls, root, roots, model_name, *, label="Personal images", batch_size=4, tagger="none", resume_on_start=False, use_cpu=False):
-        paths = sorted({str(Path(p).expanduser().resolve(strict=True)) for p in roots if str(p).strip()})
-        if not paths or any(not Path(p).is_dir() for p in paths):
-            raise ValueError("Select at least one existing server-side image folder")
+        paths = normalize_roots(roots)
         if type(batch_size) is not int or not 1 <= batch_size <= 32:
             raise ValueError("Batch size must be 1..32")
         if not isinstance(model_name, str) or not model_name:
@@ -57,8 +65,6 @@ class FolderCatalog:
             raise ValueError("resume_on_start must be boolean")
         if type(use_cpu) is not bool:
             raise ValueError("use_cpu must be boolean")
-        # Collapse nested roots so output inside a selected parent is scanned once.
-        paths = [p for p in paths if not any(Path(q) in Path(p).parents for q in paths if q != p)]
         cid = str(uuid.uuid4())
         directory = collection_path(root, cid)
         private_directory(root)

@@ -442,6 +442,9 @@ and optionally resume collection after restart. See the folder guide for depende
 Search data persists across restarts and reuses unchanged experiences when snapshots advance.
 Folder ingestion prepares search on idle CPU time and retains the previous ready snapshot meanwhile.
 See [cache location, capacity, recovery and measurements](vrs_int/SEARCH.md).
+Voting documents are compressed automatically. For optional lossless source compaction
+inside ComfyUI, use [VRS Native Compact Memory](vrs_int/COMPRESSION.md); it creates a separate
+copy with unchanged vector values and source records, requiring this version or newer.
 
 VRS vision defaults to **automatic standalone FP16 vision preparation (319.3 MiB)** from
 the [public vision repository](https://huggingface.co/raspie/vrs-int-gemma4-vision-fp16).

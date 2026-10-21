@@ -20,7 +20,9 @@ from .privacy import private_directory
 
 FORMAT = "vrs-int/1"
 GENERATED_FORMAT = "vrs-int/2"
-SUPPORTED_FORMATS = (FORMAT, GENERATED_FORMAT)
+COMPACT_FORMAT = "vrs-int/3"
+SUPPORTED_FORMATS = (FORMAT, GENERATED_FORMAT, COMPACT_FORMAT)
+XZ_MAGIC = b"VRSXZ1\x00"
 MAX_OBJECT_BYTES = 64 * 1024 * 1024
 MAX_MANIFEST_BYTES = 16 * 1024 * 1024
 HEX = re.compile(r"[0-9a-f]{64}\Z")
@@ -87,6 +89,16 @@ def _bounded_read(path, limit=MAX_OBJECT_BYTES):
 
 
 def _inflate(raw):
+    if raw.startswith(XZ_MAGIC):
+        import lzma
+        try:
+            decoder = lzma.LZMADecompressor(format=lzma.FORMAT_XZ, memlimit=64 * 1024 * 1024)
+            value = decoder.decompress(raw[len(XZ_MAGIC):], max_length=MAX_OBJECT_BYTES + 1)
+        except lzma.LZMAError as exc:
+            raise ValueError("Invalid compressed object") from exc
+        if len(value) > MAX_OBJECT_BYTES or not decoder.eof or decoder.unused_data:
+            raise ValueError("Invalid or oversized compressed object")
+        return value
     decoder = zlib.decompressobj()
     value = decoder.decompress(raw, MAX_OBJECT_BYTES + 1)
     if len(value) > MAX_OBJECT_BYTES or not decoder.eof or decoder.unused_data:
@@ -94,7 +106,7 @@ def _inflate(raw):
     return value
 
 
-def pack(entries):
+def pack(entries, compression="zlib"):
     # Bucket-local integer dictionaries prevent a new name renumbering the
     # entire collection. Names with frequency one are never discarded.
     tags = sorted({tag for e in entries if not e.get("deleted") for tag in e["document"]["tags"]})
@@ -109,7 +121,16 @@ def pack(entries):
     raw = canonical({"tags": tags, "records": records})
     if len(raw) > MAX_OBJECT_BYTES:
         raise ValueError("Bucket too large; rebuild with more buckets")
-    return zlib.compress(raw, level=6)
+    if compression == "zlib":
+        result = zlib.compress(raw, level=6)
+    elif compression == "xz":
+        import lzma
+        result = XZ_MAGIC + lzma.compress(raw, preset=3)
+    else:
+        raise ValueError("Unsupported bucket compression")
+    if len(result) > MAX_OBJECT_BYTES:
+        raise ValueError("Compressed bucket too large; rebuild with more buckets")
+    return result
 
 
 def unpack(raw):
@@ -194,8 +215,8 @@ class Store:
     def manifest_path(self, snapshot):
         return self.root / "snapshots" / (check_id(snapshot) + ".json")
 
-    def put_object(self, entries):
-        raw = pack(entries)
+    def put_object(self, entries, compression="zlib"):
+        raw = pack(entries, compression)
         object_id = digest(raw)
         write_once(self.object_path(object_id), raw)
         return object_id
@@ -226,6 +247,8 @@ class Store:
         raw = _bounded_read(self.object_path(object_id))
         if digest(raw) != object_id:
             raise ValueError("Bucket hash mismatch")
+        if raw.startswith(XZ_MAGIC) and manifest["format"] != COMPACT_FORMAT:
+            raise ValueError("Compact buckets require vrs-int/3")
         entries = unpack(raw)
         keys = set()
         for entry in entries:
@@ -363,7 +386,7 @@ class Store:
                         else:
                             raise ValueError("Invalid operation or deletion target")
                         validate_entry(entry, old["contract"])
-                        if key.startswith("generated:"):
+                        if key.startswith("generated:") and format != COMPACT_FORMAT:
                             format = GENERATED_FORMAT
                         for value, sign in ((previous, -1), (entry, 1)):
                             if value is None:
@@ -375,12 +398,71 @@ class Store:
                                 counts["vectors"] += sign * (value["vector"] is not None)
                                 counts["source_records"] += sign * len(value["audit"])
                         rows[key] = entry
-                    objects[str(index)] = self.put_object(list(rows.values()))
+                    objects[str(index)] = self.put_object(list(rows.values()),
+                        "xz" if format == COMPACT_FORMAT else "zlib")
                     del rows
         if objects == old["objects"]:
             return parent  # Idempotent content, no artificial new version.
         return self._publish(old["contract"], old["bucket_count"], objects, parent, label, counts,
                              provenance or {}, format)
+
+    def repack(self, snapshot, destination, interrupt=None):
+        """Write a lossless compact copy; never replace, activate or prune sources.
+
+        Re-encoding vectors is deliberately excluded. Metadata, tombstones and
+        per-observation revisions must survive byte-for-byte canonical comparison.
+        The destination is a new independent base; source lineage is recorded in
+        provenance, rather than pretending its new object hashes are the old head.
+        """
+        import shutil
+        target = Path(destination).expanduser().resolve()
+        source = self.root.resolve()
+        if target == source or source in target.parents or target in source.parents:
+            raise ValueError("Choose a separate new directory outside the source store")
+        if target.exists():
+            raise FileExistsError(target)
+        old = self.manifest(snapshot)
+        target.mkdir(parents=True, exist_ok=False, mode=0o700)
+        private_directory(target)
+        result = Store(target)
+        objects = {}
+        counts = dict(observations=0, vectors=0, tombstones=0, source_records=0)
+        source_bytes = self.manifest_path(snapshot).stat().st_size
+        for index in sorted(map(int, old["objects"])):
+            if interrupt:
+                interrupt()
+            rows = self.read_bucket(old, index)
+            raw = pack(rows, "xz")
+            disk = shutil.disk_usage(target)
+            if disk.free - len(raw) - MAX_MANIFEST_BYTES < disk.total * .2:
+                raise OSError("VRS repack would cross the 20% free disk reserve")
+            oid = digest(raw)
+            write_once(result.object_path(oid), raw)
+            # Read the written file back before publishing anything. Verify the
+            # hash and every field, including audit strings and vector bytes.
+            written = _bounded_read(result.object_path(oid))
+            if digest(written) != oid or canonical(unpack(written)) != canonical(rows):
+                raise ValueError("Lossless bucket verification failed")
+            objects[str(index)] = oid
+            source_bytes += self.object_path(old["objects"][str(index)]).stat().st_size
+            for entry in rows:
+                if entry.get("deleted"):
+                    counts["tombstones"] += 1
+                else:
+                    counts["observations"] += 1
+                    counts["vectors"] += entry["vector"] is not None
+                    counts["source_records"] += len(entry["audit"])
+        if counts != old["counts"]:
+            raise ValueError("Source snapshot counts mismatch")
+        if interrupt:
+            interrupt()
+        provenance = dict(old["provenance"], repacked_from={
+            "snapshot": snapshot, "format": old["format"], "lossless": True})
+        new = result._publish(old["contract"], old["bucket_count"], objects, None,
+                              old["label"], counts, provenance, COMPACT_FORMAT)
+        return {**result.verify(new), "source_snapshot": snapshot,
+                "source_snapshot_bytes": source_bytes, "store": str(target),
+                "active": None, "compression": "xz", "lossless": True}
 
     def export(self, snapshot, destination, base=None):
         report = self.verify(snapshot)

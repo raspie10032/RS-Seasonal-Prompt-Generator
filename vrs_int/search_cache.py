@@ -14,6 +14,7 @@ import shutil
 import sqlite3
 import time
 import uuid
+import zlib
 
 import numpy as np
 
@@ -23,7 +24,7 @@ from .vectors import decode_vector
 from .privacy import private_directory
 
 META = np.dtype([("image", "S64"), ("pixel", "S64"), ("rating", "S1"), ("order", "<i8")])
-FORMAT = "search-cache/1"
+FORMAT = "search-cache/2"
 
 
 def cache_root():
@@ -171,6 +172,8 @@ class PersistentCache:
         self.path = None
         self.rows = []
         self.stats = dict(converted_entries=0, reused_entries=0, built_objects=0, reused_objects=0)
+        # Keep older generations under the same quota/lease manager. FORMAT
+        # participates in the namespace hash, so v1 data cannot be misread.
         root = cache_root() / "persistent-v1"
         private_directory(root)
         namespace = root / digest(canonical({"format": FORMAT, "rules": rules_digest(),
@@ -239,24 +242,32 @@ class PersistentCache:
                             continue
                         changed = True
                         rows = []
-                        for entry in store.read_bucket(manifest, bucket):
-                            if interrupt:
-                                interrupt()
-                            if entry.get("deleted") or entry["vector"] is None or entry["document"]["split"] != "train":
+                        entries = store.read_bucket(manifest, bucket)
+                        for start in range(0, len(entries), 512):
+                            batch = [(revision(e), e) for e in entries[start:start + 512]
+                                     if not e.get("deleted") and e["vector"] is not None
+                                     and e["document"]["split"] == "train"]
+                            if not batch:
                                 continue
-                            rev = revision(entry)
-                            cached = db.execute("SELECT id FROM records WHERE revision=?", (rev,)).fetchone()
-                            if cached is not None:
-                                rows.append(cached[0])
-                                self.stats["reused_entries"] += 1
-                                continue
-                            vector, meta, vote = convert(entry, manifest["contract"]["dimension"])
-                            vectors.write(vector)
-                            db.execute("INSERT INTO records VALUES (?,?,?,?,?)",
-                                       (self.pool_count, rev, entry["key"], vote, meta))
-                            rows.append(self.pool_count)
-                            self.pool_count += 1
-                            self.stats["converted_entries"] += 1
+                            # Fetch known revisions together instead of one SQL
+                            # statement per image in every changed bucket.
+                            known = dict(db.execute("SELECT revision,id FROM records WHERE revision IN (" +
+                                ",".join("?" * len(batch)) + ")", [rev for rev, _ in batch]))
+                            pending = []
+                            for rev, entry in batch:
+                                if interrupt:
+                                    interrupt()
+                                if rev in known:
+                                    rows.append(known[rev])
+                                    self.stats["reused_entries"] += 1
+                                    continue
+                                vector, meta, vote = convert(entry, manifest["contract"]["dimension"])
+                                vectors.write(vector)
+                                pending.append((self.pool_count, rev, entry["key"], vote, meta))
+                                rows.append(self.pool_count)
+                                self.pool_count += 1
+                                self.stats["converted_entries"] += 1
+                            db.executemany("INSERT INTO records VALUES (?,?,?,?,?)", pending)
                         db.execute("INSERT INTO objects VALUES (?,?)",
                                    (object_key, np.asarray(rows, dtype="<i8").tobytes()))
                         self.rows.extend(rows)
@@ -312,4 +323,6 @@ def convert(entry, dimension):
     vote = {"key": entry["key"], "document": {
         k: view["document"][k] for k in ("id", "image_sha256", "rating", "tags")},
         "categories": view["categories"]}
-    return vector, meta, canonical(vote)
+    # Derived voting documents dominate metadata size in large personal stores.
+    # Keep vectors bit-exact and compress only the JSON read for winning rows.
+    return vector, meta, zlib.compress(canonical(vote), level=1)

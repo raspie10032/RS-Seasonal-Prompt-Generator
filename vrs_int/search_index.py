@@ -4,6 +4,7 @@ import json
 import mmap
 import os
 import sqlite3
+import zlib
 
 import numpy as np
 
@@ -123,9 +124,18 @@ class SearchIndex:
         return np.flatnonzero(mask)
 
     def documents(self, rows):
+        ids = [int(self._rows[row]) for row in rows]
+        documents = {}
         with closing(sqlite3.connect(self.path / "votes.sqlite3")) as db:
-            return [json.loads(db.execute("SELECT value FROM records WHERE id=?",
-                                          (int(self._rows[row]),)).fetchone()[0]) for row in rows]
+            # Stay below SQLite's older 999-variable limit. Restore the caller's
+            # exact order and duplicates after fetching only requested winners.
+            unique = list(dict.fromkeys(ids))
+            for start in range(0, len(unique), 512):
+                batch = unique[start:start + 512]
+                for row, raw in db.execute(
+                        "SELECT id,value FROM records WHERE id IN (" + ",".join("?" * len(batch)) + ")", batch):
+                    documents[row] = json.loads(zlib.decompress(raw))
+        return [documents[row] for row in ids]
 
     def release_pages(self):
         if self.vectors is not None:

@@ -310,7 +310,9 @@ memory/
   CURRENT                 optional explicitly activated snapshot hash
 ```
 
-Names are dictionary-encoded per bucket and objects use zlib compression. Typed
+Names are dictionary-encoded per bucket and objects use zlib compression by default.
+An optional [lossless XZ copy](COMPRESSION.md) uses the new `vrs-int/3` format;
+older readers do not support it. Typed
 artist/character/series tags are protected even at frequency one; general noise
 such as quality/resolution/watermark tags is filtered with reasons preserved.
 Stored lookup tags are lowercase, spaces replace underscores, and duplicates are
@@ -337,9 +339,11 @@ this is not a GPU reservation or a hard cap on all driver/library allocations.
 Build/migration refuses to start below 20% free disk; that initial check does not
 predict final free space. Old snapshots and full exports require additional storage.
 
-Search streams bounded vector blocks to GPU, but caches eligible training entries
-in system RAM and scans them exactly. Cold startup decompresses memory; larger
-collections increase RAM and latency. Million-image performance is not established.
+Search streams bounded vector blocks to GPU and scans them exactly. A persistent disk
+cache holds FP32 vectors and compressed voting documents; only winning documents are read.
+The first preparation decodes source objects; unchanged files are verified and reused
+across restarts. Row metadata and larger collections still increase RAM and latency.
+See [cache limits and measurements](SEARCH.md). Million-image performance is not established.
 No constant-VRAM/constant-RAM or accuracy guarantee follows from the small encoder.
 
 The contract records encoder provenance hash, preprocessing, PIL backend, NF4,

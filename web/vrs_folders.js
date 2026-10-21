@@ -65,39 +65,69 @@ async function showFolders() {
         "Auto vision downloads ~319.3 MiB. Optional PixAI requires requirements-tagger.txt and a ~1.81 GiB first-use download plus extra GPU/RAM. Predictions remain separate from original prompts; originals are unchanged. Interrupted downloads restart. Auto-resume is optional; Stop disables it until the next Start."), panel);
     const buttons = el("div", "", panel);
     buttons.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;";
+    const check = el("button", t("시작 전 확인", "Check folders & setup"), buttons);
     const start = el("button", t("시작 / 재개", "Start / Resume"), buttons);
     const stop = el("button", t("중지", "Stop"), buttons);
     const add = el("button", t("조회 노드 추가", "Add memory node"), buttons);
     const workflow = el("button", t("VRS → TIPO 연결 추가", "Add VRS → TIPO workflow"), buttons);
     const close = el("button", t("닫기", "Close"), buttons);
+    const preview = el("pre", "", panel);
+    preview.style.cssText = "white-space:pre-wrap;overflow-wrap:anywhere;";
+    preview.setAttribute("aria-live", "polite");
+    const guidance = el("p", "", panel);
+    guidance.setAttribute("aria-live", "polite");
+    const progress = el("progress", "", panel);
+    progress.style.width = "100%";
+    progress.hidden = true;
     const status = el("pre", "", panel);
     status.style.cssText = "white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;";
     let state;
     let initialized = false;
     let requestVersion = 0;
     let busy = false;
+    const selectedStatus = () => state?.selected_collection?.config.id === collection.value
+        ? state.selected_collection : state?.collection?.config.id === collection.value ? state.collection : null;
+    const ready = () => {
+        const c = selectedStatus();
+        return !!(c && (c.search_snapshot || c.snapshot) && (c.search_count || c.records.encoded));
+    };
     const controls = () => {
         start.disabled = busy || !state || state.active || !!state.ticket || state.state === "stopping";
         stop.disabled = busy || !state || (!state.active && !state.ticket);
-        add.disabled = !state || !collection.value;
-        workflow.disabled = !state || !collection.value;
+        check.disabled = busy || !state;
+        collection.disabled = busy;
+        for (const input of [label, roots, output, model, batch]) input.disabled = busy || !!collection.value;
+        add.disabled = workflow.disabled = busy || !ready();
         useCpu.disabled = tagger.disabled = resumeOnStart.disabled = busy || !!state?.active || !!state?.ticket;
     };
+    const draftFields = [label, roots, output, model, batch, tagger, useCpu, resumeOnStart];
+    const capture = () => draftFields.map(input => ({ value: input.value, checked: input.checked }));
+    let newDraft = null;
+    let previousCollection = "";
     const editable = () => {
         const selected = state?.collections.find(c => c.id === collection.value);
         if (selected) {
             label.value = selected.label;
             roots.value = selected.roots.join("\n");
+            if (![...model.options].some(o => o.value === selected.model_name)) {
+                el("option", selected.model_name, model).value = selected.model_name;
+            }
             model.value = selected.model_name;
             batch.value = selected.batch_size;
             tagger.value = selected.tagger || "none";
             resumeOnStart.checked = !!selected.resume_on_start;
             useCpu.checked = !!selected.use_cpu;
-        }
+        } else if (newDraft) draftFields.forEach((input, i) => Object.assign(input, newDraft[i]));
         for (const input of [label, roots, output, model, batch]) input.disabled = !!collection.value;
         controls();
     };
-    collection.onchange = async () => { editable(); try { await refresh(); } catch (error) { status.textContent = error.message; } };
+    collection.onchange = async () => {
+        if (!previousCollection) newDraft = capture();
+        previousCollection = collection.value;
+        preview.textContent = "";
+        editable();
+        try { await refresh(); } catch (error) { status.textContent = error.message; }
+    };
     const refresh = async () => {
         const version = ++requestVersion;
         const response = await request("", null, collection.value);
@@ -116,13 +146,40 @@ async function showFolders() {
             for (const name of state.models) el("option", name, model).value = name;
             if (state.models.includes(selected)) model.value = selected;
             else model.value = state.models.find(name => /gemma/i.test(name)) || state.models[0] || "";
+            const config = state.collections.find(c => c.id === collection.value);
+            if (config && !state.models.includes(config.model_name)) {
+                el("option", config.model_name, model).value = config.model_name;
+                model.value = config.model_name;
+            }
         }
         if (!initialized) {
+            newDraft = capture();
             collection.value = state.collection?.config.id || (state.collections.length === 1 ? state.collections[0].id : "");
+            previousCollection = collection.value;
             initialized = true;
             editable();
         }
-        const c = state.selected_collection || (state.collection?.config.id === collection.value ? state.collection : null);
+        const c = selectedStatus();
+        const encoded = c?.records.encoded || 0;
+        const staged = c?.records.staged || 0;
+        const pending = (c?.records.pending || 0) + (c?.tagging?.pending || 0);
+        const failed = (c?.records.error || 0) + (c?.tagging?.error || 0);
+        const total = encoded + staged + pending + failed;
+        const importingSelected = state.active && state.collection?.config.id === collection.value;
+        progress.hidden = !c || !total;
+        progress.max = total || 1;
+        progress.value = encoded + staged;
+        progress.setAttribute("aria-label", t("현재 발견된 경험의 저장 진행률 — 스캔 중 전체 수는 늘어납니다", "Saved progress among discovered experiences — totals grow during scanning"));
+        guidance.textContent = !c ? t("폴더를 입력하고 ‘시작 전 확인’을 눌러보세요. 기본 output 폴더만으로도 시작할 수 있습니다.", "Check your folders and setup first. You can start with just the output folder.")
+            : ready() ? t("검색할 준비가 됐습니다. ‘VRS → TIPO 연결 추가’ 후 Load Image에서 이미지를 선택하고 Recall에 요청을 입력하세요.", "Ready to search. Add the VRS → TIPO workflow, choose a Load Image reference and enter your request in Recall.")
+            : (pending || staged) && importingSelected ? t("첫 경험을 저장하고 검색을 준비하는 중입니다. 준비가 끝나면 연결 추가 버튼이 활성화됩니다.", "Saving the first experiences and preparing search. Workflow buttons become available when ready.")
+            : pending || staged ? t("아직 검색 준비가 끝나지 않았습니다. 이 기억의 수집을 재개해 대기 중인 경험을 처리하세요.", "Search is not ready yet. Resume this collection to process its pending experiences.")
+            : importingSelected ? t("수집 중입니다. 폴더를 확인하고 새 이미지를 기다립니다. 메타데이터 없는 이미지는 PixAI를 선택한 경우에만 추가합니다.", "Collection is running: checking folders and waiting for images. Images without prompt metadata are included only with optional PixAI.")
+            : t("아직 검색할 경험이 없습니다. 수집을 시작하세요. 읽을 수 있는 메타데이터가 없다면 PixAI 보완 태깅을 선택하세요.", "No searchable experience yet. Start collection; use optional PixAI when prompt metadata is missing.");
+        if (c && total) guidance.textContent += `\n${t("발견된 경험 중 저장", "Saved among discovered experiences")}: ${encoded + staged} / ${total}`;
+        if (state.active && state.collection?.config.id !== collection.value) {
+            guidance.textContent += `\n${t("현재 수집 중인 기억", "Currently importing")}: ${state.collection.config.label}`;
+        }
         const names = {
             stopped: t("중지됨", "Stopped"), stopping: t("현재 이미지 저장 후 중지", "Stopping after current image"),
             scanning: t("폴더 확인 중", "Scanning"), watching: t("새 파일 대기", "Watching for changes"),
@@ -144,19 +201,44 @@ async function showFolders() {
                 (c.errors.length ? JSON.stringify(c.errors, null, 2) : "") : "");
         controls();
     };
+    const configuration = () => collection.value ? {
+        collection_id: collection.value, tagger: tagger.value, resume_on_start: resumeOnStart.checked, use_cpu: useCpu.checked,
+    } : {
+        label: label.value, roots: roots.value.split("\n").map(p => p.trim()).filter(Boolean),
+        include_output: output.checked, model_name: model.value, batch_size: Number(batch.value), tagger: tagger.value,
+        resume_on_start: resumeOnStart.checked, use_cpu: useCpu.checked,
+    };
+    const checkSetup = async config => {
+        preview.textContent = t("로컬 폴더 확인 중…", "Checking local folders…");
+        const result = await request("preview", config);
+        preview.textContent = t("시작 전 확인 — 일부 파일만 확인한 결과이며 전체 개수·추론 성공을 보장하지 않습니다.", "Setup check — a bounded sample, not a total count or an inference guarantee.") + "\n" +
+            result.samples.map(s => `${s.path}\n  ${t("이미지 확인", "Images checked")} ${s.images_checked} · ${t("사용 가능 메타데이터", "Usable metadata")} ${s.readable_metadata} · ${t("메타데이터 없음", "No metadata")} ${s.no_metadata} · ${t("오류", "Errors")} ${s.read_errors}${s.limited ? t(" · 일부만 확인", " · partial sample") : ""}`).join("\n") + "\n" +
+            (result.automatic_vision ? t("자동 비전: 로컬 파일 검증 후 필요하면 약 319.3MiB 다운로드.", "Auto vision: verify local files, then download ~319.3 MiB if needed.") : t("선택한 로컬 비전 헤더 확인 완료.", "Selected local vision header checked.")) + "\n" +
+            (result.use_cpu ? t("CPU 사용 동의 선택됨. 처리 속도가 느리고 CPU 부하가 생길 수 있습니다.", "CPU consent selected; inference may be slow and CPU intensive.") : t("ComfyUI 가속기 사용. CPU로 자동 전환하지 않습니다.", "Uses the ComfyUI accelerator; no automatic CPU fallback.")) +
+            (result.offline ? "\n" + t("오프라인 모드: 필요한 모델이 로컬에 없으면 시작 후 모델 준비가 실패합니다.", "Offline mode: model preparation will fail if required local assets are missing.") : "") +
+            (result.missing_packages.length ? `\n${t("필요 패키지 누락", "Missing packages")}: ${result.missing_packages.join(", ")}\n${t("ComfyUI Python으로 requirements-tagger.txt를 설치한 뒤 재시작하거나 PixAI를 끄세요.", "Install requirements-tagger.txt in ComfyUI's Python and restart, or disable PixAI.")}` : "");
+        return result;
+    };
+    check.onclick = async () => {
+        busy = true; ++requestVersion; controls();
+        try { await checkSetup(configuration()); }
+        catch (error) { preview.textContent = error.message; }
+        finally { busy = false; controls(); }
+    };
     start.onclick = async () => {
         busy = true; ++requestVersion; controls();
         try {
-            const result = await request("start", collection.value ? {
-                collection_id: collection.value, tagger: tagger.value, resume_on_start: resumeOnStart.checked, use_cpu: useCpu.checked,
-            } : {
-                label: label.value, roots: roots.value.split("\n").map(p => p.trim()).filter(Boolean),
-                include_output: output.checked, model_name: model.value, batch_size: Number(batch.value), tagger: tagger.value,
-                resume_on_start: resumeOnStart.checked, use_cpu: useCpu.checked,
-            });
+            const config = configuration();
+            if (!(await checkSetup(config)).can_start) return;
+            const result = await request("start", config);
+            const created = result.collection.config;
+            if (!collection.value) newDraft = capture();
+            if (![...collection.options].some(o => o.value === created.id)) el("option", created.label, collection).value = created.id;
+            collection.value = created.id;
+            previousCollection = created.id;
             await refresh();
-            collection.value = result.collection.config.id; editable();
-        } catch (error) { status.textContent = error.message; }
+            editable();
+        } catch (error) { preview.textContent = error.message; }
         finally { busy = false; controls(); }
     };
     stop.onclick = async () => {

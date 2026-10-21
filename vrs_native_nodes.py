@@ -80,6 +80,31 @@ class VRSNativeBuild:
         return {"ui": {"text": [value]}, "result": (memory, report["snapshot"], value)}
 
 
+class VRSNativeMemoryCompact:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {"memory": ("VRS_MEMORY",),
+            "output_store": ("STRING", {"default": "", "tooltip":
+                "New local folder outside the source memory. Creates a verified lossless copy; retains all source files. CPU compression can take time. Requires this version to read vrs-int/3."})}}
+
+    RETURN_TYPES = ("VRS_MEMORY", "STRING", "STRING")
+    RETURN_NAMES = ("memory", "snapshot", "report")
+    FUNCTION = "compact"
+    CATEGORY = "prompt/VRS"
+    OUTPUT_NODE = True
+    DESCRIPTION = "Explicit local CPU compression in the ComfyUI queue. Preserves vectors, tags, captions, names and audit; no models or downloads. Use a separate one-time workflow. New snapshot identity, not the source history."
+
+    def compact(self, memory, output_store):
+        import comfy.model_management as mm
+        if not output_store.strip():
+            raise ValueError("Enter a new output folder outside the source memory")
+        report = memory.store.repack(memory.snapshot, Path(output_store).expanduser(),
+                                    interrupt=mm.throw_exception_if_processing_interrupted)
+        compacted = Recommender(report["store"], report["snapshot"])
+        value = json.dumps(report, ensure_ascii=False)
+        return {"ui": {"text": [value]}, "result": (compacted, report["snapshot"], value)}
+
+
 class VRSNativeRecall:
     @classmethod
     def INPUT_TYPES(cls):

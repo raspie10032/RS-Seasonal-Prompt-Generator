@@ -12,7 +12,7 @@ from .gemma_tipo_node import GemmaTipoNode
 from .gemma_tipo_native_node import GemmaTipoNative
 from .gemma_prompt_expand_node import GemmaPromptExpandNative
 from .prompt_writer_node import RSPromptWriter
-from .vrs_native_nodes import VRSNativeVisionLoader, VRSNativeMemoryLoader, VRSNativeBuild, VRSNativeRecall
+from .vrs_native_nodes import VRSNativeVisionLoader, VRSNativeMemoryLoader, VRSNativeBuild, VRSNativeRecall, VRSNativeMemoryCompact
 from .vrs_folder_service import VRSFolderMemory, VRSFolderImportBatch, register_routes
 from .vrs_save_node import VRSSaveImage
 
@@ -26,6 +26,7 @@ NODE_CLASS_MAPPINGS = {
     "VRSNativeMemoryLoader": VRSNativeMemoryLoader,
     "VRSNativeBuild": VRSNativeBuild,
     "VRSNativeRecall": VRSNativeRecall,
+    "VRSNativeMemoryCompact": VRSNativeMemoryCompact,
     "VRSFolderMemory": VRSFolderMemory,
     "VRSFolderImportBatch": VRSFolderImportBatch,
     "VRSSaveImage": VRSSaveImage,
@@ -41,6 +42,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "VRSNativeMemoryLoader": "VRS Native Memory Loader",
     "VRSNativeBuild": "VRS Native Build / Update Experience",
     "VRSNativeRecall": "VRS Native Image Recall → Generation State",
+    "VRSNativeMemoryCompact": "VRS Native Compact Memory (Lossless Copy)",
     "VRSFolderMemory": "VRS Folder Memory (Latest Completed)",
     "VRSFolderImportBatch": "VRS Folder Import (Internal Batch)",
     "VRSSaveImage": "VRS Save Image (Final Prompts)",

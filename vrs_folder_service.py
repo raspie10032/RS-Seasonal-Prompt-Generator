@@ -98,6 +98,19 @@ class FolderService:
                     collection=self.catalog.status() if self.catalog else None,
                     collections=self.collections())
 
+    def preview(self, config):
+        try:
+            from .vrs_int.folder_preview import preview_folders
+        except ImportError:
+            from vrs_int.folder_preview import preview_folders
+        if config.get("collection_id"):
+            # Read config directly: opening a catalog would create/migrate its DB.
+            path = collection_path(self.root, config["collection_id"]) / "config.json"
+            saved = json.loads(path.read_text(encoding="utf-8"))
+            saved.update({key: config[key] for key in ("tagger", "use_cpu", "resume_on_start") if key in config})
+            config = saved
+        return preview_folders(config)
+
     def start(self, config):
         if (self.task and not self.task.done()) or self.ticket:
             raise ValueError("Stop the current import and wait for its batch to finish first")
@@ -466,11 +479,14 @@ def register_routes():
             raise web.HTTPUnsupportedMediaType()
         try:
             action = request.match_info["action"]
-            if action == "start":
+            if action in ("start", "preview"):
                 config = await request.json()
                 if not isinstance(config, dict):
                     raise ValueError("Expected an object")
-                value = get_service().start(config)
+                if action == "preview":
+                    value = await asyncio.to_thread(get_service().preview, config)
+                else:
+                    value = get_service().start(config)
             elif action == "stop":
                 value = get_service().stop()
             else:

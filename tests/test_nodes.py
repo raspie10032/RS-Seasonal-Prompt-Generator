@@ -495,7 +495,7 @@ spec = importlib.util.spec_from_file_location('rs_nodes', root / '__init__.py', 
 module = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = module
 spec.loader.exec_module(module)
-assert set(module.NODE_CLASS_MAPPINGS) == {'SeasonalFashionPromptNode', 'GemmaTipoNode', 'GemmaTipoNative', 'GemmaPromptExpandNative', 'RSPromptWriter', 'VRSNativeVisionLoader', 'VRSNativeMemoryLoader', 'VRSNativeBuild', 'VRSNativeRecall', 'VRSFolderMemory', 'VRSFolderImportBatch', 'VRSSaveImage'}
+assert set(module.NODE_CLASS_MAPPINGS) == {'SeasonalFashionPromptNode', 'GemmaTipoNode', 'GemmaTipoNative', 'GemmaPromptExpandNative', 'RSPromptWriter', 'VRSNativeVisionLoader', 'VRSNativeMemoryLoader', 'VRSNativeBuild', 'VRSNativeRecall', 'VRSNativeMemoryCompact', 'VRSFolderMemory', 'VRSFolderImportBatch', 'VRSSaveImage'}
 assert all(name not in sys.modules for name in ('torch', 'numpy', 'PIL', 'llama_cpp', 'kgen'))
 assert ('version = "' + module.__version__ + '"') in (root / 'pyproject.toml').read_text()
 '''

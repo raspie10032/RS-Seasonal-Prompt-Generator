@@ -2,6 +2,14 @@
 
 [Native workflow](COMFYUI_NATIVE.md) · [Folder ingestion](FOLDERS.md)
 
+Cache format `search-cache/2` adds compressed voting documents and batched DB work.
+See [lossless compression and native compact node](COMPRESSION.md). Historical measurements
+below describe the earlier cache format and are not measurements of this update.
+
+현재 `search-cache/2`는 추천 문서 압축·DB 일괄 처리를 사용합니다.
+[무손실 압축과 네이티브 압축 노드](COMPRESSION.md)를 참고하세요.
+아래 기존 측정값은 이전 캐시 규격에 대한 수치이며 이번 변경의 실측값이 아닙니다.
+
 ## 한국어
 
 VRS는 이미지 인코딩과 검색을 구분합니다. 아래 변경과 측정은 **이미 저장된 특징 벡터의

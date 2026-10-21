@@ -10,6 +10,7 @@ import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
+import zlib
 from unittest.mock import patch
 
 import numpy as np
@@ -65,6 +66,49 @@ class PersistentSearchTests(unittest.TestCase):
         self.assertEqual(new.stats["converted_entries"], 0)
         self.assertEqual(new.stats["reused_objects"], 7)
         self.assertEqual(docs, new.documents(range(new.count)))
+
+    def test_compressed_documents_preserve_duplicates_empty_and_chunked_order(self):
+        index = self.index()
+        expected = index.documents(range(index.count))
+        with sqlite3.connect(index.path / "votes.sqlite3") as db:
+            raw, = db.execute("SELECT value FROM records LIMIT 1").fetchone()
+        self.assertEqual(json.loads(zlib.decompress(raw))["key"], expected[0]["key"])
+        order = [int(i % index.count) for i in range(700, -1, -1)]
+        self.assertEqual(index.documents(order), [expected[i] for i in order])
+        self.assertEqual(index.documents([]), [])
+
+    def test_compact_store_yields_identical_search_documents_and_vector_bits(self):
+        old = self.index()
+        report = self.store.repack(self.snapshot, self.root / "compact")
+        compact = SearchIndex(Store(report["store"]), report["snapshot"])
+        self.addCleanup(compact.close)
+        self.assertEqual(old.documents(range(old.count)), compact.documents(range(compact.count)))
+        np.testing.assert_array_equal(old.vectors[:].view("u1"), compact.vectors[:].view("u1"))
+        self.assertEqual(compact.stats["converted_entries"], 0)
+
+    def test_large_single_bucket_batches_revisions_and_winning_documents(self):
+        rows = []
+        for number in range(1100):
+            row = copy.deepcopy(self.entries[0])
+            row["key"] = f"danbooru:{number + 1000}"
+            row["document"]["id"] = number + 1000
+            row["document"]["image_sha256"] = hashlib.sha256(row["key"].encode()).hexdigest()
+            rows.append(row)
+        snapshot = self.store.build(rows, self.contract, "batched", bucket_count=1)
+        index = self.index(snapshot)
+        self.assertEqual(index.count, 1100)
+        self.assertEqual(index.stats["converted_entries"], 1100)
+        expected = index.documents(range(index.count))
+        order = list(range(1099, -1, -1)) + [42, 42, 0]
+        self.assertEqual(index.documents(order), [expected[i] for i in order])
+        changed = copy.deepcopy(rows[42])
+        changed["document"]["tags"].append("new_scene")
+        updated = self.store.update(snapshot, [dict(op="upsert", key=changed["key"],
+            entry=changed, expected_revision=revision(rows[42]))], "one edit")
+        new = self.index(updated)
+        self.assertEqual(new.stats["converted_entries"], 1)
+        self.assertEqual(new.stats["reused_entries"], 1099)
+        self.assertEqual(index.documents(order), [expected[i] for i in order])
 
     def test_fresh_process_reuses_without_conversion(self):
         self.index().close()
