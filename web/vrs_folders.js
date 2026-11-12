@@ -259,7 +259,7 @@ async function showFolders() {
         node.pos = [180, 180];
         panel.close();
     };
-    workflow.onclick = async () => {
+    workflow.onclick = () => {
         const config = state.collections.find(c => c.id === collection.value);
         if (!config) return;
         const types = ["VRSFolderMemory", "VRSNativeVisionLoader", "LoadImage", "VRSNativeRecall", "GemmaPromptExpandNative", "PreviewAny", "PreviewAny"];
@@ -278,12 +278,6 @@ async function showFolders() {
         set(recall, "ratings", "g,s,q,e,u");
         set(recall, "prompt", t("참고 이미지의 인물을 가을 공원에서 산책하는 장면으로 확장해줘.", "Expand the reference character into an autumn park walk."));
         const positions = [[40,40],[40,240],[40,460],[440,40],[900,40],[1400,40],[1400,350]];
-        try {
-            if (!expand.inputs?.some(x => x.name === "prompt")) {
-                const { convertToInput } = await import("../../extensions/core/widgetInputs.js");
-                convertToInput(expand, expand.widgets.find(w => w.name === "prompt"));
-            }
-        } catch (error) { status.textContent = error.message; return; }
         nodes.forEach((node,i) => { app.graph.add(node); node.pos = positions[i]; });
         const connect = (from, outputName, to, inputName) => {
             const source = from.outputs?.findIndex(x => x.name === outputName);
