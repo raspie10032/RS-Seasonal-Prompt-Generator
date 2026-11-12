@@ -16,11 +16,15 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python: ['3.9', '3.13']
-        # setup-python has no CPython 3.9 build for macOS ARM64.
+        # setup-python has no CPython 3.9 builds for Ubuntu 26.04 or macOS ARM64.
         exclude:
+          - os: ubuntu-latest
+            python: '3.9'
           - os: macos-latest
             python: '3.9'
         include:
+          - os: ubuntu-24.04
+            python: '3.9'
           - os: macos-15-intel
             python: '3.9'
     runs-on: ${{ matrix.os }}
